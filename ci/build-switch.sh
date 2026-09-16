@@ -15,7 +15,7 @@ set -euo pipefail
 note() { echo "::notice::$*"; }
 err()  { echo "::error::$*"; }
 # kdyby selhala libovolná stage, ať víme kterou (log nečteme)
-trap 'rc=$?; err "SELHALO na řádce $LINENO (rc=$rc)"' ERR
+trap 'rc=$?; err "SELHALO ř. $LINENO (rc=$rc): $BASH_COMMAND"' ERR
 
 : "${DEVKITPRO:=/opt/devkitpro}"
 export DEVKITPRO DEVKITARM="$DEVKITPRO/devkitARM" DEVKITA64="$DEVKITPRO/devkitA64"
@@ -95,6 +95,7 @@ fi
 fetch_core() {
   local repo="$1" build="$2" dir="$CORES_DIR/NetherSX2-v2.2n-$build"
   local asset="NetherSX2-v2.2n-$build.apk" url apk
+  note "fetch_core: $repo / $build / tag $APK_TAG"
   mkdir -p "$dir"
   url=$(curl -s --max-time 60 "https://api.github.com/repos/$repo/releases/tags/$APK_TAG" \
         | ASSET="$asset" python3 -c '
