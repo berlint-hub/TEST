@@ -1,0 +1,188 @@
+name: build / NetherSX2_nx (GL)
+
+# Průleznej build NetherSX2_nx v GitHub Actions:
+#   devkitPro image -> portlibs -> libsmb2+libusbhsfs -> make RENDERER=GL -> .nro
+#
+# Úplně záměrně se NEPoužívá build_all.sh: ten tvrdě abortuje bez
+# libemucore.so z APK (4248 + 3668), což v CI bez cizích souborů nejde.
+# Samotný make jádra nepotřebuje — libemucore.so se loaduje až na konzoli.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ["arena/**"]
+    paths:
+      - ".github/workflows/build.yml"
+      - "ci/**"
+
+permissions:
+  contents: write
+
+env:
+  DEVKITPRO: /opt/devkitpro
+  PORTLIBS: /opt/devkitpro/portlibs/switch
+  CORE_TAG: main
+
+jobs:
+  emulator:
+    name: NetherSX2_nx · RENDERER=GL
+    runs-on: ubuntu-latest
+    container:
+      image: devkitpro/devkita64:latest
+
+    steps:
+      - name: PATH pro devkitA64 (image ho v nelogin shellu nenastaví)
+        run: |
+          echo "$DEVKITPRO/devkitA64/bin" >> $GITHUB_PATH
+          echo "$DEVKITPRO/tools/bin" >> $GITHUB_PATH
+          echo "$DEVKITPRO/bin" >> $GITHUB_PATH
+
+      - uses: actions/checkout@v4
+
+      - name: ověř compiler
+        run: |
+          aarch64-none-elf-gcc --version | head -1 | sed 's/^/::notice::gcc = /'
+          test -f "$DEVKITPRO/cmake/Switch.cmake" \
+            && echo "::notice::cmake Switch.cmake OK" \
+            || echo "::error::cmake/Switch.cmake CHYBÍ (balíček cmake)"
+
+      - name: jaké portlibs repo nabízí
+        run: |
+          set +e
+          dkp-pacman -Sy --noconfirm > /tmp/sy.log 2>&1
+          for p in devkitA64 switch-tools libnx cmake \
+                   switch-mesa switch-libdrm_nouveau switch-curl \
+                   switch-sdl2 switch-sdl2_ttf switch-sdl2_image \
+                   switch-zlib switch-zstd switch-expat switch-turbojpeg \
+                   switch-libjpeg switch-libpng switch-bzip2; do
+            if dkp-pacman -Si "$p" > /dev/null 2>&1; then
+              echo "::notice::$p: V REPO"
+            else
+              echo "::error::$p: NENÍ V REPO"
+            fi
+          done
+          dkp-pacman -Ss mesa 2>/dev/null | head -20 | bash ci/annotate.sh notice 20
+
+      - name: nainstaluj portlibs
+        run: |
+          set +e
+          INSTALL="devkitA64 switch-tools libnx cmake switch-mesa switch-libdrm_nouveau switch-curl switch-zlib switch-zstd switch-expat"
+          GO=""
+          for p in $INSTALL; do
+            dkp-pacman -Si "$p" >/dev/null 2>&1 && GO="$GO $p"
+          done
+          echo "::notice::instaluji:$GO"
+          dkp-pacman -S --noconfirm $GO > /tmp/inst.log 2>&1
+          rc=$?
+          [ $rc -eq 0 ] && echo "::notice::install OK" || { echo "::error::install rc=$rc"; tail -15 /tmp/inst.log | sed 's/^/::error::/'; }
+          echo "=== co je teď v portlibs ==="
+          ls $PORTLIBS/lib 2>/dev/null | head -40 | bash ci/annotate.sh notice 40
+          ls $PORTLIBS/lib/libEGL.a $PORTLIBS/lib/libGLESv2.a $PORTLIBS/lib/libglapi.a $PORTLIBS/lib/libdrm_nouveau.a $PORTLIBS/lib/libcurl.a 2>&1 | bash ci/annotate.sh notice 8
+
+      - name: stáhni upstream
+        run: |
+          set -e
+          # adresář MUSÍ být pojmenovaný NetherSX2_nx, protože Makefile má
+          # TARGET := $(notdir $(CURDIR)) — jinak by output byl TEST.nro
+          git clone --depth 1 --branch "$CORE_TAG" \
+            https://github.com/NaGaa95/NetherSX2_nx.git NetherSX2_nx
+          echo "commit=$(git -C NetherSX2_nx rev-parse --short HEAD)" | sed 's/^/::notice::upstream /'
+
+      - name: launcher/dependencies (libsmb2 + libusbhsfs)
+        run: |
+          set +e
+          cmake -S NetherSX2_nx/launcher/dependencies \
+                -B NetherSX2_nx/launcher/dependencies/build \
+                -G Ninja \
+                -DCMAKE_TOOLCHAIN_FILE="$DEVKITPRO/cmake/Switch.cmake" \
+                -DCMAKE_BUILD_TYPE=Release > /tmp/deps-conf.log 2>&1
+          rc=$?
+          if [ $rc -ne 0 ]; then
+            echo "::error::deps configure rc=$rc"
+            grep -E "CMake Error|Could NOT find|FATAL" /tmp/deps-conf.log | bash ci/annotate.sh error 8
+            exit $rc
+          fi
+          cmake --build NetherSX2_nx/launcher/dependencies/build --parallel "$(nproc)" > /tmp/deps-build.log 2>&1
+          rc=$?
+          if [ $rc -eq 0 ]; then
+            echo "::notice::deps build OK"
+            ls -la NetherSX2_nx/launcher/dependencies/build/_deps/libsmb2-build/lib/libsmb2.a \
+                   NetherSX2_nx/launcher/dependencies/build/_deps/libusbhsfs-build/liblibusbhsfs.a 2>&1 | sed 's/^/::notice::deps /'
+          else
+            echo "::error::deps build rc=$rc"
+            grep -E "error:|FAILED" /tmp/deps-build.log | bash ci/annotate.sh error 10
+            tail -20 /tmp/deps-build.log | cut -c1-200 | sed 's/^/::error::deps-tail /'
+            exit $rc
+          fi
+
+      - name: make RENDERER=GL
+        run: |
+          set +e
+          make -C NetherSX2_nx -j"$(nproc)" RENDERER=GL > /tmp/gl.log 2>&1
+          rc=$?
+          if [ $rc -eq 0 ] && [ -f NetherSX2_nx/NetherSX2_nx.nro ]; then
+            sz=$(stat -c '%s' NetherSX2_nx/NetherSX2_nx.nro)
+            echo "::notice::GL BUILD OK — NetherSX2_nx.nro = $sz B"
+          else
+            echo "::error::GL BUILD SELHAL rc=$rc"
+            grep -E "fatal error:|error:|No such file or directory|cannot find -l" /tmp/gl.log \
+              | sort -u | head -14 | cut -c1-220 | sed 's/^/::error::/'
+            echo "=== prvních 40 řádků logu ==="; head -40 /tmp/gl.log
+          fi
+          cp /tmp/gl.log ci-gl.log 2>/dev/null
+          cp /tmp/deps-build.log ci-deps.log 2>/dev/null
+          mkdir -p out
+          cp NetherSX2_nx/NetherSX2_nx.nro out/NetherSX2_nx_gl.nro 2>/dev/null
+          cp NetherSX2_nx/NetherSX2_nx.elf out/ 2>/dev/null
+          ls -la out/
+
+      - name: artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nethersx2-nx-gl
+          path: |
+            out/
+            ci-gl.log
+            ci-deps.log
+          if-no-files-found: warn
+
+      - name: zapiš build info do repozitáře
+        if: always()
+        run: |
+          set +e
+          {
+            echo "# status GL buildu"
+            echo "- run: ${GITHUB_RUN_ID}"
+            echo "- upstream: $(git -C NetherSX2_nx rev-parse --short HEAD 2>/dev/null)"
+            echo "- .nro: $(stat -c '%s B' out/NetherSX2_nx_gl.nro 2>/dev/null || echo 'nevzniklo')"
+            echo '```'; grep -E "error:|No such file" ci-gl.log | sort -u | head -20; echo '```'
+          } > CI-STATUS-GL.md
+          git add -f CI-STATUS-GL.md out/ 2>/dev/null
+          git -c user.name=arena-ci -c user.email=ci@localhost commit -q -m "ci: stav GL buildu [skip ci]"
+          git push -q origin HEAD:${{ github.ref_name }} && echo "::notice::status zapsán do ${{ github.ref_name }}"
+
+  release:
+    name: publikuj .nro
+    needs: emulator
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: nethersx2-nx-gl
+          path: dist
+      - name: release
+        run: |
+          set +e
+          ls -la dist dist/out 2>/dev/null
+          nro=$(find dist -name '*.nro' | head -1)
+          if [ -z "$nro" ]; then echo "žádné .nro k publikování"; exit 0; fi
+          cp "$nro" ./NetherSX2_nx_gl.nro
+          gh release create "ci-$(date +%Y%m%d-%H%M%S)" \
+            --title "NetherSX2_nx GL (CI build)" \
+            --notes "Sestaveno GitHub Actions z NaGaa95/NetherSX2_nx main. Emulátor core (libemucore.so) není součásti — loaduje se na zařízení." \
+            --draft ./NetherSX2_nx_gl.nro dist/ci-gl.log 2>/dev/null \
+            && echo "hotovo" || echo "release selhal"
+        env:
+          GH_TOKEN: ${{ github.token }}
