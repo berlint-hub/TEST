@@ -1,18 +1,23 @@
 name: probe / devkitPro toolchain
 
-# Cíl: zjistit, co runnér s devkitPro image reálně nabízí, a jestli z toho
-# jde vyrobít .nro. Diagnostika se posílá ANOTACEMI, ne jen do logu —
-# sandbox, co tohle sleduje, nedosáhne na raw logy Actions (Azure blob
-# storage je blokovaný), ale /check-runs/{id}/annotations ano.
+# Jistota, že v tomhle repozáři umíme: natáhnout devkitPro image, použít
+# devkitA64 + libnx na Switch kód a zabalit .nro.
+#
+# Diagnostika běží ANOTACEMI, ne logy: sandbox, co to sleduje, nedosáhne na
+# raw logy Actions (Azure blob storage blokovaný), ale
+# GET /check-runs/{id}/annotations ano. Viz ci/annotate.sh a ci/diag.sh.
 
 on:
   push:
-    branches:
-      - "arena/**"
+    branches: ["arena/**"]
+    paths:
+      - ".github/workflows/probe-toolchain.yml"
+      - "probe/**"
+      - "ci/**"
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 env:
   DEVKITPRO: /opt/devkitpro
@@ -27,8 +32,15 @@ jobs:
       image: devkitpro/devkita64:latest
 
     steps:
-      - name: checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+
+      # Image nastavení DEVKITPRO, ale v nelogin shellu nepřidá devkitA64/bin
+      # na PATH — proto to uděláme explicitně (infolinky v Actions).
+      - name: PATH pro devkitA64
+        run: |
+          echo "$DEVKITPRO/devkitA64/bin" >> $GITHUB_PATH
+          echo "$DEVKITPRO/tools/bin" >> $GITHUB_PATH
+          echo "$DEVKITPRO/bin" >> $GITHUB_PATH
 
       - name: diagnostika řetězce
         run: bash ci/diag.sh
@@ -40,49 +52,22 @@ jobs:
           rc=$?
           cat /tmp/build.log
           if [ "$rc" -eq 0 ] && [ -f probe/hello/Hello.nro ]; then
-            sz=$(stat -c '%s' probe/hello/Hello.nro)
-            echo "::notice::BUILD OK Hello.nro = ${sz} B (rc=0)"
-            cp /tmp/build.log ci-hello-build.log
+            stat -c '::notice::BUILD OK Hello.nro = %s B' probe/hello/Hello.nro
+            echo "::notice::elf2nro proběhl — .nro je zabalenej"
           else
             echo "::error::BUILD SELHAL rc=$rc"
-            grep -E "error:|Error [0-9]|No rule to make|not found|Nothing can be done" /tmp/build.log | head -12 | while IFS= read -r l; do
-              echo "::error::$(printf '%s' "$l" | tr -d '\r' | cut -c1-200)"
-            done
-            tail -25 /tmp/build.log | while IFS= read -r l; do
-              echo "::error::TAIL $(printf '%s' "$l" | tr -d '\r' | cut -c1-200)"
-            done
-            cp /tmp/build.log ci-hello-build.log
+            grep -E "error:|Error [0-9]|No rule to make|not found" /tmp/build.log \
+              | head -12 | bash ci/annotate.sh error 12
+            tail -20 /tmp/build.log | bash ci/annotate.sh error 20
+            exit 1
           fi
 
-      # Záložní kanál: celý log jako komentář ke commitu + soubor v repozitáři,
-      # aby šel přečíst i když by annotace nestačily.
-      - name: zveřejni diagnostiku
+      - name: artifact
         if: always()
-        run: |
-          set +e
-          bash -c 'env | grep -iE "devkit|portlibs" > /tmp/env.txt; cat /tmp/build.log /tmp/env.txt > ci-hello-full.log' 2>/dev/null
-          {
-            echo "## Diagnostika toolchainu"
-            echo '```'
-            tail -c 40000 /tmp/build.log 2>/dev/null
-            echo '```'
-          } > /tmp/body.json
-          python3 - <<'PY' 2>/dev/null || true
-          import json,os
-          body=open('/tmp/build.log','rb').read()[-40000:].decode('utf8','replace')
-          json.dump({"body":"CI diagnostika (sandbox nedosáhne na logy):\n\n```\n"+body+"\n```"},open('/tmp/body.json','w'))
-          PY
-          curl -sf -X POST \
-            -H "Authorization: Bearer $GITHUB_TOKEN" \
-            -H "Accept: application/vnd.github+json" \
-            "https://api.github.com/repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/comments" \
-            --data @/tmp/body.json > /dev/null \
-            && echo "::notice::diagnostika zveřejněna jako komentář ke commitu" \
-            || echo "::notice::komentář se nepodařilo vytvořit (spoléhám na annotace)"
-          git config user.name  "arena-ci"
-          git config user.email "arena-ci@localhost"
-          git add -f ci-hello-build.log ci-hello-full.log 2>/dev/null
-          git commit -q -m "ci: diagnostika toolchainu [skip ci]" 2>/dev/null \
-            && git push -q origin HEAD:arena/01a0aad9-test \
-            && echo "::notice::logy zapsány do repozitáře" \
-            || echo "::notice::do repozitáře se zapsat nepovedlo"
+        uses: actions/upload-artifact@v4
+        with:
+          name: probe-hello-nro
+          path: |
+            probe/hello/Hello.nro
+            /tmp/build.log
+          if-no-files-found: warn

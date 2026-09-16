@@ -14,7 +14,7 @@ int main(int argc, char **argv) {
     padUpdate(&pad);
 
     u64 down = padGetButtonsDown(&pad);
-    if (down & HidNpadButton_Home) {
+    if (down & HidNpadButton_Plus) {
         return 0;
     }
 
