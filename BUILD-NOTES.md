@@ -43,7 +43,7 @@ devkitPro (toolchain)                PalindromicBreadLoaf/nxvk
 2. **Finální `NetherSX2.nro` (launcher s bundleem).** `build_all.sh` tvrdě
    abortuje bez `CORES_DIR/NetherSX2-v2.2n-4248/lib/arm64-v8a/libemucore.so`,
    `…-3668/…/libemucore.so` a `GameIndex.yaml`; ty se v upstreamu nedistribuu-
-   jí. Launcher taky potřebuje `switch-sdl2{,_ttf,_image}` + `turbojpeg`.
+ `switch-sdl2{,_ttf,_image}` + `turbojpeg`.
 3. **Switch `pkg-config`.** Launcherovský Makefile volá `$(PREFIX)pkg-config`;
    `aarch64-none-elf-pkg-config` v image **není** (annotace to hlásí),
    takže launcher build si bude stěžovat na `switch-pkg-config` / `pkgconf`.
