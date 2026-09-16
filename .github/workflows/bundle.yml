@@ -1,0 +1,89 @@
+name: build / NetherSX2.nro (launcher bundle)
+
+# Úplnej build: jádra z APK + emulator GL + romfs + launcher -> NetherSX2.nro
+# Stavy a chyby jedou jako anotace (ci/build-switch.sh), logy Actions jsou z
+# našeho prostředí nedostupné.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ["arena/**"]
+    paths:
+      - ".github/workflows/bundle.yml"
+      - "ci/build-switch.sh"
+      - "ci/annotate.sh"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: bundle-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  bundle:
+    name: NetherSX2.nro (GL)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    container:
+      image: devkitpro/devkita64:latest
+    env:
+      DEVKITPRO: /opt/devkitpro
+      CORE_TAG: main
+      APK_TAG: "2.2n"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: build
+        run: |
+          set +e
+          bash ci/build-switch.sh 2>&1 | tee /tmp/bundle.log
+          rc=${PIPESTATUS[0]}
+          if [ "$rc" -ne 0 ]; then
+            echo "::error::build-switch.sh rc=$rc"
+            grep -E "error:|Error [0-9]|FAILED|No such file|cannot find -l" /tmp/bundle.log \
+              | sort -u | head -12 | bash ci/annotate.sh error 12
+            tail -25 /tmp/bundle.log | bash ci/annotate.sh error 25
+          fi
+          mkdir -p out
+          cp -f .ciwork/NetherSX2_nx/NetherSX2.nro out/ 2>/dev/null
+          cp -f .ciwork/NetherSX2_nx/NetherSX2_nx_gl.nro out/ 2>/dev/null
+          cp /tmp/bundle.log ci-bundle.log
+          exit $rc
+
+      - name: artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nethersx2-nro-bundle
+          path: |
+            out/
+            ci-bundle.log
+          if-no-files-found: warn
+
+      - name: shrnutí do PR commentu
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set +e
+          nro=$(find out -name 'NetherSX2.nro' | head -1)
+          {
+            echo "## Bundle build"
+            if [ -n "$nro" ]; then
+              echo "- :white_check_mark: \`$(basename "$nro")\` = $(stat -c '%s' "$nro") B"
+            else
+              echo "- :x: finální .nro nevzniklo"
+            fi
+            echo '```'
+            grep -E "^::(notice|error)::" /tmp/bundle.log | tail -25 | sed 's/^::\(notice\|error\):://'
+            echo '```'
+          } > /tmp/summary.md
+          cat /tmp/summary.md >> "$GITHUB_STEP_SUMMARY" 2>/dev/null || true
+          # jestli existuje otevřenej PR na tuhle větev, zveřejníme shrnutí i do něj
+          pr=$(gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/pulls" --jq '.[0].number' 2>/dev/null)
+          if [ -n "$pr" ] && [ "$pr" != "null" ]; then
+            gh pr comment "$pr" --repo "$GITHUB_REPOSITORY" --body-file /tmp/summary.md >/dev/null 2>&1 \
+              && echo "::notice::shrnutí zveřejněno v PR #$pr"
+          fi
