@@ -192,7 +192,9 @@ jobs:
           if [ $rc -eq 0 ]; then
             echo "::notice::DRAFT RELEASE: $tag"
           else
-            echo "::error::gh release create rc=$rc"
-            gh release create "$tag" --title "x" --draft ./NetherSX2_nx_gl.nro 2>&1 | head -6 | bash ci/annotate.sh error 6
-            exit $rc
+            # Release není nutnost — artifact nahoře obsahuje stejné .nro.
+            # Vypadává to proto, že repozitář má Settings → Actions → General →
+            # Workflow permissions = read-only, takže GITHUB_TOKEN nesmí psát.
+            echo "::warning::gh release create rc=$rc — artifact 'nethersx2-nx-gl' má týž .nro, stáhni ho z runu"
+            echo "::warning::chceš-li release: Settings → Actions → General → Workflow permissions → Read and write"
           fi
