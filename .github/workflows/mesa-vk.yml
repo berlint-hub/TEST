@@ -35,6 +35,41 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  sdk-src:
+    name: najít run s mesa-sdk
+    # Tenhle job existuje jen proto, že `gh` CLI není uvnitř devkitA64 containeru
+    # a hledání artifactu by v něm tichounce selhalo. Host runner ho zvládne za
+    # ~15 s a předá bundle jobu jen cislo runu.
+    if: ${{ github.event.inputs.reuse_sdk_run != '' || github.event_name != 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      run_id: ${{ steps.find.outputs.run_id }}
+    steps:
+      - name: hledej
+        id: find
+        env:
+          GH_TOKEN: ${{ github.token }}
+          WANTED: ${{ github.event.inputs.reuse_sdk_run }}
+        run: |
+          set +e
+          if [ -n "$WANTED" ]; then
+            echo "reuse_sdk_run=$WANTED"
+            echo "run_id=$WANTED" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          for id in $(gh api "repos/$GITHUB_REPOSITORY/actions/runs?per_page=30" \
+              --jq '.workflow_runs[]
+                    | select(.status == "completed" and (.name | test("VK")))
+                    | .id' | head -8); do
+            if gh api "repos/$GITHUB_REPOSITORY/actions/runs/$id/artifacts" \
+                 --jq '.artifacts[] | select(.name == "mesa-sdk") | .id' | grep -q .; then
+              echo "poslední run s mesa-sdk = $id"
+              echo "run_id=$id" >> "$GITHUB_OUTPUT"
+              break
+            fi
+          done
+
   mesa:
     name: nxvk / Mesa NVK SDK
     # Drahá etapa (~14 min, 4,2 GB Docker image). Pouští se jen na explicitní
@@ -68,7 +103,7 @@ jobs:
 
   bundle:
     name: NetherSX2.nro (GL + VK)
-    needs: mesa
+    needs: [mesa, sdk-src]
     if: always() && (needs.mesa.result == 'success' || needs.mesa.result == 'skipped')
     runs-on: ubuntu-latest
     timeout-minutes: 60
@@ -94,36 +129,17 @@ jobs:
           name: mesa-sdk
           path: mesa-sdk
 
+      # Kdyz SDK stavěl tenhle run, je to beznej artifact. Jinak ho stáhneme
+      # z predchoziho runu — `run-id` to umí a běží to v JS akcích na hostiteli,
+      # ne uvnitř containeru.
       - name: stáhni Mesa SDK z předchozího runu
-        if: ${{ needs.mesa.result != 'success' }}
-        env:
-          GH_TOKEN: ${{ github.token }}
-          RUN_ID: ${{ github.event.inputs.reuse_sdk_run }}
-        run: |
-          # Runner pouští `run:` jako `bash -e`, takže i jedno selhání v
-          # $(...) by ukončilo step před naším exit 0. Chyby ošetřujeme sami.
-          set +e
-          # Když Mesa job neběžel (push/PR/reuse), vezmi 23 archivů z
-          # posledníhodoncenejho runu, kterej je skutecneja vyexportoval.
-          CANDS="${RUN_ID:-} $(gh api "repos/$GITHUB_REPOSITORY/actions/runs?per_page=30" \
-              --jq '.workflow_runs[]
-                    | select(.status == "completed" and (.name | test("VK")))
-                    | .id' 2>/dev/null | head -6 | tr '\n' ' ')"
-          ok=0
-          for cand in $CANDS; do
-            echo "zkouším mesa-sdk z runu $cand…"
-            if gh run download "$cand" -n mesa-sdk -D mesa-sdk; then
-              ok=1; FROM="$cand"; break
-            fi
-          done
-          n=$(find mesa-sdk -name '*.a' 2>/dev/null | wc -l | tr -d ' ')
-          sz=$(du -sh mesa-sdk 2>/dev/null | cut -f1)
-          if [ "$ok" = 1 ]; then
-            echo "::notice::mesa-sdk z runu ${FROM}: ${n} archivů, ${sz:-?}"
-          else
-            echo "::warning::mesa-sdk není k dispozici (zkoušeno: ${CANDS}) — bundle pojede GL-only"
-          fi
-          exit 0
+        if: ${{ needs.mesa.result != 'success' && needs.sdk-src.outputs.run_id != '' }}
+        uses: actions/download-artifact@v4
+        with:
+          name: mesa-sdk
+          path: mesa-sdk
+          run-id: ${{ needs.sdk-src.outputs.run_id }}
+          github-token: ${{ github.token }}
 
       - name: co jsme dostali
         run: |
