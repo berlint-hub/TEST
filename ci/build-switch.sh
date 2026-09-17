@@ -43,6 +43,13 @@ run() {
 }
 
 # totéž co run(), jen nevolá die() — pro stage, který jsou volitelný
+# Cesty v hláškách linkeru jsou delší než limit annotace, takže právě ten
+# text chyby spadne z řádku ven. Zkrať je před vypisováním.
+shortify() {
+  sed -e 's|/opt/devkitpro/devkitA64/lib/gcc/aarch64-none-elf/[0-9.]*/../../../../aarch64-none-elf/bin/ld: |ld: |g' \
+      -e 's|/opt/devkitpro/||g' -e 's|/__w/TEST/TEST||g' -e 's|\.ciwork/||g'
+}
+
 run_soft() {
   local label="$1"; shift
   local log rc
@@ -56,9 +63,9 @@ run_soft() {
     # "region overflowed" ani "multiple definition" do ty kategorie nespadnou,
     # a právě takhle nám unikla příčina minulýho selhání. Proto i tail logu.
     { grep -E "error:|undefined reference|multiple definition|overflowed|cannot find -l|No such file|Error [0-9]|FAILED" "$log" \
-        | sort -u | head -10
+        | shortify | sort -u | head -10
       echo "-- posledních 12 řádků $label --"
-      tail -12 "$log"; } | bash "$HERE/annotate.sh" "error+" 22
+      tail -12 "$log" | shortify; } | bash "$HERE/annotate.sh" "error+" 22
     return $rc
   fi
   note "✓ $label"
@@ -278,6 +285,102 @@ ls -la "$DEPS/build/_deps/libsmb2-build/lib/libsmb2.a" 2>/dev/null | bash "$HERE
 
 note "=== stage 7: emulátor RENDERER=GL ==="
 make -C "$SRC" clean >/dev/null 2>&1
+# ---------------------------------------------------- 7a. log capture pro core
+# Hláška z launchere je jen dohad; co dělá emulátor, se nedozvíme vůbec:
+# source/imports.c mapuje __android_log_* na PRÁZDNÉ stuby, takže veškerý log
+# Android coreu (PCSX2 ConsoleLog) na Switchu zmizí. Dodáme vlastní impl,
+# ale zapnutej je jen pokud na kartě existuje /switch/nethersx2/ci-logging.enabled
+# — bez toho souboru se build chová přesně jako upstream (žádnej fwrite navic).
+mkdir -p "$SRC/source/hooks"
+cat > "$SRC/source/hooks/ci_core_log.c" <<'CI_CORE_LOG_C'
+/* CI log capture — vygeneroval ho ci/build-switch.sh, není část upstreamu. */
+#include <stdarg.h>
+#include <stdio.h>
+#include <sys/stat.h>
+
+#define CI_LOG_PATH  "/switch/nethersx2/nethersx2-core.log"
+#define CI_MARK_PATH "/switch/nethersx2/ci-logging.enabled"
+
+static int ci_enabled = -1;
+
+static int ci_on(void) {
+  if (ci_enabled < 0) {
+    struct stat st;
+    ci_enabled = (stat(CI_MARK_PATH, &st) == 0) ? 1 : 0;
+    if (ci_enabled && freopen(CI_LOG_PATH, "a", stdout))
+      setvbuf(stdout, NULL, _IOLBF, 1024);
+  }
+  return ci_enabled;
+}
+
+int ci_android_log_write(int prio, const char *tag, const char *text) {
+  if (!ci_on()) return 0;
+  fprintf(stdout, "[%d][%s] %s\n", prio, tag ? tag : "-", text ? text : "");
+  return 0;
+}
+
+int ci_android_log_vprint(int prio, const char *tag, const char *fmt, va_list va) {
+  if (!ci_on()) return 0;
+  fprintf(stdout, "[%d][%s] ", prio, tag ? tag : "-");
+  vfprintf(stdout, fmt, va);
+  fputc('\n', stdout);
+  return 0;
+}
+
+/* Silná verze: slabou definici v imports.c přebije i když ji upstream
+ * nezjemnil, protože imports.c ji jen předává do import tabulky. */
+int __android_log_print(int prio, const char *tag, const char *fmt, ...) {
+  va_list va;
+  va_start(va, fmt);
+  int r = ci_android_log_vprint(prio, tag, fmt, va);
+  va_end(va);
+  return r;
+}
+CI_CORE_LOG_C
+
+# imports.c: původní __android_log_print MUSÍ být weak, jinak dvě silný
+# definice; a tabulka musí ukazovat na naše funkce (inak `static` →
+# nedá se je přebit z cizího objektu).
+if python3 - "$SRC/source/imports.c" <<'PYEOF'
+import sys
+path = sys.argv[1]
+try:
+    text = open(path, encoding="utf-8", errors="surrogateescape").read()
+except OSError as exc:
+    print(f"nelze číst {path}: {exc}")
+    sys.exit(1)
+subs = [
+    # prototypy MUSÍ do imports.c taky — tabulka na sa bere adresa a bez
+    # deklarace by to bylo „undeclared identifier"
+    ("int __android_log_print(int prio, const char *tag, const char *fmt, ...) {",
+     "extern int ci_android_log_write(int prio, const char *tag, const char *text);\n"
+     "extern int ci_android_log_vprint(int prio, const char *tag, const char *fmt, va_list va);\n"
+     "__attribute__((weak)) int __android_log_print(int prio, const char *tag, const char *fmt, ...) {"),
+    ('{ "__android_log_vprint", (uintptr_t)&__android_log_vprint_fake },',
+     '{ "__android_log_vprint", (uintptr_t)&ci_android_log_vprint },'),
+    ('{ "__android_log_write", (uintptr_t)&__android_log_write_fake },',
+     '{ "__android_log_write", (uintptr_t)&ci_android_log_write },'),
+]
+hits = 0
+for find, replace in subs:
+    if replace in text:
+        hits += 1   # už patcheno — kontrola PRV, ať se prototypy nedvojnasoběj
+    elif find in text:
+        text = text.replace(find, replace, 1)
+        hits += 1
+open(path, "w", encoding="utf-8", errors="surrogateescape").write(text)
+print(f"imports.c: patcheno {hits}/3")
+sys.exit(0 if hits == 3 else 1)
+PYEOF
+then
+  note "log capture jádro: imports.c patcheno"
+else
+  # Bez patche by naše silná definice narazila na tu upstreamovou a link by
+  # selhal — raději captur stáhni celý, ať GL build projde i tak.
+  rm -f "$SRC/source/hooks/ci_core_log.c"
+  warn "log capture NEAPLIKOVÁN (imports.c vypadá jinak) — .nro se chová jako upstream"
+fi
+
 run "make emulator GL" make -C "$SRC" -j"$JOBS" RENDERER=GL
 cp -f "$SRC/NetherSX2_nx.nro" "$SRC/NetherSX2_nx_gl.nro"
 key "gl=$(stat -c %s "$SRC/NetherSX2_nx_gl.nro")"
@@ -402,12 +505,15 @@ VKSHIM
   # primárně unified SDK: má -lEGL/-lGLESv2/-lglapi z portlibs, kdežto flat
   # větev v Makefile žádný EGL link neobsahuje => egl* zůstanou nedefinovaný
   vk_ok=0
-  if run_soft "make emulator VK (MESA_SDK_ROOT)" make -C "$SRC" -j"$JOBS" RENDERER=VK MESA_SDK_ROOT="$VKSDK"; then
+  # LTOFLAGS= vypne -flto/-fuse-linker-plugin v Makefilu: archivy z Mesa SDK
+  # jsou LTO IR z jiného gcc než ten, co je zrovna v imageu, a přesně to
+  # produkuje „ld: <archive>(<member>): error op…“ bez užitečnýho textu.
+  if run_soft "make emulator VK (MESA_SDK_ROOT)" make -C "$SRC" -j"$JOBS" RENDERER=VK MESA_SDK_ROOT="$VKSDK" LTOFLAGS=; then
     vk_ok=1
   else
     # bez cleanu by druhej pokus zdědil objekty s -DUSE_UNIFIED_MESA
     make -C "$SRC" clean >/dev/null 2>&1
-    if run_soft "make emulator VK (flat vulkan/)" make -C "$SRC" -j"$JOBS" RENDERER=VK; then
+    if run_soft "make emulator VK (flat vulkan/)" make -C "$SRC" -j"$JOBS" RENDERER=VK LTOFLAGS=; then
       vk_ok=1
     fi
   fi
@@ -440,6 +546,132 @@ if [ -n "$VKSDK" ] && [ -f "$SRC/NetherSX2_nx_vk.nro" ]; then
   note "romfs má oba rendery (GL + VK)"
 fi
 du -sh "$SRC/launcher/romfs" | bash "$HERE/annotate.sh" notice 1
+
+# --------------------------------- 8b. launcher: povolit extrakci + vlastní diagnostiku
+note "=== stage 8b: patch launcher ==="
+LM="$SRC/launcher/source/main.cpp"
+
+if [ -f "$LM" ]; then
+  python3 - "$LM" <<'PYEOF'
+import sys
+path = sys.argv[1]
+text = open(path, encoding="utf-8", errors="surrogateescape").read()
+
+edits = [
+    # (1) ensureEmu volá po extrakci JEŠTĚ sameNroBuild(src,dst) a když ten
+    #     nesedí, launcher hlásí "Could not extract emulator files (SD full?)"
+    #     — přestože soubor na kartě je a SD plná není (enoughFreeSpace se
+    #     používá jen u paste ve file manageru, ne tady).
+    ("  return extractFromRomfs(src,dst,true)&&sameNroBuild(src,dst);",
+     "  return extractFromRomfs(src,dst,true);"),
+    # (2) sameNroBuild čte NRO0 magic na 0x10, jenze tam sedi offset
+    #     read-only segmentu; magic je na 0x0. Kontrola teda nemuze projit
+    #     nikdy, tzn. 55 MB se kopiruje pri kazdym startu a protoze navic
+    #     selze, viz (1).
+    ("    bool ok=fseek(file,0x10,SEEK_SET)==0",
+     "    bool ok=fseek(file,0x0,SEEK_SET)==0"),
+    # (3) jediny bod, kde jsou k dispozici vsechny tri priznaky + obe cesty
+    ("    willChain=haveCore&&haveEmulator&&haveResources&&configSaved;",
+     "    willChain=haveCore&&haveEmulator&&haveResources&&configSaved;\n"
+     "    { extern void ciLaunchDiag(const char *,const char *,const char *,const char *,bool,bool,bool,bool);\n"
+     "      ciLaunchDiag(coreSource.c_str(),coreDestination.c_str(),emulatorSource.c_str(),emulatorDestination.c_str(),\n"
+     "                    haveCore,haveEmulator,haveResources,configSaved); }"),
+]
+done = 0
+for find, repl in edits:
+    if repl in text:
+        done += 1          # uz patcheno (idempotentni re-run)
+    elif find in text:
+        text = text.replace(find, repl, 1)
+        done += 1
+open(path, "w", encoding="utf-8", errors="surrogateescape").write(text)
+print("main.cpp: patcheno %d/3" % done)
+sys.exit(0 if done == 3 else 1)
+PYEOF
+  if [ $? -eq 0 ]; then
+    key "launcher: ensureEmu uvolněn + seek 0x0 + vložená diagnostika"
+  else
+    warn "launcher patch NEAPLIKOVÁN — upstream posunul řádky, .nro se chová jako upstream"
+  fi
+
+  cat > "$SRC/launcher/source/ci_launch_diag.cpp" <<'LAUNCH_DIAG_CPP'
+// CI diagnostika launcheru — generuje ji ci/build-switch.sh, NENÍ část upstreamu.
+// Důvod: „Could not extract emulator files (SD full?)" je jen dohad. Reálná
+// příčina je v extractFromRomfs() (stat na romfs zdrojáku, chybějící adresář,
+// rename, fsync) a launcher ji nikam nepíše. Tohle ji vypíše na kartu.
+#include <dirent.h>
+#include <sys/stat.h>
+#include <sys/statvfs.h>
+#include <cerrno>
+#include <cstdio>
+#include <cstring>
+#include <ctime>
+
+namespace {
+constexpr const char *DIAG_LOG = "sdmc:/switch/nethersx2/launcher-diag.log";
+
+void hexHead(FILE *out, const char *label, const char *path) {
+  FILE *f = std::fopen(path, "rb");
+  if (!f) { std::fprintf(out, "  %-13s %s -> fopen selhalo (%s)\n", label, path, std::strerror(errno)); return; }
+  unsigned char bytes[32] = {};
+  const size_t got = std::fread(bytes, 1, sizeof(bytes), f);
+  std::fclose(f);
+  std::fprintf(out, "  %-13s prvních %zu bajtů:", label, got);
+  for (size_t i = 0; i < got; ++i) std::fprintf(out, " %02x", bytes[i]);
+  std::fprintf(out, "  ascii:");
+  for (size_t i = 0; i < got; ++i) std::fputc((bytes[i] >= 32 && bytes[i] < 127) ? bytes[i] : '.', out);
+  std::fputc('\n', out);
+}
+
+void describe(FILE *out, const char *label, const char *path) {
+  struct stat st {};
+  if (path && *path && stat(path, &st) == 0 && S_ISREG(st.st_mode))
+    std::fprintf(out, "  %-13s %s = %lld B\n", label, path, static_cast<long long>(st.st_size));
+  else
+    std::fprintf(out, "  %-13s %s CHYBÍ (%s)\n", label, path ? path : "(null)", std::strerror(errno));
+}
+
+void countIn(FILE *out, const char *label, const char *path) {
+  DIR *dir = opendir(path);
+  if (!dir) { std::fprintf(out, "  %-13s %s nejde otevřít (%s)\n", label, path, std::strerror(errno)); return; }
+  int files = 0;
+  while (readdir(dir)) ++files;
+  closedir(dir);
+  std::fprintf(out, "  %-13s %s = %d položek\n", label, path, files > 2 ? files - 2 : files);
+}
+} // namespace
+
+extern void ciLaunchDiag(const char *coreSource, const char *coreDestination,
+                         const char *emulatorSource, const char *emulatorDestination,
+                         bool haveCore, bool haveEmulator, bool haveResources, bool configSaved) {
+  FILE *out = std::fopen(DIAG_LOG, "a");
+  if (!out) return;  // bez toho si launcher jen tak nepovzdechne
+  std::fprintf(out, "--- start hry %lld ---\n", static_cast<long long>(std::time(nullptr)));
+  std::fprintf(out, "  příznaky: core=%d emu=%d zdrojáky=%d config=%d\n",
+               haveCore ? 1 : 0, haveEmulator ? 1 : 0, haveResources ? 1 : 0, configSaved ? 1 : 0);
+  describe(out, "core zdroj", coreSource);
+  describe(out, "core cíl", coreDestination);
+  describe(out, "emu zdroj", emulatorSource);
+  describe(out, "emu cíl", emulatorDestination);
+  countIn(out, "cores dir", "sdmc:/switch/nethersx2/cores");
+  countIn(out, ".emu dir", "sdmc:/switch/nethersx2/.emu");
+  struct statvfs fs {};
+  if (statvfs("sdmc:/", &fs) == 0 && fs.f_frsize)
+    std::fprintf(out, "  volno na kartě = %llu MB (bloky %llu x %u B)\n",
+                 static_cast<unsigned long long>(fs.f_bavail) * fs.f_frsize / (1024 * 1024),
+                 static_cast<unsigned long long>(fs.f_bavail), static_cast<unsigned>(fs.f_frsize));
+  else
+    std::fprintf(out, "  volno na kartě: statvfs selhalo (%s)\n", std::strerror(errno));
+  hexHead(out, "emu zdroj", emulatorSource);
+  hexHead(out, "emu cíl", emulatorDestination);
+  std::fflush(out);
+  std::fclose(out);
+}
+LAUNCH_DIAG_CPP
+  key "launcher: ci_launch_diag.cpp zapsen ($(stat -c %s "$SRC/launcher/source/ci_launch_diag.cpp") B)"
+else
+  warn "launcher/source/main.cpp nenalezen — diagnostika se nepokouší"
+fi
 
 # ------------------------------------------------------ 9. forwarder + launcher
 note "=== stage 9: forwarder + launcher ==="

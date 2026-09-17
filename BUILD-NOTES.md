@@ -118,9 +118,18 @@ Build běží pod `arena-ai-coding-agent[bot]` (GitHub App), ne pod tvým účte
 
 - ✅ `contents: write` → push, workflow, artifacty
 - ❌ `403` na `actions/permissions`, `actions/secrets`, `PATCH /repos/{repo}`
-- ❌ release z workflow: repozitář má *Workflow permissions = read-only*.
-  Zapne se v **Settings → Actions → General → Workflow permissions → Read and
-  write permissions**; pak `gh release create` v jobu `publikuj .nro` projde.
+- ✅ release z workflow chodzi (run `35204967112`, tag `nro-20260917-092635`).
+  Skutečnou příčinou dřívějšího selhání ale *nebyla* jen read-only oprávnění:
+  `release` job nemá `actions/checkout`, takže `gh release create` nevěděl, do
+  jakýho repa má jít. Bez `-R "$GITHUB_REPOSITORY"` to vypadá jako 403 perms a
+  svede opravu na vedlejší kolej — proto job teď vylivá i stderr z `gh` do
+  `::error::`. Workflow permissions přesto musí být *Read and write*
+  (Settings → Actions → General), bez toho `gh release create` na privátním
+  repu fakt nesmí zapsat.
+- ❌ `workflow_dispatch` přes API z tohohole přístupu jde občas 403
+  „Resource not accessible by integration" — proto `mesa-vk.yml` reaguje i na
+  `push` na `arena/**` a spouští se samo. Na `main` záměrně ne: každej build
+  je ~15 minut runner minut z měsíční kvóty privátního repa.
 - ⚠️ `secrets.*` v workflowch fungují, ale **nastavit je můžu jen ručně**, ne
   z tohohle přístupu.
 
@@ -131,3 +140,42 @@ statickým linkem `libnvk.a` vzniká combined work — binary smíš šířit, a
 source musí být příjemci k dispozici. `NetherSX2_nx` je MIT, vendored
 `third_party/lsfg-vk` je GPL-3.0-or-later. Emulátor core ani BIOS se
 nedistribuuje.
+
+## Tři pasti Actions, který nám žeru čas (nejsou chyby upstreamu)
+
+1. **Strop anotací.** GitHub jich zobrazí ~30 na job a zbytek zahodí *bez
+   chyby*. Průlet stage po stage annotacemi proto přišel právě o text linkerový
+   chyby. Řešení: `note()` se píše jen do logu, `key()` jen do
+   `ci-bundle-digest.txt` a `ci/annotate.sh` umí režim `notice+`/`error+`, který
+   z celého bloku udělá **jednu** anotaci (řádky spojený přes `%0A`).
+2. **Runner spouští `run:` jako `bash -e`.** I když skript volá vlastní
+   `exit 0`, jedno selhání uvnitř `n=$(find …)` (neexistující adresář) ukončí
+   krok dřív. Kde si hrajeme s volitelnýma věcma, MUSÍ být `set +e`.
+3. **`gh` CLI v `devkitpro/devkita64` není.** Jakákoli logika kolem Actions API
+   musí běžet na host runneru (job `sdk-src`), ne uvnitř containeru; jinak
+   tichounce vrátí prázdno. Přes `actions/download-artifact@v4` s `run-id:` se
+   artifact cizího runu stáhne i bez `gh`.
+
+## Vulkan renderer: kde jsme
+
+- `mesa-vk.yml`: `sdk-src` (najde poslední run s `mesa-sdk`) → `mesa`
+  (Docker, ~14 min, jen na explicitní dispatch) → `bundle` (devkitA64, ~4 min
+  s reuse SDK). Mesa SDK artifact má 12 MB, rozbalenej 59 MB, 23 archivů.
+- `libvulkan.a` se **nesmí** rozbíjet na hosti: `ar -M` na ubuntu-latest selže
+  bez hlášky. Slije se `aarch64-none-elf-ar -M` uvnitř `nxvk-ci` imageu a
+  do artifactu se zkopíruje hotový. Pozor: `create` v MRI skriptu archiv
+  *přepíše*, takže rozšiřování o portlibs (`libdrm_nouveau.a`, `libexpat.a`,
+  `libelf.a`, `libzstd.a`, `libz.a`) musí jako člena `addlib` přidat i ten
+  originál z artifactu.
+- Flat `vulkan/lib` cesta v Makefileu je **mrtvá napořád**: neobsahuje
+  `-lEGL`, takže `eglGetError`/`eglGetConfigAttrib` nemůžou nikdy projít.
+  jediná smysluplná cesta je `MESA_SDK_ROOT` + `-lvulkan`.
+- Oba dva pokusy (unified i flat) končily na `vkEnumerateInstanceVersion` a
+  `vkEnumerateInstanceLayerProperties`. Mesa ty dva entry pointy generuje jen
+  když je v buildu Vulkan *loader*; cross-build pro Switch žádnej nemá, proto
+  je nedodá-none archivech. `ci/build-switch.sh` je tedy dodává slabě jako
+  `source/hooks/ci_vk_loader_shim.c` (stejnej trik jako pro `writev`, který
+  picolibc na Switchu taky nemá). Ověřeno neběží — tvrdit opak by bylo blebtání.
+- Dokud `NetherSX2_nx_vk.nro` nevznikne, balík je 55 586 951 B a v launcheru
+  se musí vypnout Vulkan: **Settings → Renderer → OpenGL**. Velikost balíku je
+  zatím jedinej levnej detector, jestli v něm `_vk.nro` je.
