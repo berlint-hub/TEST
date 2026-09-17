@@ -13,7 +13,7 @@ set -uo pipefail
 
 # Jedna kompaktní anotace na konci: GitHub jich umí jen ~50 a middle se
 # ztrácejí — DIGEST musí projít. Pozor, smí se odkazovat na $ROOT až když je
-#定义 (proto je inicializace až za cd "$ROOT").
+# je definovaný (proto je inicializace až za cd "$ROOT").
 note() { echo "::notice::$*"; }
 key() { echo "$*" >> "${DIGEST:-/dev/null}" 2>/dev/null; note "$*"; }
 err()  { echo "::error::$*"; }
