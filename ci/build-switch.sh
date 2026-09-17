@@ -310,7 +310,19 @@ ssize_t writev(int fd, const struct iovec *vectors, int count) {
 SHIM
   note "psán weak writev shim pro VK link (source/hooks, ne source/switch)"
   make -C "$SRC" clean >/dev/null 2>&1
-  if run_soft "make emulator VK" make -C "$SRC" -j"$JOBS" RENDERER=VK; then
+  # primárně unified SDK: má -lEGL/-lGLESv2/-lglapi z portlibs, kdežto flat
+  # větev v Makefile žádný EGL link neobsahuje => egl* zůstanou nedefinovaný
+  vk_ok=0
+  if run_soft "make emulator VK (MESA_SDK_ROOT)" make -C "$SRC" -j"$JOBS" RENDERER=VK MESA_SDK_ROOT="$VKSDK"; then
+    vk_ok=1
+  else
+    # bez cleanu by druhej pokus zdědil objekty s -DUSE_UNIFIED_MESA
+    make -C "$SRC" clean >/dev/null 2>&1
+    if run_soft "make emulator VK (flat vulkan/)" make -C "$SRC" -j"$JOBS" RENDERER=VK; then
+      vk_ok=1
+    fi
+  fi
+  if [ "$vk_ok" = "1" ]; then
     cp -f "$SRC/NetherSX2_nx.nro" "$SRC/NetherSX2_nx_vk.nro"
     key "vk=$(stat -c %s "$SRC/NetherSX2_nx_vk.nro")"
   else

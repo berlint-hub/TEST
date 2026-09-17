@@ -151,6 +151,33 @@ done
 [ -f "$SDK/include/vulkan/vulkan_core.h" ] \
     && note "vulkan_core.h OK" || err "vulkan_core.h chybí — NetherSX2_nx ho kontroluje"
 
+# NetherSX2_nx má dvě VK větve: flat `vulkan/lib` s 23 -l: archivy, anebo
+# MESA_SDK_ROOT (unified), kde stačí `-lvulkan -lEGL -lGLESv2 -lglapi
+# -lmesa_util_c11 -lblake3 -lmesa_util -lmesa_util_simd -lxmlconfig`.
+# Flat větev nám nepostačí (nikde v ní není -lEGL => eglGetError je undefined),
+# takže připravíme i ten unified tvar: jednu `libvulkan.a` ze všech driverových
+# archivů. MRI skript je táž technika, jakou nxvk používá ve vlastním `package` targetu.
+BUNDLE="libnvk.a libvulkan_runtime.a libvulkan_lite_runtime.a
+libvulkan_instance.a libvulkan_lite_instance.a libvulkan_util.a libvulkan_wsi.a
+libnak.a libnak_rs.a libvtn.a libnil.a liblibnil_format_table.a
+libnouveau_mme.a libnouveau_ws.a libnvidia_headers_c.a
+libnir.a libcompiler.a libcompiler_c_helpers.a"
+ARQ=ar
+command -v llvm-ar >/dev/null 2>&1 && ARQ=llvm-ar
+{
+  printf 'create %s/lib/libvulkan.a\n' "$SDK"
+  for a in $BUNDLE; do
+    [ -f "$SDK/lib/$a" ] && printf 'addlib %s/lib/%s\n' "$SDK" "$a"
+  done
+  printf 'save\nend\n'
+} > "$WORK/libvulkan.mri"
+if (cd "$WORK" && "$ARQ" -M < libvulkan.mri) > "$WORK/logs/ar.log" 2>&1; then
+  key "libvulkan.a $(stat -c %s "$SDK/lib/libvulkan.a") B z $(printf '%s\n' $BUNDLE | wc -w) archivů"
+else
+  err "nepovedlo se sbalit libvulkan.a ($ARQ -M)"
+  tail -8 "$WORK/logs/ar.log" | bash "$HERE/annotate.sh" error 8
+fi
+
 note "SDK velikost: $(du -sh "$SDK" | cut -f1), lib: $(ls "$SDK/lib" | wc -l) archivů"
 ls -la "$SDK/lib" | tail -25 | bash "$HERE/annotate.sh" notice 25
 tar czf "$ROOT/mesa-sdk.tar.gz" -C "$ROOT" mesa-sdk
