@@ -227,6 +227,11 @@ jobs:
           vk=ne; find dist -name 'NetherSX2_nx_vk.nro' | grep -q . && vk=ano
           gl=ne; find dist -name 'NetherSX2_nx_gl.nro' | grep -q . && gl=ano
           notes="Vulkan (nxvk Mesa NVK) + OpenGL fallback v balíku. vk=$vk gl=$gl velikost=$size run=${GITHUB_RUN_ID}"
+          # GPL-2.0: driver i Mesu linkujeme staticky, takže distribuce .nra
+          # nese povinnost doložit zdrojáče. Odkaz na repáček + workflow je
+          # levnější než přikládat 500 MB tarbaru; artifact `mesa-sdk` má
+          # všechny archivy i hlavičky, takže sestavitelný je podle něj.
+          notes="$notes — staticky linked GPL-2.0 sources: github.com/PalindromicBreadLoaf/nxvk (branch switch), postaveno tímto workflow (job 'nxvk / Mesa NVK SDK', artifact mesa-sdk)."
 
           # JEDNA release, jedno nahrání. Předchozi verze teto kroky delala
           # datovanej tag *a* rolling tag, tedy dva uploadý po 78 MB — a
