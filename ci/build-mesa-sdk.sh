@@ -11,7 +11,11 @@
 
 set -uo pipefail
 
+DIGEST="$ROOT/ci-mesa-digest.txt"; : > "$DIGEST" 2>/dev/null || DIGEST=/dev/null
+# Jedna kompaktní anotace na konci: GitHub jich umí jen ~50 a middle se
+# ztrácejí, kdežto tahle nás zajímá.
 note() { echo "::notice::$*"; }
+key() { echo "$*" >> "$DIGEST"; note "$*"; }
 err()  { echo "::error::$*"; }
 warn() { echo "::warning::$*"; }
 
@@ -128,11 +132,10 @@ for a in $NEED; do
         missing="$missing $a"
     fi
 done
-if [ -n "$missing" ]; then
-    err "tyhle archivy se nepodařilo vyprodukovat:$missing"
-else
-    note "všech $(printf '%s\n' $NEED | wc -w) archivů na místě"
-fi
+have=$(ls "$SDK/lib" 2>/dev/null | wc -l)
+want=$(printf '%s\n' $NEED | wc -w)
+key "archivy: $have / $want"
+[ -n "$missing" ] && key "chybí:$missing"
 
 # headers: mesa's vulkan + vk_video include dirs (stejně jako to dělá `make install`)
 for d in include/vulkan include/vk_video; do
@@ -149,6 +152,12 @@ done
 note "SDK velikost: $(du -sh "$SDK" | cut -f1), lib: $(ls "$SDK/lib" | wc -l) archivů"
 ls -la "$SDK/lib" | tail -25 | bash "$HERE/annotate.sh" notice 25
 tar czf "$ROOT/mesa-sdk.tar.gz" -C "$ROOT" mesa-sdk
-note "mesa-sdk.tar.gz = $(stat -c '%s' "$ROOT/mesa-sdk.tar.gz") B"
-note "hotovo — artifact 'mesa-sdk' se používá v bundle jobu přes VULKAN_SDK_DIR"
+key "SDK velikost $(du -sh "$SDK" | cut -f1), headerů $(find "$SDK/include" -name '*.h' | wc -l)"
+echo "::notice::MESA DIGEST: $(tr '\n' ' ' < "$DIGEST" | cut -c1-190)"
+
+# přísný konec: neúplné SDK nemá smysl posílat dál, ať je run červené
+if [ "$have" -lt "$want" ]; then
+    err "SDK je neúplné ($have/$want) — končím"
+    exit 1
+fi
 exit 0

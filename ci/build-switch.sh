@@ -12,7 +12,12 @@
 # sama (::notice:: / ::error:: anotations) a padá jen přes die().
 set -uo pipefail
 
+DIGEST="$ROOT/ci-bundle-digest.txt"
+mkdir -p "$ROOT" 2>/dev/null; : > "$DIGEST" 2>/dev/null || DIGEST=/dev/null
 note() { echo "::notice::$*"; }
+# klíčový čísla sbíráme do jednoho řádku — GitHub annotace omezuje a middle
+# se ztrácejí; DIGEST musí projít
+key() { echo "$*" >> "$DIGEST" 2>/dev/null; note "$*"; }
 err()  { echo "::error::$*"; }
 warn() { echo "::warning::$*"; }
 
@@ -34,7 +39,11 @@ run() {
   return 0
 }
 
-die() { echo "::error::končím kvůli: $1"; exit 1; }
+die() {
+  echo "::error::končím kvůli: $1"
+  echo "::error::DIGEST: $(tr '\n' ' ' < "$DIGEST" 2>/dev/null | cut -c1-180)"
+  exit 1
+}
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$HERE/.." && pwd)"
@@ -202,7 +211,7 @@ if [ ! -d "$SRC/.git" ]; then
     git clone -q --depth 1 --branch "$CORE_TAG" \
     https://github.com/NaGaa95/NetherSX2_nx.git "$SRC"
 fi
-note "upstream commit $(git -C "$SRC" rev-parse --short HEAD)"
+key "upstream=$(git -C "$SRC" rev-parse --short HEAD)"
 
 # nepovinnej vstup: plochý vulkan/ SDK z ci/build-mesa-sdk.sh (artifact
 # 'mesa-sdk'). Bez něj se VK stage přeskočí — GL cesta to nepotřebuje.
@@ -233,7 +242,7 @@ note "=== stage 7: emulátor RENDERER=GL ==="
 make -C "$SRC" clean >/dev/null 2>&1
 run "make emulator GL" make -C "$SRC" -j"$JOBS" RENDERER=GL
 cp -f "$SRC/NetherSX2_nx.nro" "$SRC/NetherSX2_nx_gl.nro"
-stat -c "::notice::emulátor GL = %s B" "$SRC/NetherSX2_nx_gl.nro"
+key "gl=$(stat -c %s "$SRC/NetherSX2_nx_gl.nro")"
 
 if [ -n "$VKSDK" ]; then
   # GL a VK se nesmí linknout spolu (switch-mesa i NVK archivy obsahuj vlastní
@@ -241,9 +250,10 @@ if [ -n "$VKSDK" ]; then
   make -C "$SRC" clean >/dev/null 2>&1
   if run "make emulator VK" make -C "$SRC" -j"$JOBS" RENDERER=VK; then
     cp -f "$SRC/NetherSX2_nx.nro" "$SRC/NetherSX2_nx_vk.nro"
-    stat -c "::notice::emulátor VK = %s B" "$SRC/NetherSX2_nx_vk.nro"
+    key "vk=$(stat -c %s "$SRC/NetherSX2_nx_vk.nro")"
   else
     warn "VK build selhal — GL binárka zůstává, launcher bude potřebovat Renderer=OpenGL"
+    key "vk=SELHAL"
     VKSDK=""
   fi
 else
@@ -303,7 +313,8 @@ mkdir -p "$OUT"
 cp -f "$SRC/NetherSX2.nro" "$OUT/NetherSX2.nro" || die "kopie do out/"
 cp -f "$SRC/NetherSX2_nx_gl.nro" "$OUT/" 2>/dev/null
 cp -f "$SRC/NetherSX2_nx_vk.nro" "$OUT/" 2>/dev/null
-stat -c "::notice::VÝSLEDEK %n = %s B" "$OUT/NetherSX2.nro"
-note "sha256 $(sha256sum "$OUT/NetherSX2.nro" | cut -c1-64)"
+key "nro=$(stat -c %s "$OUT/NetherSX2.nro")"
+key "sha256=$(sha256sum "$OUT/NetherSX2.nro" | cut -c1-16)"
+echo "::notice::BUNDLE DIGEST: $(tr '\n' ' ' < "$DIGEST" | cut -c1-180)"
 note "SD layout: sdmc:/switch/NetherSX2.nro + sdmc:/switch/nethersx2/ (BIOS si kladeš sám)"
 exit 0

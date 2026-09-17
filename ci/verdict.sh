@@ -31,6 +31,11 @@ else
     rc=1
 fi
 
+# jedna souvislá věta, ať to projde i když ostatní annotace vypršej
+printf '::notice::VERDICT: %s | log %s B\n' \
+  "$([ -f "$NRO" ] && echo "OK $(basename "$NRO")" || echo "CHYBÍ $(basename "${NRO:-?}")")" \
+  "$(stat -c '%s' "$LOG" 2>/dev/null || echo 0)"
+
 # kolik staged souborů vlastně vzniklo, ať víme, do jaké fáze to došlo
 for probe in .ciwork/cores/NetherSX2-v2.2n-4248/lib/arm64-v8a/libemucore.so \
              .ciwork/NetherSX2_nx/NetherSX2_nx_gl.nro \

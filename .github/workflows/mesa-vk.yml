@@ -38,7 +38,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: build SDK
-        run: bash ci/build-mesa-sdk.sh 2>&1 | tee ci-mesa.log || true
+        run: bash ci/build-mesa-sdk.sh 2>&1 | tee ci-mesa.log
 
       - name: vyhodnocení
         if: always()
@@ -48,11 +48,12 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
+          # JEDNA cesta — víc cest v `path:` znamená, že se do artifactu
+          # uloží i samotný prefix (mesa-sdk/mesa-sdk/lib) a druhý job
+          # pak nic nenajde.
           name: mesa-sdk
-          path: |
-            mesa-sdk/
-            ci-mesa.log
-          if-no-files-found: warn
+          path: mesa-sdk
+          if-no-files-found: error
 
   bundle:
     name: NetherSX2.nro (GL + VK)
