@@ -477,28 +477,64 @@ VKSHIM
   # EGL implicitně čekaj. LIBS si přepsat netroufáme (je to := v Makefile a
   # duplikovat upstream list je křehký), místo toho ty archivy nacpeme do
   # libvulkan.a -- ar na tohle existuje precisely.
+  # Makefile v unified větvi má
+  #   LIBS = --start-group -lvulkan -lEGL -lGLESv2 -lglapi … --end-group
+  #          -lcurl -lelf -lexpat -lz -lzstd
+  # tj. `-lvulkan` (naše mega archivka z nxvk Mesy) SE JEDNÉ groupě s
+  # portlibs `libEGL.a`, který má vlastní kopie Mesa util/glsl/hash_table
+  # objektů. Dokud jsme je z libvulkan.a vyhodili, link skončil na
+  # „multiple definition of _mesa_hash_data / glsl_type_* / half_float".
+  # Necháváme to vyfilterovat automatiku: rozbalíme členy, necháme nm-rem
+  # spočítat jejich symboly a smažeme ty, co už definujou portlibs. Je to
+  # přesně ta konfigurace, kterou předpokládá upstream (EGL/gles Comes from
+  # switch-mesa, NVK/runtime z nxvk).
   SRCSDK="$VKSDK"
-  if [ -d "$SRCSDK/lib" ]; then
-    rm -rf "$WORK/vk-sdk"; mkdir -p "$WORK"
-    cp -r "$SRCSDK" "$WORK/vk-sdk" 2>/dev/null || die "kopie vk sdk"
-    VKSDK="$WORK/vk-sdk"
-    # `create` v MRI skriptu archiv PŘEPÍŠE, donc musím jako prvního člena
-    # přidat ten originál z artifactu, jinak bych o těch 18 archivech přišel.
-    EX="libdrm_nouveau.a libexpat.a libelf.a libzstd.a libz.a"
-    {
-      printf 'create %s/lib/libvulkan.a\n' "$VKSDK"
-      printf 'addlib %s/lib/libvulkan.a\n' "$SRCSDK"
-      for a in $EX; do
-        [ -f "$PORTLIBS/lib/$a" ] && printf 'addlib %s/lib/%s\n' "$PORTLIBS" "$a"
-      done
-      printf 'save\nend\n'
-    } > "$WORK/extend.mri"
-    if aarch64-none-elf-ar -M < "$WORK/extend.mri" > "$WORK/logs/ar-extend.log" 2>&1; then
-      key "libvulkan.a rozšířen o: $EX ($(stat -c %s "$VKSDK/lib/libvulkan.a") B)"
-    else
-      echo "::error::rozšíření libvulkan.a se nepovedlo"
-      tail -5 "$WORK/logs/ar-extend.log" | bash "$HERE/annotate.sh" error 5
+  rm -rf "$WORK/vk-sdk"; mkdir -p "$WORK/vk-sdk"
+  cp -r "$SRCSDK/." "$WORK/vk-sdk/" 2>/dev/null || die "kopie vk sdk"
+  VKSDK="$WORK/vk-sdk"
+
+  # -lelf je v LIBS, ale žádná switch portlibs libelf nemaj — prázdrnej
+  # archiv stačí, symboly z něj Makefile ve skutečnosti nevolá
+  if [ ! -f "$VKSDK/lib/libelf.a" ] && [ ! -f "$PORTLIBS/lib/libelf.a" ]; then
+    aarch64-none-elf-ar rcs "$VKSDK/lib/libelf.a" >/dev/null 2>&1
+    key "prázdrnej libelf.a (LIBS chce -lelf, portlibs ho nemá)"
+  fi
+
+  MEMBERS="$WORK/vk-members"; rm -rf "$MEMBERS"; mkdir -p "$MEMBERS"
+  PL_SYMS="$WORK/portlibs.syms"
+  { for p in libEGL.a libGLESv2.a libglapi.a; do
+      [ -f "$PORTLIBS/lib/$p" ] && aarch64-none-elf-nm --defined-only --extern-only "$PORTLIBS/lib/$p" 2>/dev/null
+    done; } | awk '/ [A-Za-z] /{print $NF}' | sort -u > "$PL_SYMS"
+  ( cd "$MEMBERS" && aarch64-none-elf-ar x "$VKSDK/lib/libvulkan.a" ) >/dev/null 2>&1
+  DROP="$WORK/drop-members.txt"; : > "$DROP"
+  for o in "$MEMBERS"/*.o; do   # *.c.o je jen podsada *.o, zvlášť glob nemusí
+    [ -e "$o" ] || continue
+    b=$(basename "$o")
+    aarch64-none-elf-nm --defined-only --extern-only "$o" 2>/dev/null \
+      | awk '/ [A-Za-z] /{print $NF}' | sort -u > "$WORK/m.syms"
+    if [ -s "$WORK/m.syms" ] && comm -12 "$WORK/m.syms" "$PL_SYMS" | grep -q .; then
+      grep -qxF "$b" "$DROP" || echo "$b" >> "$DROP"
     fi
+  done
+  ndrop=$(wc -l < "$DROP" | tr -d ' ')
+  if [ "${ndrop:-0}" -gt 0 ]; then
+    xargs -a "$DROP" aarch64-none-elf-ar d "$VKSDK/lib/libvulkan.a" >/dev/null 2>&1
+    key "libvulkan.a: vyhozeno $ndrop členů, co už maj portlibs (EGL/GLESv2/glapi)"
+  else
+    key "libvulkan.a: žádná kolize s portlibs (nic se nemazalo)"
+  fi
+
+  # drm_nouveau v LIBS není, ale NVK/WINSYS ho volá -> přilep ho dovnitř
+  if [ -f "$PORTLIBS/lib/libdrm_nouveau.a" ]; then
+    m=$(mktemp)
+    { printf 'create %s/lib/libvulkan.a\naddlib %s/lib/libvulkan.a\naddlib %s/lib/libdrm_nouveau.a\nsave\nend\n' "$VKSDK" "$VKSDK" "$PORTLIBS" > "$m"; }
+    if aarch64-none-elf-ar -M < "$m" > "$WORK/logs/ar-extend.log" 2>&1; then
+      key "libvulkan.a + libdrm_nouveau.a = $(stat -c %s "$VKSDK/lib/libvulkan.a") B"
+    else
+      echo "::error::navázání libdrm_nouveau.a selhalo"
+      tail -3 "$WORK/logs/ar-extend.log" | shortify | bash "$HERE/annotate.sh" error 3
+    fi
+    rm -f "$m"
   fi
 
   make -C "$SRC" clean >/dev/null 2>&1
