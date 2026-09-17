@@ -58,17 +58,20 @@ jobs:
             echo "run_id=$WANTED" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          for id in $(gh api "repos/$GITHUB_REPOSITORY/actions/runs?per_page=30" \
-              --jq '.workflow_runs[]
-                    | select(.status == "completed" and (.name | test("VK")))
-                    | .id' | head -8); do
-            if gh api "repos/$GITHUB_REPOSITORY/actions/runs/$id/artifacts" \
-                 --jq '.artifacts[] | select(.name == "mesa-sdk") | .id' | grep -q .; then
-              echo "poslední run s mesa-sdk = $id"
-              echo "run_id=$id" >> "$GITHUB_OUTPUT"
-              break
-            fi
-          done
+          # Hledáme poslední ARTIFACT mesa-sdk, ne poslední run: list runů má
+          # okno per_page napříč všemi workflowma a čtyři workflow ho právě
+          # mine — přesně takhle nám run tichounce skočil na GL-only. Artifact
+          # API je přímý a seřazený od nejnovějšího.
+          RID=$(gh api "repos/$GITHUB_REPOSITORY/actions/artifacts?per_page=100" \
+            --jq '[.artifacts[]
+                   | select(.name == "mesa-sdk" and .expired == false)
+                   | .workflow_run.id][0] // ""' 2>/dev/null)
+          if [ -n "$RID" ]; then
+            echo "mesa-sdk artifact nalezen v runu $RID"
+            echo "run_id=$RID" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::v repáři není žádnej mesa-sdk artifact — ať ho staví Mesa job"
+          fi
 
   mesa:
     name: nxvk / Mesa NVK SDK
@@ -77,7 +80,10 @@ jobs:
     # `[mesa]` — to druhé je úniková cesta, protože workflow_dispatch umí
     # vrátit 403 „Resource not accessible by integration“ a bez ní bychom
     # nešli SDK upravit vůbec. Každý jinej push bere SDK z předchozího runu.
-    if: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.reuse_sdk_run == '') || (github.event_name == 'push' && contains(github.event.head_commit.message, '[mesa]')) }}
+    # ... nebo když sdk-src nenašel žádnej artifact: bez SDK není co linkovat,
+    # ať se radši postaví, než aby run skončil na prázdnym mesa-sdk.
+    needs: sdk-src
+    if: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.reuse_sdk_run == '') || (github.event_name == 'push' && contains(github.event.head_commit.message, '[mesa]')) || needs.sdk-src.outputs.run_id == '' }}
     runs-on: ubuntu-latest
     timeout-minutes: 150
     env:
