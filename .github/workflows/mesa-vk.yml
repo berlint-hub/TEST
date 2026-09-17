@@ -72,9 +72,12 @@ jobs:
 
   mesa:
     name: nxvk / Mesa NVK SDK
-    # Drahá etapa (~14 min, 4,2 GB Docker image). Pouští se jen na explicitní
-    # dispatch bez reuse_sdk_run; push a PR berou SDK z předchozího runu.
-    if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.reuse_sdk_run == '' }}
+    # Drahá etapa (~14 min, 4,2 GB Docker image). Pouští se na explicitní
+    # dispatch bez reuse_sdk_run, nebo na push jehož commit message obsahuje
+    # `[mesa]` — to druhé je úniková cesta, protože workflow_dispatch umí
+    # vrátit 403 „Resource not accessible by integration“ a bez ní bychom
+    # nešli SDK upravit vůbec. Každý jinej push bere SDK z předchozího runu.
+    if: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.reuse_sdk_run == '') || (github.event_name == 'push' && contains(github.event.head_commit.message, '[mesa]')) }}
     runs-on: ubuntu-latest
     timeout-minutes: 150
     env:

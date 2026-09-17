@@ -127,19 +127,11 @@ fi
 
 # ----------------------------------------------------------------- 5. staging
 note "=== staging plochýho vulkan/ SDK ==="
-missing=""
-for a in $NEED; do
-    found=$(find "$CROSS" -name "$a" -type f 2>/dev/null | head -1)
-    if [ -n "$found" ]; then
-        cp -f "$found" "$SDK/lib/$a"
-    else
-        missing="$missing $a"
-    fi
-done
-have=$(ls "$SDK/lib" 2>/dev/null | wc -l)
+# Archivy SE TADY NEKOPÍROUJOU z build stromu. Meson je staví jako THIN —
+# archiv obsahuje jen cesty na .o v build adresáři — a ten do artifactu
+# nedorazí. Přetavujeme je na plné uvnitř imageu, kde objekty ještě jsou
+# (viz .ci-stage-sdk.sh níže); počítá se to až po tom kroku.
 want=$(printf '%s\n' $NEED | wc -w)
-key "archivy: $have / $want"
-[ -n "$missing" ] && key "chybí:$missing"
 
 # headers: mesa's vulkan + vk_video include dirs (stejně jako to dělá `make install`)
 for d in include/vulkan include/vk_video; do
@@ -163,12 +155,15 @@ done
 # nesežraly (první pokus na hostu selhal bez detailů), kdežto
 # aarch64-none-elf-ar je přesně ten nástroj, na kterej spoléhá i nxvk own
 # `package` target.
-BUNDLE_LIST="libnvk.a libvulkan_runtime.a libvulkan_lite_runtime.a
-libvulkan_instance.a libvulkan_lite_instance.a libvulkan_util.a libvulkan_wsi.a
-libnak.a libnak_rs.a libvtn.a libnil.a liblibnil_format_table.a
-libnouveau_mme.a libnouveau_ws.a libnvidia_headers_c.a
-libnir.a libcompiler.a libcompiler_c_helpers.a"
-
+# Balí se UVNITŘ image: hostitelskej `ar` ani `llvm-ar` MRI skript nesežraly
+# (první pokus na hostu selhal bez detailů), kdežto aarch64-none-elf-ar je
+# přesně ten nástroj, na který spoléhá i nxvk own `package` target.
+#
+# Dvě věci se musí řešit najednou:
+#   1. Meson dělá THIN archivy -> ld mimo build strom hlásí
+#      „error opening thin archive member: No such file or directory".
+#      Každou archivku proto přetavíme na plnou (MRI addlib to udělá sám).
+#   2. Unified větev Makefile chce JEDNU libvulkan.a -> slejeme z fat kopií.
 cat > "$SRC/.ci-stage-sdk.sh" <<'STAGE_EOF'
 #!/usr/bin/env bash
 set -uo pipefail
@@ -177,25 +172,65 @@ D=/work/switch/build/sdk
 AR=/opt/devkitpro/devkitA64/bin/aarch64-none-elf-ar
 [ -x "$AR" ] || AR=ar
 rm -rf "$D"; mkdir -p "$D/lib"
+
+fat() {
+  src="$1"; dst="$2"
+  if [ "$(head -c 7 "$src")" = '!<thin>' ]; then
+    m=$(mktemp)
+    printf 'create %s\naddlib %s\nsave\nend\n' "$dst" "$src" > "$m"
+    if "$AR" -M < "$m" > /dev/null 2>&1 && [ -s "$dst" ]; then
+      :
+    else
+      cp -f "$src" "$dst"
+      echo "FATFAIL $src" >&2
+    fi
+    rm -f "$m"
+  else
+    cp -f "$src" "$dst"
+  fi
+}
+
+names="$1"
+: > "$D/missing.txt"
+for a in $names; do
+  f=$(find "$C" -name "$a" -type f 2>/dev/null | head -1)
+  if [ -z "$f" ]; then echo "$a" >> "$D/missing.txt"; continue; fi
+  fat "$f" "$D/lib/$a"
+done
+
 mri="$D/bundle.mri"
 {
   echo "create $D/lib/libvulkan.a"
-  for a in $1; do
-    f=$(find "$C" -name "$a" -type f 2>/dev/null | head -1)
-    if [ -n "$f" ]; then echo "addlib $f"; else echo "STAGE-MISSING $a" >&2; fi
-  done
+  for a in $names; do [ -f "$D/lib/$a" ] && echo "addlib $D/lib/$a"; done
   echo save
   echo end
 } > "$mri"
 "$AR" -M < "$mri" || exit 1
-ls -la "$D/lib" || true
-du -sh "$D/lib/libvulkan.a" || true
+
+echo "archivů v $D/lib: $(ls "$D/lib" | wc -l)"
+du -sh "$D/lib" || true
 STAGE_EOF
 
-if stage "balit libvulkan.a uvnitř imageu" \
+if stage "přetavit thin archivy + sbalit libvulkan.a uvnitř imageu" \
      docker run --rm -v "$SRC:/work" -w /work "$IMAGE" \
-     bash /work/.ci-stage-sdk.sh "$(printf '%s ' $BUNDLE_LIST)"; then
-    cp -f "$SRC/switch/build/sdk/lib/libvulkan.a" "$SDK/lib/" 2>/dev/null
+     bash /work/.ci-stage-sdk.sh "$(printf '%s ' $NEED)"; then
+    cp -f "$SRC/switch/build/sdk/lib/"*.a "$SDK/lib/" 2>/dev/null
+    cp -f "$SRC/switch/build/sdk/missing.txt" "$ROOT/stage-missing.txt" 2>/dev/null
+fi
+
+have=$(ls "$SDK/lib" 2>/dev/null | wc -l)
+key "archivy: $have / $want (v tom i libvulkan.a)"
+missing=$(tr -d '\r' < "$ROOT/stage-missing.txt" 2>/dev/null | tr '\n' ' ')
+[ -n "${missing:-}" ] && key "chyběj:$missing"
+thin=""
+for f in "$SDK"/lib/*.a; do
+    [ -e "$f" ] || continue
+    [ "$(head -c 7 "$f")" = '!<thin>' ] && thin="$thin $(basename "$f")"
+done
+if [ -n "$thin" ]; then
+    err "pořád jsou thin:$thin"
+else
+    note "žádnej thin archiv nezbyl — ld je přečte i bez build stromu"
 fi
 if [ -f "$SDK/lib/libvulkan.a" ]; then
     key "libvulkan.a=$(stat -c %s "$SDK/lib/libvulkan.a")"
