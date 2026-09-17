@@ -119,8 +119,18 @@ shim() {
 }
 
 if command -v pkg-config >/dev/null 2>&1; then
-  shim "$SHIMS/aarch64-none-elf-pkg-config" && note "shim v $SHIMS" || warn "shim do workspace nejde vytvořit"
-  shim "$DEVKITPRO/bin/aarch64-none-elf-pkg-config" && note "shim i v $DEVKITPRO/bin" || warn "do $DEVKITPRO/bin se psát nedá (máme PATH shim)"
+  # switch_rules skládá `$(PREFIX)pkg-config', ale PREFIX používá i na
+  # $(PREFIX)g++ / objcopy (ověřeno: PREFIX= i PREFIX=<špatně> rozbijou
+  # nástrojovej řetěz). Takže shim musí vedle SKUTEČNÝCH nástrojů, ne jen na PATH.
+  shim "$SHIMS/aarch64-none-elf-pkg-config" && note "shim v $SHIMS (PATH)" || warn "shim do workspace nejde vytvořit"
+  for d in "$DEVKITPRO/devkitA64/bin" "$DEVKITPRO/bin" "$DEVKITPRO/tools/bin"; do
+    [ -d "$d" ] || continue
+    if shim "$d/aarch64-none-elf-pkg-config"; then
+      note "shim i v $d"
+    else
+      warn "do $d se psát nedá"
+    fi
+  done
   export PATH="$SHIMS:$PATH"
   command -v aarch64-none-elf-pkg-config >/dev/null 2>&1 \
     && note "aarch64-none-elf-pkg-config na PATH = $(command -v aarch64-none-elf-pkg-config)" \
@@ -272,10 +282,16 @@ if [ -n "$VKSDK" ]; then
   # až ZA --start-group s Mesou, takže symbol nikdo nedodá a link padne na
   # "undefined reference to `writev'". Dodáme proto vlastní slabou variantu;
   # slabý znamená, že pokud ji Mesa nabízí taky, vyhraje Mesa.
-  cat > "$SRC/source/switch/ci_writev_shim.c" <<'SHIM'
+  # Pozor na umístění: MUSÍ být v source/hooks, ne v source/switch —
+  # launcher má SOURCES := source ../source/switch a přeložil by si shim taky.
+  cat > "$SRC/source/hooks/ci_writev_shim.c" <<'SHIM'
 /* CI shim, ne část upstreamu. Sémantiku (krátkej zápis => return s partial)
- * kopíruje přesně podle readv/writev v SwitchPosixCompat.cpp. */
-#include <sys/uio.h>
+ * kopíruje přesně podle readv/writev v SwitchPosixCompat.cpp.
+ * Header: picolibc nemá sys/uio.h, iovec žije v sys/_iovec.h (stejně jako
+ * to dělá tenhle upstream soubor). */
+#include <errno.h>
+#include <sys/_iovec.h>
+#include <sys/types.h>
 #include <unistd.h>
 
 __attribute__((weak))
@@ -292,7 +308,7 @@ ssize_t writev(int fd, const struct iovec *vectors, int count) {
     return total;
 }
 SHIM
-  note "psán weak writev shim pro VK link"
+  note "psán weak writev shim pro VK link (source/hooks, ne source/switch)"
   make -C "$SRC" clean >/dev/null 2>&1
   if run_soft "make emulator VK" make -C "$SRC" -j"$JOBS" RENDERER=VK; then
     cp -f "$SRC/NetherSX2_nx.nro" "$SRC/NetherSX2_nx_vk.nro"
@@ -335,7 +351,7 @@ else
 fi
 
 launcher_done=0
-for attempt in "" "PREFIX=" "PREFIX=$SHIMS/aarch64-none-elf-"; do
+for attempt in "" "PREFIX=$DEVKITPRO/devkitA64/bin/aarch64-none-elf-"; do
   make -C "$SRC/launcher" clean >/dev/null 2>&1
   note "▶ make launcher (varianta: ${attempt:-výchozí PREFIX})"
   # shellcheck disable=SC2086
