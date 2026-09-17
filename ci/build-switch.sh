@@ -12,12 +12,10 @@
 # sama (::notice:: / ::error:: anotations) a padá jen přes die().
 set -uo pipefail
 
-DIGEST="$ROOT/ci-bundle-digest.txt"
-mkdir -p "$ROOT" 2>/dev/null; : > "$DIGEST" 2>/dev/null || DIGEST=/dev/null
 note() { echo "::notice::$*"; }
 # klíčový čísla sbíráme do jednoho řádku — GitHub annotace omezuje a middle
 # se ztrácejí; DIGEST musí projít
-key() { echo "$*" >> "$DIGEST" 2>/dev/null; note "$*"; }
+key() { echo "$*" >> "${DIGEST:-/dev/null}" 2>/dev/null; note "$*"; }
 err()  { echo "::error::$*"; }
 warn() { echo "::warning::$*"; }
 
@@ -48,6 +46,8 @@ die() {
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$HERE/.." && pwd)"
 cd "$ROOT"
+
+DIGEST="$ROOT/ci-bundle-digest.txt"; : > "$DIGEST" 2>/dev/null || DIGEST=/dev/null
 
 : "${DEVKITPRO:=/opt/devkitpro}"
 export DEVKITPRO

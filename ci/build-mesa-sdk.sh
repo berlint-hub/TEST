@@ -11,17 +11,19 @@
 
 set -uo pipefail
 
-DIGEST="$ROOT/ci-mesa-digest.txt"; : > "$DIGEST" 2>/dev/null || DIGEST=/dev/null
 # Jedna kompaktní anotace na konci: GitHub jich umí jen ~50 a middle se
-# ztrácejí, kdežto tahle nás zajímá.
+# ztrácejí — DIGEST musí projít. Pozor, smí se odkazovat na $ROOT až když je
+#定义 (proto je inicializace až za cd "$ROOT").
 note() { echo "::notice::$*"; }
-key() { echo "$*" >> "$DIGEST"; note "$*"; }
+key() { echo "$*" >> "${DIGEST:-/dev/null}" 2>/dev/null; note "$*"; }
 err()  { echo "::error::$*"; }
 warn() { echo "::warning::$*"; }
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$HERE/.." && pwd)"
 cd "$ROOT"
+
+DIGEST="$ROOT/ci-mesa-digest.txt"; : > "$DIGEST" 2>/dev/null || DIGEST=/dev/null
 
 NXVK_REPO="${NXVK_REPO:-PalindromicBreadLoaf/nxvk}"
 NXVK_TAG="${NXVK_TAG:-switch}"          # default branch of the fork = switch
