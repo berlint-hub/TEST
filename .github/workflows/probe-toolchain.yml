@@ -1,0 +1,68 @@
+name: probe / devkitPro toolchain
+
+# Jistota, že v tomhle repozáři umíme: natáhnout devkitPro image, použít
+# devkitA64 + libnx na Switch kód a zabalit .nro.
+#
+# Diagnostika běží ANOTACEMI, ne logy: sandbox, co to sleduje, nedosáhne na
+# raw logy Actions (Azure blob storage blokovaný), ale
+# GET /check-runs/{id}/annotations ano. Viz ci/annotate.sh a ci/diag.sh.
+
+on:
+  # probe: automatický build vypnutej, stačí spustit ručně.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  DEVKITPRO: /opt/devkitpro
+  DEVKITA64: /opt/devkitpro/devkitA64
+  PORTLIBS: /opt/devkitpro/portlibs/switch
+
+jobs:
+  toolchain:
+    name: devkitA64 + hello .nro
+    runs-on: ubuntu-latest
+    container:
+      image: devkitpro/devkita64:latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Image nastavení DEVKITPRO, ale v nelogin shellu nepřidá devkitA64/bin
+      # na PATH — proto to uděláme explicitně (infolinky v Actions).
+      - name: PATH pro devkitA64
+        run: |
+          echo "$DEVKITPRO/devkitA64/bin" >> $GITHUB_PATH
+          echo "$DEVKITPRO/tools/bin" >> $GITHUB_PATH
+          echo "$DEVKITPRO/bin" >> $GITHUB_PATH
+
+      - name: diagnostika řetězce
+        run: bash ci/diag.sh
+
+      - name: build hello .nro
+        run: |
+          set +e
+          make -C probe/hello -j"$(nproc)" > /tmp/build.log 2>&1
+          rc=$?
+          cat /tmp/build.log
+          if [ "$rc" -eq 0 ] && [ -f probe/hello/Hello.nro ]; then
+            stat -c '::notice::BUILD OK Hello.nro = %s B' probe/hello/Hello.nro
+            echo "::notice::elf2nro proběhl — .nro je zabalenej"
+          else
+            echo "::error::BUILD SELHAL rc=$rc"
+            grep -E "error:|Error [0-9]|No rule to make|not found" /tmp/build.log \
+              | head -12 | bash ci/annotate.sh error 12
+            tail -20 /tmp/build.log | bash ci/annotate.sh error 20
+            exit 1
+          fi
+
+      - name: artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: probe-hello-nro
+          path: |
+            probe/hello/Hello.nro
+            /tmp/build.log
+          if-no-files-found: warn

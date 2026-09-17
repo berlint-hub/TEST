@@ -1,0 +1,181 @@
+# Poznámky k buildu (NetherSX2_nx · nxvk · devkitPro)
+
+Zjištěno a **ověřeno běžením v GitHub Actions**, ne jen čtením README.
+
+## Hlavní výsledek
+
+`ci/build-switch.sh` + `.github/workflows/bundle.yml` vyrobí **finální
+`NetherSX2.nro` = 55 586 951 B** (53 MB), tj. launcher + obě emulátorová jádra
++ emulator `.nro` v romfs. Stáhni ho z artifactu **`nethersx2-nro-bundle`**
+na stránce runu (Actions → build / NetherSX2.nro → Artifacts).
+
+Co to obnáší a co to dělá *jinak* než `build_all.sh`:
+
+| | `build_all.sh` | `ci/build-switch.sh` |
+|---|---|---|
+| jádra | chce je nachystané v `CORES_DIR`, jinak abort | stáhne `NetherSX2-v2.2n-4248.apk` / `-3668.apk` z release `Trixarian/NetherSX2-{patch,classic}@2.2n`, vybalí `lib/arm64-v8a/libemucore.so` (12 162 984 B) + `assets/` |
+| VK | builduje nejdřív VK a abortuje bez `vulkan/lib/libnvk.a` | VK přeskočí, GL jako jedinej render |
+| launcher | `make` napřímo | `make` + **vlastní `pkg-config` shim**, viz níže |
+
+**Zásadní omezení tohohle buildu:** chybí `NetherSX2_nx_vk.nro`, a default v
+`nethersx2.ini` je `EmuCore/GS/Renderer = 14` (Vulkan). První spuštění tedy
+musí v launcheru přepnout **Renderer na OpenGL**, jinak to narazí na
+neexistující soubor. Jakmile exists Mesa/NVK SDK (viz níže), doplní se VK
+jednoduše — skript na to má místo.
+
+## Stav: co ověřeno
+
+| Věc | Důkaz (run) |
+|---|---|
+| Actions v tomhle repozitáři startují | `35133736085` a dál |
+| `devkitpro/devkita64:latest` je použitelná | gcc `15.2.0`, ld `2.45.1`, cmake `3.31.6`, ninja `1.11.1` |
+| `libnx` + `switch_rules` + `elf2nro` + `nacptool` vyrobí `.nro` | `Hello.nro` **151 552 B** (`35147289472`) |
+| emulator se přeloží a nalinkuje | `NetherSX2_nx.nro` **7 101 315 B** z `f084dc1` (`35147289351`) |
+| `libsmb2` + `libusbhsfs` přes `cmake -G Ninja` + `Switch.cmake` | `libsmb2.a` 2 821 428 B |
+| **celý bundle** | `NetherSX2.nro` **55 586 951 B** (`35147289521`) |
+
+## Co jsme zjistili o prostředí (ušetří ti to hodiny)
+
+- `$DEVKITPRO` image nastaví, ale **`$DEVKITPRO/bin` v ní vůbec neexistuje** a
+  `aarch64-none-elf-pkg-config` taky ne. `make` přesto funguje, protože
+  `switch_rules` si toolchain nachází sám. Přímá volání compileru proto chtějí
+  `PATH=$DEVKITPRO/devkitA64/bin:$PATH` — v workflow přes `$GITHUB_PATH`.
+- launcher `Makefile` volá `$(PREFIX)pkg-config` → bez shimu neprojde.
+  `ci/build-switch.sh` proto píše wrapper do `.ciwork/.shims/` (do
+  `/opt/devkitpro` se v image psát nedá) a nastavuje
+  `PKG_CONFIG_LIBDIR=$PORTLIBS/lib/pkgconfig`; pak zkusí `make` ve třech
+  variantách (`default`, `PREFIX=`, `PREFIX=<shim>/aarch64-none-elf-`).
+- `switch-mesa`, `switch-libdrm_nouveau`, `switch-curl`, `switch-sdl2{,_ttf,_image}`
+  **jsou** v devkitPro repo; `switch-zstd`, `switch-expat`, `switch-turbojpeg`,
+  `switch-libjpeg-turbo` **ne** — ale their `.a` soubory v image už jsou, tak
+  to není překážka. `libntfs-3g.a` (kvůli `STORAGE_LIBS` launcheru) taky je.
+- runnér má v kontejneru **2 CPU**, ne 4 — whole bundle build trvá ~2,5 min.
+- raw logy Actions se servírují z
+  `productionresultssa*.blob.core.windows.net` a **download artifactů taky** →
+  z tohohle prostředí jsou nedostupné (`EOF`). Čitelný je jen REST API, proto
+  veškerá diagnostika letí přes `::notice::` / `::error::` anotace
+  (`ci/annotate.sh`, `ci/verdict.sh`) a `GET /check-runs/{job}/annotations`.
+- YAML kroky runner spouští `bash -e` → jakákoli logika za rourou
+  (`cmd | tee log; rc=${PIPESTATUS[0]}`) se při neúspěchu prostě nevykoná a
+  log zůstane ležet v `/tmp`. Odstaneno tak, že YAML je tupej a log teče
+  `| tee ci-bundle.log || true` přímo do workspace; vyhodnocuje samostatny
+  krok `ci/verdict.sh`.
+
+## Build graf
+
+```
+Trixarian/NetherSX2-patch   @2.2n -> NetherSX2-v2.2n-4248.apk   -> libemucore.so
+Trixarian/NetherSX2-classic @2.2n -> NetherSX2-v2.2n-3668.apk   ->   + assets/
+      (AetherSX2-backup/AetherSX2-builds = archív AetherSX2 APK, bez GitHub
+       releases — soubory leží přímo ve stromu po alfa(rangech), takže se dá
+       sáhnout po konkrétní cestě, ale na Jádra tohle nepotřebujeme)
+                                \
+                                 v
+                NaGaa95/NetherSX2_nx  (make RENDERER=GL)  -> NetherSX2_nx_gl.nro
+                    ^                  \-> launcher/romfs/{cores,emu,res}
+                    |                    \-> launcher (SDL2)  -> NetherSX2.nro
+                devkitPro: devkitA64, libnx, switch-mesa,
+                           switch-libdrm_nouveau, switch-{sdl2,curl,zlib}
+```
+
+## Co chybí a proč
+
+1. **VK build.** Makefile očekává buď `vulkan/lib` s **23 statickými archivy**
+   (`libnvk.a`, `libnak_rs.a`, `libnir.a`, `libcompiler.a`, …), nebo
+   `MESA_SDK_ROOT` s jednotným SDK (`-lvulkan -lEGL -lGLESv2 -lglapi
+   -lmesa_util* -lblake3 -lxmlconfig`). `nxvk` v tomhle tvaru nic nevydává —
+   **nemá ani jeden release** a `make install` z něj dostane jen
+   `libnvk.a` + `libnvk_support.a` (+ `libnvk_gl.a`). Takže VK cesta znamená
+   stavět Mesu (`ninja -k0`, `switch/build/cross-zink`) a archivy poskládat.
+   Pozor: `libvulkan_nouveau.so` link záměrně spadne, `|| true` je součást
+   postupu — archivy se berou i tak.
+2. **Hotovo: finální `NetherSX2.nro`.** `build_all.sh` sice abortuje bez jader,
+   ale `ci/build-switch.sh` si obě APK vyžádá z release a vybere z nich
+   `lib/arm64-v8a/libemucore.so` + `assets/` sám. Launcher (SDL2 + turbojpeg +
+   ntfs-3g) se taky postaví, díky `pkg-config` shimu.
+3. **Switch `pkg-config`.** Launcherovský Makefile volá `$(PREFIX)pkg-config`;
+   `aarch64-none-elf-pkg-config` v image **není** (annotace to hlásí),
+   takže launcher build si bude stěžovat na `switch-pkg-config` / `pkgconf`.
+
+## Chytáky, na kterých to může spadnout
+
+- `TARGET := $(notdir $(CURDIR))` — adresář **musí** být `NetherSX2_nx`, jinak
+  je output `TEST.nro` a `build_all.sh` ho nenajde. V CI se klonuje do
+  `NetherSX2_nx/` právě proto.
+- image nastaví `DEVKITPRO`, ale **ne** `devkitA64/bin` na `PATH` (nelogin
+  shell) — přímé volání `aarch64-none-elf-gcc` selže `command not found`,
+  i když `make` funguje. Workflow to řeší přes `$GITHUB_PATH`.
+- `libusbhsfs` se kontroluje `git rev-parse HEAD` proti pinu
+  `625269b7…` a musí na něj projít 3 patche → CI potřebuje venkovní síť.
+- GL a VK se **nedají linknout spolu** (switch-mesa i NVK archivy obsahují
+  vlastní kopie mesa util/nir/compiler), proto `make clean` mezi `RENDERER=`.
+- `switch-zstd`, `switch-expat`, `switch-turbojpeg` **nejsou** v pacman repo
+  pod tímihle jmény — archivy ale v image jsou, takže to není překáža.
+
+## Limity přístupu
+
+Build běží pod `arena-ai-coding-agent[bot]` (GitHub App), ne pod tvým účtem:
+
+- ✅ `contents: write` → push, workflow, artifacty
+- ❌ `403` na `actions/permissions`, `actions/secrets`, `PATCH /repos/{repo}`
+- ✅ release z workflow chodzi (run `35204967112`, tag `nro-20260917-092635`).
+  Skutečnou příčinou dřívějšího selhání ale *nebyla* jen read-only oprávnění:
+  `release` job nemá `actions/checkout`, takže `gh release create` nevěděl, do
+  jakýho repa má jít. Bez `-R "$GITHUB_REPOSITORY"` to vypadá jako 403 perms a
+  svede opravu na vedlejší kolej — proto job teď vylivá i stderr z `gh` do
+  `::error::`. Workflow permissions přesto musí být *Read and write*
+  (Settings → Actions → General), bez toho `gh release create` na privátním
+  repu fakt nesmí zapsat.
+- ❌ `workflow_dispatch` přes API z tohohole přístupu jde občas 403
+  „Resource not accessible by integration" — proto `mesa-vk.yml` reaguje i na
+  `push` na `arena/**` a spouští se samo. Na `main` záměrně ne: každej build
+  je ~15 minut runner minut z měsíční kvóty privátního repa.
+- ⚠️ `secrets.*` v workflowch fungují, ale **nastavit je můžu jen ručně**, ne
+  z tohohle přístupu.
+
+## Licence (má důsledky)
+
+`nxvk` je GPL-2.0-or-later na svých souborech a README explicitně říká, že
+statickým linkem `libnvk.a` vzniká combined work — binary smíš šířit, ale
+source musí být příjemci k dispozici. `NetherSX2_nx` je MIT, vendored
+`third_party/lsfg-vk` je GPL-3.0-or-later. Emulátor core ani BIOS se
+nedistribuuje.
+
+## Tři pasti Actions, který nám žeru čas (nejsou chyby upstreamu)
+
+1. **Strop anotací.** GitHub jich zobrazí ~30 na job a zbytek zahodí *bez
+   chyby*. Průlet stage po stage annotacemi proto přišel právě o text linkerový
+   chyby. Řešení: `note()` se píše jen do logu, `key()` jen do
+   `ci-bundle-digest.txt` a `ci/annotate.sh` umí režim `notice+`/`error+`, který
+   z celého bloku udělá **jednu** anotaci (řádky spojený přes `%0A`).
+2. **Runner spouští `run:` jako `bash -e`.** I když skript volá vlastní
+   `exit 0`, jedno selhání uvnitř `n=$(find …)` (neexistující adresář) ukončí
+   krok dřív. Kde si hrajeme s volitelnýma věcma, MUSÍ být `set +e`.
+3. **`gh` CLI v `devkitpro/devkita64` není.** Jakákoli logika kolem Actions API
+   musí běžet na host runneru (job `sdk-src`), ne uvnitř containeru; jinak
+   tichounce vrátí prázdno. Přes `actions/download-artifact@v4` s `run-id:` se
+   artifact cizího runu stáhne i bez `gh`.
+
+## Vulkan renderer: kde jsme
+
+- `mesa-vk.yml`: `sdk-src` (najde poslední run s `mesa-sdk`) → `mesa`
+  (Docker, ~14 min, jen na explicitní dispatch) → `bundle` (devkitA64, ~4 min
+  s reuse SDK). Mesa SDK artifact má 12 MB, rozbalenej 59 MB, 23 archivů.
+- `libvulkan.a` se **nesmí** rozbíjet na hosti: `ar -M` na ubuntu-latest selže
+  bez hlášky. Slije se `aarch64-none-elf-ar -M` uvnitř `nxvk-ci` imageu a
+  do artifactu se zkopíruje hotový. Pozor: `create` v MRI skriptu archiv
+  *přepíše*, takže rozšiřování o portlibs (`libdrm_nouveau.a`, `libexpat.a`,
+  `libelf.a`, `libzstd.a`, `libz.a`) musí jako člena `addlib` přidat i ten
+  originál z artifactu.
+- Flat `vulkan/lib` cesta v Makefileu je **mrtvá napořád**: neobsahuje
+  `-lEGL`, takže `eglGetError`/`eglGetConfigAttrib` nemůžou nikdy projít.
+  jediná smysluplná cesta je `MESA_SDK_ROOT` + `-lvulkan`.
+- Oba dva pokusy (unified i flat) končily na `vkEnumerateInstanceVersion` a
+  `vkEnumerateInstanceLayerProperties`. Mesa ty dva entry pointy generuje jen
+  když je v buildu Vulkan *loader*; cross-build pro Switch žádnej nemá, proto
+  je nedodá-none archivech. `ci/build-switch.sh` je tedy dodává slabě jako
+  `source/hooks/ci_vk_loader_shim.c` (stejnej trik jako pro `writev`, který
+  picolibc na Switchu taky nemá). Ověřeno neběží — tvrdit opak by bylo blebtání.
+- Dokud `NetherSX2_nx_vk.nro` nevznikne, balík je 55 586 951 B a v launcheru
+  se musí vypnout Vulkan: **Settings → Renderer → OpenGL**. Velikost balíku je
+  zatím jedinej levnej detector, jestli v něm `_vk.nro` je.
