@@ -11,18 +11,20 @@ name: build / VK (nxvk Mesa -> NetherSX2_nx)
 # Je drahanej — private repozitář má měsíční kvótu runner minut.
 
 on:
+  # Pozor: `push:` tu nesmí být dvakrát — YAML by druhý blok přepsal ten
+  # první a trigger by zmizel bez jakýkoliv chyby. Main tu záměrně není:
+  # každej build žere ~15 min runner minut z měsíční kvóty privátního repa.
+  push:
+    branches: ["arena/**"]
+    paths:
+      - ".github/workflows/mesa-vk.yml"
+      - "ci/**"
   workflow_dispatch:
     inputs:
       reuse_sdk_run:
         description: "ID runu, ze kterýho se má stáhnout artifact mesa-sdk (ušetří ~14 minut Mesa buildu). Prázdné = buildni Mesu znovu."
         required: false
         default: ""
-  push:
-    branches: ["arena/**"]
-    paths:
-      - ".github/workflows/mesa-vk.yml"
-      - "ci/build-mesa-sdk.sh"
-      - "ci/build-switch.sh"
 
 permissions:
   contents: read
@@ -35,8 +37,9 @@ concurrency:
 jobs:
   mesa:
     name: nxvk / Mesa NVK SDK
-    # přes reuse_sdk_run se tahle etapa přeskočí a SDK se vezme z minula
-    if: ${{ github.event.inputs.reuse_sdk_run == '' }}
+    # Drahá etapa (~14 min, 4,2 GB Docker image). Pouští se jen na explicitní
+    # dispatch bez reuse_sdk_run; push a PR berou SDK z předchozího runu.
+    if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.reuse_sdk_run == '' }}
     runs-on: ubuntu-latest
     timeout-minutes: 150
     env:
@@ -80,20 +83,39 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Dva kanály, jak k SDK přijít: jestli ho stavěl mesa job *tohohle* runu,
+      # vezmeme ho jako běžnej artifact. Jinak (push/PR/reuse) si ho vytáhneme
+      # z předchozího runu přes `gh run download` -- nepotřebujeme na to
+      # workflow_dispatch práva, jen actions: read.
       - name: stáhni Mesa SDK (z tohohle runu)
-        if: ${{ github.event.inputs.reuse_sdk_run == '' }}
+        if: ${{ needs.mesa.result == 'success' }}
         uses: actions/download-artifact@v4
         with:
           name: mesa-sdk
           path: mesa-sdk
 
       - name: stáhni Mesa SDK z předchozího runu
-        if: ${{ github.event.inputs.reuse_sdk_run != '' }}
-        uses: actions/download-artifact@v4
-        with:
-          name: mesa-sdk
-          path: mesa-sdk
-          run-id: ${{ github.event.inputs.reuse_sdk_run }}
+        if: ${{ needs.mesa.result != 'success' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ github.event.inputs.reuse_sdk_run }}
+        run: |
+          set -uo pipefail
+          if [ -z "${RUN_ID:-}" ]; then
+            echo "hledám poslední run, co vyexportoval mesa-sdk…"
+            RUN_ID=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?per_page=30" \
+              --jq '.workflow_runs[]
+                    | select(.status=="completed" and (has("name") and (.name|test("VK"))))
+                    | .id' | head -1)
+          fi
+          echo "run = ${RUN_ID:-?}"
+          if [ -n "${RUN_ID:-}" ]; then
+            gh run download "$RUN_ID" -n mesa-sdk -D mesa-sdk \
+              || echo "::warning::mesa-sdk se nepodařilo stáhnout z runu $RUN_ID (bundle pojede GL-only)"
+          fi
+          echo "co z toho je:"
+          du -sh mesa-sdk 2>/dev/null || echo "  (adresář mesa-sdk chybí)"
+          ls mesa-sdk/lib/*.a 2>/dev/null | wc -l | xargs -I{} echo "  archivů: {}"
 
       - name: co jsme dostali
         run: |
