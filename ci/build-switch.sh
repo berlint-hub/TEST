@@ -350,8 +350,8 @@ nsx_vk_pkg() {
   aarch64-none-elf-nm --defined-only $nmlibs 2>/dev/null | awk '{print $NF}' > "$GEN/libc.syms"
   for sym in dirfd fstatat getuid geteuid getgid getegid getpwuid_r \
              sysconf posix_memalign aligned_alloc fchmodat utimensat \
-             futimens renameat linkat flock pthread_sigmask regexec \
-             regfree posix_fadvise madvise fdatasync syncfs; do
+             futimens renameat linkat flock pthread_sigmask regcomp \
+             regexec regfree posix_fadvise madvise fdatasync syncfs; do
     if grep -qx "$sym" "$GEN/libc.syms"; then
       note "posix: $sym je v libc/libnx -> nedefinujeme"
     else
@@ -375,7 +375,7 @@ nsx_vk_pkg() {
 /* Hlavičky jen pro ty stuby, co fakt generujeme: kdyby nektera v toolchainu
  * nebyla (regex je classickej pripad), at se nám rozbije *tenhle* stub,
  * ne cela VK vetev. __has_include na to staci. */
-#if defined(NSX_STUB_REGEXEC) || defined(NSX_STUB_REGFREE)
+#if defined(NSX_STUB_REGCOMP) || defined(NSX_STUB_REGEXEC) || defined(NSX_STUB_REGFREE)
 #  if defined(__has_include) && !__has_include(<regex.h>)
 #    undef NSX_STUB_REGEXEC
 #    undef NSX_STUB_REGFREE
@@ -520,10 +520,19 @@ __attribute__((weak)) int pthread_sigmask(int how, const sigset_t *set, sigset_t
 }
 #endif
 
-/* xmlconfig (drirc) páruje pravidla podle regexu aplikací. Bez regexovy
- * knihovny necháme regcomp, ať si Mesáckej parser udělá co umí, a
- * regexec odpoví „neshoda" — Mes se tim vraci k default nastavení, což je
- * na Switchi jediny správný nastavení. * `regfree` je no-op. */
+/* xmlconfig (drirc) páruje pravidla podle regexu jmena aplikace. Novlib
+ * regexy nema vubec — proto trojice najednou: regcomp ohlási chybu, Mesa
+ * si pravidlo nainstaluje bez regex predikaty, a tak se nikdy nespáruje
+ * => Mesa zustane u defaultu. To je na Switchu jediny spravny nastavení
+ * (na Switchu existuje jeden driver, žádny per-app workaround tam není). */
+#ifdef NSX_STUB_REGCOMP
+__attribute__((weak)) int regcomp(regex_t *preg, const char *regex, int cflags) {
+  (void)regex; (void)cflags;
+  if (preg)
+    memset(preg, 0, sizeof *preg);
+  return REG_ESPACE;   /* jakákoliv nula = „regex jsem nesehnil" */
+}
+#endif
 #ifdef NSX_STUB_REGEXEC
 __attribute__((weak)) int regexec(const regex_t *preg, const char *string, size_t nmatch,
                                   regmatch_t pmatch[], int eflags) {
