@@ -337,6 +337,164 @@ nsx_vk_pkg() {
   fi
   key "vk-loader: libnsxvkloader.a $(stat -c %s "$GEN/libnsxvkloader.a") B"
 
+  # Druhý soubor problémů: Mesa volá z disk cache a GL front-endu POSIX glue,
+  # který newlib/libnx na Switchu nemaj (getuid, dirfd, fstatat, sysconf,
+  # posix_memalign, getpwuid_r). Vzniklo to až teď, kdy se konečně odklanjlo
+  # všechno okolo Vulkanu a EGL — to bylo vždycky ten skuteorej blokující
+  # nedostatek a loader ho vyřešil ✓. Následující sady se proto chytaj jen
+  # ty symboly, který v libc/libnk reálně nejsou — ať nic nepřebijime.
+  local stubs="" sym nmlibs="$DEVKITPRO/libnx/lib/libnx.a"
+  for l in libc.a libm.a libpthread.a; do
+    nmlibs="$nmlibs $(aarch64-none-elf-gcc -print-file-name=$l 2>/dev/null)"
+  done
+  aarch64-none-elf-nm --defined-only $nmlibs 2>/dev/null | awk '{print $NF}' > "$GEN/libc.syms"
+  for sym in dirfd fstatat getuid geteuid getgid getegid getpwuid_r \
+             sysconf posix_memalign aligned_alloc fchmodat utimensat \
+             futimens renameat linkat; do
+    if grep -qx "$sym" "$GEN/libc.syms"; then
+      note "posix: $sym je v libc/libnx -> nedefinujeme"
+    else
+      stubs="$stubs -DNSX_STUB_$(echo "$sym" | tr 'a-z' 'A-Z')"
+    fi
+  done
+  if [ -n "$stubs" ]; then
+    cat > "$GEN/posix_stubs.c" <<'POSIXSTUB'
+/* Vygeneroval ci/build-switch.sh — POSIX lepidlo pro Mesa na Switchi.
+ * Všechno slabě, ať to jde přebít ve chvili, kdy libnx/newlib něco
+ * z toho dodá. Sémantika je „nejbezpečnější nic", ne simulace POSIXu:
+ * bez HOME a s uid 0 se Mesa own disk cache sama vypne (viz
+ * disk_cache_generate_cache_dir), což je na Switchi chovani, který
+ * emulator beztak predbíhá vlastním shader cache. */
+#include <dirent.h>
+#include <errno.h>
+#include <sys/time.h>
+#include <sys/types.h>
+#include <time.h>
+#include <fcntl.h>
+#include <malloc.h>
+#include <pwd.h>
+#include <stdio.h>
+#include <string.h>
+#include <sys/stat.h>
+#include <unistd.h>
+
+#ifdef NSX_STUB_DIRFD
+__attribute__((weak)) int dirfd(DIR *dirp) { (void)dirp; return -1; }
+#endif
+
+#ifdef NSX_STUB_FSTATAT
+/* Meritko: Mesa tohlepoužíva na atime/porovnání souborů v cache. Bez /proc
+ * se z DIR nedostane fd, takže jdeme přes cestu; zavolatel chybu řeší skipem. */
+__attribute__((weak)) int fstatat(int fd, const char *path, struct stat *buf, int flags) {
+  (void)fd; (void)flags;
+  if (!path || !buf) { errno = EINVAL; return -1; }
+  return stat(path, buf);
+}
+#endif
+
+#ifdef NSX_STUB_GETUID
+__attribute__((weak)) uid_t getuid(void) { return 0; }
+#endif
+#ifdef NSX_STUB_GETEUID
+__attribute__((weak)) uid_t geteuid(void) { return 0; }
+#endif
+#ifdef NSX_STUB_GETGID
+__attribute__((weak)) gid_t getgid(void) { return 0; }
+#endif
+#ifdef NSX_STUB_GETEGID
+__attribute__((weak)) gid_t getegid(void) { return 0; }
+#endif
+
+#ifdef NSX_STUB_GETPWUID_R
+__attribute__((weak)) int getpwuid_r(uid_t uid, struct passwd *pwd,
+                                     char *buf, size_t buflen, struct passwd **result) {
+  (void)uid; (void)pwd; (void)buf;
+  if (result) *result = 0;
+  (void)buflen;
+  return ENOENT;   /* „žádnej user" -> Mesa si cache prostě nezačne dělat */
+}
+#endif
+
+#ifdef NSX_STUB_SYSCONF
+__attribute__((weak)) long sysconf(int name) {
+  switch (name) {
+    case _SC_PAGESIZE:            return 4096;
+    case _SC_NPROCESSORS_CONF:    return 4;   /* Cortex-A57, 4 jádra */
+    case _SC_NPROCESSORS_ONLN:    return 4;
+    case _SC_CLK_TCK:             return 100;
+    case _SC_PHYS_PAGES:          return 256 * 1024;  /* ~1 GB / 4 KiB */
+    case _SC_THREAD_STACK_MIN:    return 8192;
+    default:                      return 4096;
+  }
+}
+#endif
+
+#ifdef NSX_STUB_POSIX_MEMALIGN
+__attribute__((weak)) int posix_memalign(void **memptr, size_t alignment, size_t size) {
+  if (!memptr) return EINVAL;
+  if (alignment < sizeof(void *) || (alignment & (alignment - 1)) != 0) return EINVAL;
+  void *p = memalign(alignment, size);
+  if (!p) return ENOMEM;
+  *memptr = p;
+  return 0;
+}
+#endif
+
+#ifdef NSX_STUB_ALIGNED_ALLOC
+__attribute__((weak)) void *aligned_alloc(size_t alignment, size_t size) {
+  if (alignment < sizeof(void *) || (alignment & (alignment - 1)) != 0 || (size % alignment) != 0)
+    return 0;
+  return memalign(alignment, size);
+}
+#endif
+
+#ifdef NSX_STUB_FCHMODAT
+__attribute__((weak)) int fchmodat(int fd, const char *path, mode_t mode, int flags) {
+  (void)fd; (void)path; (void)mode; (void)flags;
+  return 0;
+}
+#endif
+
+#ifdef NSX_STUB_UTIMENSAT
+__attribute__((weak)) int utimensat(int fd, const char *path, const struct timespec times[2], int flags) {
+  (void)fd; (void)path; (void)times; (void)flags;
+  return 0;
+}
+#endif
+
+#ifdef NSX_STUB_FUTIMENS
+__attribute__((weak)) int futimens(int fd, const struct timespec times[2]) {
+  (void)fd; (void)times;
+  return 0;
+}
+#endif
+
+#ifdef NSX_STUB_RENAMEAT
+__attribute__((weak)) int renameat(int oldfd, const char *oldpath, int newfd, const char *newpath) {
+  (void)oldfd; (void)newfd;
+  return rename(oldpath, newpath);
+}
+#endif
+
+#ifdef NSX_STUB_LINKAT
+__attribute__((weak)) int linkat(int oldfd, const char *oldpath, int newfd, const char *newpath, int flags) {
+  (void)oldfd; (void)oldpath; (void)newfd; (void)newpath; (void)flags;
+  errno = ENOSYS;
+  return -1;
+}
+#endif
+POSIXSTUB
+    run_soft "aarch64-none-elf-gcc posix stubs" \
+      aarch64-none-elf-gcc -c $cflags $stubs -o "$GEN/posix_stubs.o" "$GEN/posix_stubs.c"
+    if [ -f "$GEN/posix_stubs.o" ]; then
+      aarch64-none-elf-ar rcs "$GEN/libnsxvkloader.a" "$GEN/posix_stubs.o" >> "$WORK/logs/vk-shim.log" 2>&1
+      key "posix stubs:$(echo "$stubs" | sed 's/-DNSX_STUB_/ /g')"
+    else
+      err "posix stubs se nepodarilo zkompilovat"
+      grep -E "error:" "$WORK/logs/vk-shim.log" | head -6 | bash "$HERE/annotate.sh" error 6
+    fi
+  fi
+
   # Recept přesně z nxvk nxvk.pc / build-nro.sh: driver whole-archive (kvůli
   # registraci), zbytek v --start-group kvůli cyklickýma závislostem, plus
   # -u,vk_icdGetInstanceProcAddr ať se ten řetězec fakt vytáhne.
