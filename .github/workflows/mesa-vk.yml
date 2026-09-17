@@ -100,29 +100,28 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           RUN_ID: ${{ github.event.inputs.reuse_sdk_run }}
         run: |
-          set -uo pipefail
+          # Runner pouští `run:` jako `bash -e`, takže i jedno selhání v
+          # $(...) by ukončilo step před naším exit 0. Chyby ošetřujeme sami.
+          set +e
           # Když Mesa job neběžel (push/PR/reuse), vezmi 23 archivů z
-          # posledníhodoncenejho runu tedhlety workflowu. `gh run download`
-          # umí cizí run a stacilo k tomu actions: read.
-          if [ -z "${RUN_ID:-}" ]; then
-            RUN_ID=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?per_page=30" \
+          # posledníhodoncenejho runu, kterej je skutecneja vyexportoval.
+          CANDS="${RUN_ID:-} $(gh api "repos/$GITHUB_REPOSITORY/actions/runs?per_page=30" \
               --jq '.workflow_runs[]
                     | select(.status == "completed" and (.name | test("VK")))
-                    | .id' 2>/dev/null | head -1 || true)
-          fi
-          echo "zdroj SDK: run ${RUN_ID:-neni-znamej}"
+                    | .id' 2>/dev/null | head -6 | tr '\n' ' ')"
           ok=0
-          if [ -n "${RUN_ID:-}" ]; then
-            if gh run download "$RUN_ID" -n mesa-sdk -D mesa-sdk; then ok=1; fi
-          fi
-          # pipefail + glob do prazdnyho adresare by inac ukoncil step chybou
-          set +o pipefail
-          n=$(find mesa-sdk -name '*.a' 2>/dev/null | wc -l)
+          for cand in $CANDS; do
+            echo "zkouším mesa-sdk z runu $cand…"
+            if gh run download "$cand" -n mesa-sdk -D mesa-sdk; then
+              ok=1; FROM="$cand"; break
+            fi
+          done
+          n=$(find mesa-sdk -name '*.a' 2>/dev/null | wc -l | tr -d ' ')
           sz=$(du -sh mesa-sdk 2>/dev/null | cut -f1)
           if [ "$ok" = 1 ]; then
-            echo "::notice::mesa-sdk staženo z runu ${RUN_ID}: ${n} archivů, ${sz:-?}"
+            echo "::notice::mesa-sdk z runu ${FROM}: ${n} archivů, ${sz:-?}"
           else
-            echo "::warning::mesa-sdk není k dispozici (run ${RUN_ID:-?}) — bundle pojede GL-only"
+            echo "::warning::mesa-sdk není k dispozici (zkoušeno: ${CANDS}) — bundle pojede GL-only"
           fi
           exit 0
 
