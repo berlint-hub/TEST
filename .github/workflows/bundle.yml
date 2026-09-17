@@ -8,12 +8,14 @@ name: build / NetherSX2.nro (launcher bundle)
 # přímo do workspace (ci-bundle.log) a vyhodnocuje ho samostatnej krok.
 
 on:
+  # Na žádost uživatele se GL buildy samy nespouštěj: žerou ~7 minut
+  # runner minut a nic nepřidávaj, dokud se nelinkne Vulkan. Potřebuju-li
+  # GL balík (třeba otestovat patch v launcheru), pushnu commit s [gl].
   workflow_dispatch:
   push:
     branches: ["arena/**"]
     paths:
       - ".github/workflows/bundle.yml"
-      - "ci/**"
 
 permissions:
   contents: write
@@ -102,7 +104,9 @@ jobs:
             gh release view "$tag" -R "$GITHUB_REPOSITORY" --json url --jq '"::notice::DOWNLOAD " + .url'
             # rolling odkaz: jedny staly URL, který se dá posílat dál bez toho,
             # jestli zrovna proběhl další build
-            gh release delete nro-latest -R "$GITHUB_REPOSITORY" --yes --cleanup-tag >/dev/null 2>&1
+            # rolling tag přebírá to, co naposledy fakt postavilo — GL i VK
+          # workflow na nim maj nárok (VK vyhraje, až se začne linkovat)
+          gh release delete nro-latest -R "$GITHUB_REPOSITORY" --yes --cleanup-tag >/dev/null 2>&1
             gh release create nro-latest -R "$GITHUB_REPOSITORY" \
               --title "NetherSX2.nro (CI, OpenGL) — nejnovější" --notes-file notes.md --prerelease "$nro" >/dev/null 2>&1 \
               && echo "::notice::STÁLÉ https://github.com/$GITHUB_REPOSITORY/releases/download/nro-latest/NetherSX2.nro"

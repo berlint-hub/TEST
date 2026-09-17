@@ -117,6 +117,10 @@ jobs:
       CORE_TAG: main
       APK_TAG: "2.2n"
       VULKAN_SDK_DIR: ${{ github.workspace }}/mesa-sdk
+      # GL build tu není — na_vk_binárku čekáme a GL mezitím nikoho nezajímá.
+      # S VK_ONLY=1 build nepadne na půl cestě k „záložnímu" GL balíku:
+      # když se VK nelinkne, run je červený a žádný .nro se nepublikuje.
+      VK_ONLY: 1
 
     steps:
       - uses: actions/checkout@v4
@@ -157,7 +161,7 @@ jobs:
 
       - name: vyhodnocení
         if: always()
-        run: bash ci/verdict.sh ci-bundle.log out/NetherSX2.nro out/NetherSX2_nx_gl.nro out/NetherSX2_nx_vk.nro
+        run: bash ci/verdict.sh ci-bundle.log out/NetherSX2.nro out/NetherSX2_nx_vk.nro
 
       - name: artifact
         if: always()
@@ -205,8 +209,10 @@ jobs:
           fi
           echo "DOWNLOAD https://github.com/$GITHUB_REPOSITORY/releases/download/$tag/NetherSX2.nro"
           # rolling odkaz — ať je jedno stálý URL, který můžu posílat dál
-          gh release delete nro-latest-vk -R "$GITHUB_REPOSITORY" --yes --cleanup-tag >/dev/null 2>&1
-          gh release create nro-latest-vk -R "$GITHUB_REPOSITORY" --prerelease \
-            -t "NetherSX2.nro — VK pokus (nejnovější)" -n "$notes" "$nro" 2>/dev/null \
-            && echo "STÁLE https://github.com/$GITHUB_REPOSITORY/releases/download/nro-latest-vk/NetherSX2.nro"
+          # rolling tag: jedno stálý URL. GL workflow ho míň; tohle je teď
+          # jedinej build, co publikuje.
+          gh release delete nro-latest -R "$GITHUB_REPOSITORY" --yes --cleanup-tag >/dev/null 2>&1
+          gh release create nro-latest -R "$GITHUB_REPOSITORY" --prerelease \
+            -t "NetherSX2.nro (CI, Vulkan — nejnovější)" -n "$notes" "$nro" 2>/dev/null \
+            && echo "STÁLE https://github.com/$GITHUB_REPOSITORY/releases/download/nro-latest/NetherSX2.nro"
           exit 0

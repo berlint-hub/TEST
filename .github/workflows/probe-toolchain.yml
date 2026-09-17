@@ -8,12 +8,7 @@ name: probe / devkitPro toolchain
 # GET /check-runs/{id}/annotations ano. Viz ci/annotate.sh a ci/diag.sh.
 
 on:
-  push:
-    branches: ["arena/**"]
-    paths:
-      - ".github/workflows/probe-toolchain.yml"
-      - "probe/**"
-      - "ci/**"
+  # probe: automatický build vypnutej, stačí spustit ručně.
   workflow_dispatch:
 
 permissions:

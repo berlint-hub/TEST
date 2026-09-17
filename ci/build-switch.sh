@@ -283,7 +283,11 @@ run "cmake configure deps" cmake -S "$DEPS" -B "$DEPS/build" -G Ninja \
 run "cmake build deps" cmake --build "$DEPS/build" --parallel "$JOBS"
 ls -la "$DEPS/build/_deps/libsmb2-build/lib/libsmb2.a" 2>/dev/null | bash "$HERE/annotate.sh" notice 1
 
-note "=== stage 7: emulátor RENDERER=GL ==="
+# VK_ONLY=1 → GL build se vůbec nespustí. Není to len úspora: dokud se
+# NetherSX2_nx_vk.nro nelinkne, GL fallback vyrobil zelený run s 55 MB balíkem,
+# který byl k ničemu — bez něj run spadne na místě a je hned vidět, co chybí.
+VK_ONLY="${VK_ONLY:-0}"
+note "=== stage 7: emulátor (VK_ONLY=$VK_ONLY) ==="
 make -C "$SRC" clean >/dev/null 2>&1
 # ---------------------------------------------------- 7a. log capture pro core
 # Hláška z launchere je jen dohad; co dělá emulátor, se nedozvíme vůbec:
@@ -312,6 +316,9 @@ static int ci_on(void) {
   }
   return ci_enabled;
 }
+
+/* main.c se přes to ptá, jestě má bejt Logging/* z ini (marker na kartě) */
+int ci_logging_enabled(void) { return ci_on(); }
 
 int ci_android_log_write(int prio, const char *tag, const char *text) {
   if (!ci_on()) return 0;
@@ -374,6 +381,37 @@ sys.exit(0 if hits == 3 else 1)
 PYEOF
 then
   note "log capture jádro: imports.c patcheno"
+
+  # Druhý zádrhel: source/main.c při KAŽDÝM startu vynuluje všech pět
+  # Logging/* klíčů („Core logging off: the EE/IOP console formats a lot of
+  # strings per frame"), takže je jedno, co máš v nethersx2.ini — vyhodí to
+  # i prefs_save() zpět na kartu. Když je marker na kartě, ať ty hodnoty
+  # zůstanou na ini anejou na 1, jinak se chováme jako upstream.
+  python3 - "$SRC/source/main.c" <<'LOGMAIN'
+import sys
+path = sys.argv[1]
+text = open(path, encoding="utf-8", errors="surrogateescape").read()
+keys = ["EnableSystemConsole", "EnableFileLogging", "EnableVerbose",
+        "EnableEEConsole", "EnableIOPConsole"]
+first = 'prefs_set_string("Logging/EnableSystemConsole", "0");'
+if "ci_logging_enabled" in text:
+    print("main.c: už patcheno")
+    sys.exit(0)
+if first not in text:
+    print("main.c: vzorek Logging/* nenalezen — log zůstane vypnutej")
+    sys.exit(1)
+text = text.replace(first,
+    'extern int ci_logging_enabled(void);\n'
+    '  const int ci_log = ci_logging_enabled();\n'
+    '  prefs_set_string("Logging/EnableSystemConsole", ci_log ? "1" : "0");', 1)
+for k in keys[1:]:
+    text = text.replace('prefs_set_string("Logging/%s", "0");' % k,
+                        'prefs_set_string("Logging/%s", ci_log ? "1" : "0");' % k, 1)
+open(path, "w", encoding="utf-8", errors="surrogateescape").write(text)
+print("main.c: Logging/* respektuje marker")
+LOGMAIN
+  [ $? -eq 0 ] || warn "main.c patch pro Logging/* neprošel — log bude stručnější"
+
 else
   # Bez patche by naše silná definice narazila na tu upstreamovou a link by
   # selhal — raději captur stáhni celý, ať GL build projde i tak.
@@ -381,9 +419,13 @@ else
   warn "log capture NEAPLIKOVÁN (imports.c vypadá jinak) — .nro se chová jako upstream"
 fi
 
-run "make emulator GL" make -C "$SRC" -j"$JOBS" RENDERER=GL
-cp -f "$SRC/NetherSX2_nx.nro" "$SRC/NetherSX2_nx_gl.nro"
-key "gl=$(stat -c %s "$SRC/NetherSX2_nx_gl.nro")"
+if [ "$VK_ONLY" = 1 ]; then
+  key "GL build přeskočen (VK_ONLY=1) — ušetřeno ~4 min"
+else
+  run "make emulator GL" make -C "$SRC" -j"$JOBS" RENDERER=GL
+  cp -f "$SRC/NetherSX2_nx.nro" "$SRC/NetherSX2_nx_gl.nro"
+  key "gl=$(stat -c %s "$SRC/NetherSX2_nx_gl.nro")"
+fi
 
 if [ -n "$VKSDK" ]; then
   # GL a VK se nesmí linknout spolu (switch-mesa i NVK archivy obsahuj vlastní
@@ -571,11 +613,17 @@ MULDEFS
         echo "$sym -> ${hit:-NIKDE v SDK ani portlibs}"
       done; } | bash "$HERE/annotate.sh" "error+" 16
 
+  if [ "$VK_ONLY" = 1 ]; then
+    die "VK_ONLY=1 a žádná VK binárka neprošla (MESA_SDK_ROOT ani flat) — GL fallback neděláme"
+  fi
   warn "VK build selhal — GL binárka zůstává, launcher bude potřebovat Renderer=OpenGL"
     key "vk=SELHAL"
     VKSDK=""
   fi
 else
+  if [ "$VK_ONLY" = 1 ]; then
+    die "VK_ONLY=1, ale VULKAN_SDK_DIR/mesa-sdk je prázdný — bez Mesa SDK se VK nedá linknout"
+  fi
   warn "VK binárka se nebuildí (chybí Mesa/NVK SDK) -> v launcheru je potřeba Renderer=OpenGL"
 fi
 
@@ -590,7 +638,11 @@ for b in 4248 3668; do
   cp -rf "$CORES_DIR/NetherSX2-v2.2n-$b/assets/." "$rd/"
   rm -rf "$rd/dexopt"
 done
-cp -f "$SRC/NetherSX2_nx_gl.nro" "$SRC/launcher/romfs/emu/NetherSX2_nx_gl.nro"
+if [ -f "$SRC/NetherSX2_nx_gl.nro" ]; then
+  cp -f "$SRC/NetherSX2_nx_gl.nro" "$SRC/launcher/romfs/emu/NetherSX2_nx_gl.nro"
+else
+  key "romfs/emu bez GL binárky (VK_ONLY) — launcher musí bejt na Renderer=Vulkan"
+fi
 if [ -n "$VKSDK" ] && [ -f "$SRC/NetherSX2_nx_vk.nro" ]; then
   cp -f "$SRC/NetherSX2_nx_vk.nro" "$SRC/launcher/romfs/emu/NetherSX2_nx_vk.nro"
   note "romfs má oba rendery (GL + VK)"
@@ -620,7 +672,22 @@ edits = [
     #     selze, viz (1).
     ("    bool ok=fseek(file,0x10,SEEK_SET)==0",
      "    bool ok=fseek(file,0x0,SEEK_SET)==0"),
-    # (3) jediny bod, kde jsou k dispozici vsechny tri priznaky + obe cesty
+    # (3) fsync() na souboru libnx/newlib-supported není; upstream ho má jako
+    #     fatální, což zahodilo i jinak povedenej zápis. Synchronizace SD se na
+    #     Switchu dělá přes fsdevCommitDevice("sdmc"), viz next edit.
+    ("  if(fflush(out)!=0||fsync(fileno(out))!=0) ok=false;",
+     "  if(fflush(out)!=0) ok=false;\n  (void)fsync(fileno(out));"),
+    # (4) overlay volá beginUiFrame() -> appletMainLoop(); jestliže Horizon
+    #     zrovne nechce frame (docking, applet přepnutí), g_setupAborted se
+    #     zahozi do kopírovacího cyklu a ten ukončí UPROSTRED souboru.
+    #     Vkládáme jen reset flagu: UI se příští chunk zkusí překreslit znova.
+    ("    if(g_setupAborted){ ok=false; break; }",
+     "    if(g_setupAborted) g_setupAborted=false;"),
+    # (5) kontrola velikosti hned po fclose(): bez commitu umí FAT vrstvy
+    #     vrátit starej st_size -> „size mismatch" a zahozenej soubor.
+    ("  struct stat temporary{};",
+     "  fsdevCommitDevice(\"sdmc\");\n  struct stat temporary{};"),
+    # (6) jediny bod, kde jsou k dispozici vsechny tri priznaky + obe cesty
     ("    willChain=haveCore&&haveEmulator&&haveResources&&configSaved;",
      "    willChain=haveCore&&haveEmulator&&haveResources&&configSaved;\n"
      "    { extern void ciLaunchDiag(const char *,const char *,const char *,const char *,bool,bool,bool,bool);\n"
@@ -635,27 +702,27 @@ for find, repl in edits:
         text = text.replace(find, repl, 1)
         done += 1
 open(path, "w", encoding="utf-8", errors="surrogateescape").write(text)
-print("main.cpp: patcheno %d/3" % done)
-sys.exit(0 if done == 3 else 1)
+n_edits = len(edits)
+print("main.cpp: patcheno %d/%d" % (done, n_edits))
+sys.exit(0 if done == n_edits else 1)
 PYEOF
   if [ $? -eq 0 ]; then
-    key "launcher: ensureEmu uvolněn + seek 0x0 + vložená diagnostika"
+    key "launcher: ensureEmu uvolněn, seek 0x0, fsync/abort/commit opravy, diagnostika"
   else
     warn "launcher patch NEAPLIKOVÁN — upstream posunul řádky, .nro se chová jako upstream"
   fi
 
   cat > "$SRC/launcher/source/ci_launch_diag.cpp" <<'LAUNCH_DIAG_CPP'
-// CI diagnostika launcheru — generuje ji ci/build-switch.sh, NENÍ část upstreamu.
-// Důvod: „Could not extract emulator files (SD full?)" je jen dohad. Reálná
-// příčina je v extractFromRomfs() (stat na romfs zdrojáku, chybějící adresář,
-// rename, fsync) a launcher ji nikam nepíše. Tohle ji vypíše na kartu.
 #include <dirent.h>
 #include <sys/stat.h>
 #include <sys/statvfs.h>
+#include <switch.h>            // fsdevCommitDevice("sdmc")
+#include <unistd.h>            // fsync, fileno
 #include <cerrno>
 #include <cstdio>
 #include <cstring>
 #include <ctime>
+#include <string>
 
 namespace {
 constexpr const char *DIAG_LOG = "sdmc:/switch/nethersx2/launcher-diag.log";
@@ -666,7 +733,7 @@ void hexHead(FILE *out, const char *label, const char *path) {
   unsigned char bytes[32] = {};
   const size_t got = std::fread(bytes, 1, sizeof(bytes), f);
   std::fclose(f);
-  std::fprintf(out, "  %-13s prvních %zu bajtů:", label, got);
+  std::fprintf(out, "  %-13s prvnich %zu bajtu:", label, got);
   for (size_t i = 0; i < got; ++i) std::fprintf(out, " %02x", bytes[i]);
   std::fprintf(out, "  ascii:");
   for (size_t i = 0; i < got; ++i) std::fputc((bytes[i] >= 32 && bytes[i] < 127) ? bytes[i] : '.', out);
@@ -678,16 +745,53 @@ void describe(FILE *out, const char *label, const char *path) {
   if (path && *path && stat(path, &st) == 0 && S_ISREG(st.st_mode))
     std::fprintf(out, "  %-13s %s = %lld B\n", label, path, static_cast<long long>(st.st_size));
   else
-    std::fprintf(out, "  %-13s %s CHYBÍ (%s)\n", label, path ? path : "(null)", std::strerror(errno));
+    std::fprintf(out, "  %-13s %s CHYBI (%s)\n", label, path ? path : "(null)", std::strerror(errno));
 }
 
 void countIn(FILE *out, const char *label, const char *path) {
   DIR *dir = opendir(path);
-  if (!dir) { std::fprintf(out, "  %-13s %s nejde otevřít (%s)\n", label, path, std::strerror(errno)); return; }
+  if (!dir) { std::fprintf(out, "  %-13s %s nejde otevrit (%s)\n", label, path, std::strerror(errno)); return; }
   int files = 0;
   while (readdir(dir)) ++files;
   closedir(dir);
-  std::fprintf(out, "  %-13s %s = %d položek\n", label, path, files > 2 ? files - 2 : files);
+  std::fprintf(out, "  %-13s %s = %d polozek\n", label, path, files > 2 ? files - 2 : files);
+}
+
+// Active sonda: totéž, co dělá extractFromRomfs(), krok po kroku. Důvod —
+// „Could not extract emulator files (SD full?)" je jediná hláška, kterou
+// launcher o selhání vypustí, a selhat může fopen/write/fflush/fsync/size/
+// rename. Tohle rozliší, který z těch šesti to je, bez nutnosti logu coreu.
+void probe(FILE *out, const char *dir) {
+  std::fprintf(out, "  sonda %s:\n", dir);
+  if (mkdir(dir, 0777) != 0 && errno != EEXIST) {
+    std::fprintf(out, "    mkdir       = %s\n", std::strerror(errno));
+    return;
+  }
+  const std::string tmp = std::string(dir) + "/.ci-probe.tmp";
+  const std::string dst = std::string(dir) + "/.ci-probe";
+  FILE *f = std::fopen(tmp.c_str(), "wb");
+  if (!f) { std::fprintf(out, "    fopen wb    = %s\n", std::strerror(errno)); return; }
+  std::fprintf(out, "    fopen wb    = ok\n");
+  char buf[4096];
+  std::memset(buf, 0x5a, sizeof(buf));
+  const size_t wrote = std::fwrite(buf, 1, sizeof(buf), f);
+  std::fprintf(out, "    fwrite      = %zu / %zu\n", wrote, sizeof(buf));
+  const int flushed = std::fflush(f);
+  const int synced = fsync(fileno(f));
+  const int syncErrno = errno;
+  const int closed = std::fclose(f);
+  std::fprintf(out, "    fflush=%d fsync=%d(%s) fclose=%d\n", flushed, synced, std::strerror(syncErrno), closed);
+  fsdevCommitDevice("sdmc");
+  struct stat st {};
+  const int st1 = stat(tmp.c_str(), &st);
+  std::fprintf(out, "    stat tmp    = %d size=%lld\n", st1, static_cast<long long>(st.st_size));
+  const int renamed = rename(tmp.c_str(), dst.c_str());
+  std::fprintf(out, "    rename      = %d%s\n", renamed, renamed ? std::strerror(errno) : "");
+  const int st2 = stat(dst.c_str(), &st);
+  std::fprintf(out, "    stat dst    = %d size=%lld\n", st2, static_cast<long long>(st.st_size));
+  remove(tmp.c_str());
+  remove(dst.c_str());
+  fsdevCommitDevice("sdmc");
 }
 } // namespace
 
@@ -695,25 +799,26 @@ extern void ciLaunchDiag(const char *coreSource, const char *coreDestination,
                          const char *emulatorSource, const char *emulatorDestination,
                          bool haveCore, bool haveEmulator, bool haveResources, bool configSaved) {
   FILE *out = std::fopen(DIAG_LOG, "a");
-  if (!out) return;  // bez toho si launcher jen tak nepovzdechne
+  if (!out) return;   // launcher kvuli tomu nesmi spadnout
   std::fprintf(out, "--- start hry %lld ---\n", static_cast<long long>(std::time(nullptr)));
-  std::fprintf(out, "  příznaky: core=%d emu=%d zdrojáky=%d config=%d\n",
+  std::fprintf(out, "  priznaky: core=%d emu=%d zdrojaky=%d config=%d\n",
                haveCore ? 1 : 0, haveEmulator ? 1 : 0, haveResources ? 1 : 0, configSaved ? 1 : 0);
   describe(out, "core zdroj", coreSource);
-  describe(out, "core cíl", coreDestination);
+  describe(out, "core cil", coreDestination);
   describe(out, "emu zdroj", emulatorSource);
-  describe(out, "emu cíl", emulatorDestination);
+  describe(out, "emu cil", emulatorDestination);
   countIn(out, "cores dir", "sdmc:/switch/nethersx2/cores");
   countIn(out, ".emu dir", "sdmc:/switch/nethersx2/.emu");
   struct statvfs fs {};
   if (statvfs("sdmc:/", &fs) == 0 && fs.f_frsize)
-    std::fprintf(out, "  volno na kartě = %llu MB (bloky %llu x %u B)\n",
-                 static_cast<unsigned long long>(fs.f_bavail) * fs.f_frsize / (1024 * 1024),
-                 static_cast<unsigned long long>(fs.f_bavail), static_cast<unsigned>(fs.f_frsize));
+    std::fprintf(out, "  volno na karte = %llu MB\n",
+                 static_cast<unsigned long long>(fs.f_bavail) * fs.f_frsize / (1024ULL * 1024ULL));
   else
-    std::fprintf(out, "  volno na kartě: statvfs selhalo (%s)\n", std::strerror(errno));
+    std::fprintf(out, "  volno na karte: statvfs selhalo (%s)\n", std::strerror(errno));
   hexHead(out, "emu zdroj", emulatorSource);
-  hexHead(out, "emu cíl", emulatorDestination);
+  hexHead(out, "emu cil", emulatorDestination);
+  probe(out, "sdmc:/switch/nethersx2/cores");
+  probe(out, "sdmc:/switch/nethersx2/.emu");
   std::fflush(out);
   std::fclose(out);
 }

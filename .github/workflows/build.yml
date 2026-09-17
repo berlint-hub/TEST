@@ -17,12 +17,8 @@ name: build / NetherSX2_nx (GL)
 # jinak by output byl TEST.nro.
 
 on:
+  # GL emulátor: automatický build vypnutej, stačí spustit ručně.
   workflow_dispatch:
-  push:
-    branches: ["arena/**"]
-    paths:
-      - ".github/workflows/build.yml"
-      - "ci/**"
 
 permissions:
   contents: write
