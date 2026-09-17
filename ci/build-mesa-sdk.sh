@@ -14,8 +14,10 @@ set -uo pipefail
 # Jedna kompaktní anotace na konci: GitHub jich umí jen ~50 a middle se
 # ztrácejí — DIGEST musí projít. Pozor, smí se odkazovat na $ROOT až když je
 # je definovaný (proto je inicializace až za cd "$ROOT").
-note() { echo "::notice::$*"; }
-key() { echo "$*" >> "${DIGEST:-/dev/null}" 2>/dev/null; note "$*"; }
+note() {
+  if [ "${ANNOTATE_EVERY:-0}" = "1" ]; then echo "::notice::$*"; else echo "$*"; fi
+}
+key() { echo "$*" >> "${DIGEST:-/dev/null}" 2>/dev/null; echo "::notice::$*"; }
 err()  { echo "::error::$*"; }
 warn() { echo "::warning::$*"; }
 

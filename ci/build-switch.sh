@@ -12,10 +12,15 @@
 # sama (::notice:: / ::error:: anotations) a padá jen přes die().
 set -uo pipefail
 
-note() { echo "::notice::$*"; }
+# GitHub omezuje annotace na ~30 na job, takže lejzry poznámek nás trestaj:
+# každá `note` putuje jen do logu a na povrch se dostanou jedině chyby a DIGEST.
+# ANNOTATE_EVERY=1 to nechá zapnutý, kdyby se chtělo dívat do runu v UI.
+note() {
+  if [ "${ANNOTATE_EVERY:-0}" = "1" ]; then echo "::notice::$*"; else echo "$*"; fi
+}
 # klíčový čísla sbíráme do jednoho řádku — GitHub annotace omezuje a middle
 # se ztrácejí; DIGEST musí projít
-key() { echo "$*" >> "${DIGEST:-/dev/null}" 2>/dev/null; note "$*"; }
+key() { echo "$*" >> "${DIGEST:-/dev/null}" 2>/dev/null; echo "::notice::$*"; }
 err()  { echo "::error::$*"; }
 warn() { echo "::warning::$*"; }
 
@@ -309,6 +314,35 @@ ssize_t writev(int fd, const struct iovec *vectors, int count) {
 }
 SHIM
   note "psán weak writev shim pro VK link (source/hooks, ne source/switch)"
+  # Unified větev Makefile linkuje -lvulkan -lEGL -lGLESv2 -lglapi + mesa util,
+  # ALN z ní chybí -ldrm_nouveau / -lexpat / -lelf, který Mesa/NVK i switch-mesa
+  # EGL implicitně čekaj. LIBS si přepsat netroufáme (je to := v Makefile a
+  # duplikovat upstream list je křehký), místo toho ty archivy nacpeme do
+  # libvulkan.a -- ar na tohle existuje precisely.
+  SRCSDK="$VKSDK"
+  if [ -d "$SRCSDK/lib" ]; then
+    rm -rf "$WORK/vk-sdk"; mkdir -p "$WORK"
+    cp -r "$SRCSDK" "$WORK/vk-sdk" 2>/dev/null || die "kopie vk sdk"
+    VKSDK="$WORK/vk-sdk"
+    # `create` v MRI skriptu archiv PŘEPÍŠE, donc musím jako prvního člena
+    # přidat ten originál z artifactu, jinak bych o těch 18 archivech přišel.
+    EX="libdrm_nouveau.a libexpat.a libelf.a libzstd.a libz.a"
+    {
+      printf 'create %s/lib/libvulkan.a\n' "$VKSDK"
+      printf 'addlib %s/lib/libvulkan.a\n' "$SRCSDK"
+      for a in $EX; do
+        [ -f "$PORTLIBS/lib/$a" ] && printf 'addlib %s/lib/%s\n' "$PORTLIBS" "$a"
+      done
+      printf 'save\nend\n'
+    } > "$WORK/extend.mri"
+    if aarch64-none-elf-ar -M < "$WORK/extend.mri" > "$WORK/logs/ar-extend.log" 2>&1; then
+      key "libvulkan.a rozšířen o: $EX ($(stat -c %s "$VKSDK/lib/libvulkan.a") B)"
+    else
+      echo "::error::rozšíření libvulkan.a se nepovedlo"
+      tail -5 "$WORK/logs/ar-extend.log" | bash "$HERE/annotate.sh" error 5
+    fi
+  fi
+
   make -C "$SRC" clean >/dev/null 2>&1
   # primárně unified SDK: má -lEGL/-lGLESv2/-lglapi z portlibs, kdežto flat
   # větev v Makefile žádný EGL link neobsahuje => egl* zůstanou nedefinovaný
