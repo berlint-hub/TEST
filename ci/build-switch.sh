@@ -563,7 +563,9 @@ MULDEFS
   done
   { echo "census: $(wc -l < "$DEFS" | tr -d ' ') definic v $(ls "$VKSDK"/lib/*.a "$PORTLIBS"/lib/*.a 2>/dev/null | wc -l | tr -d ' ') archivech"
     grep -ho "undefined reference to \`[A-Za-z0-9_]*'" "$WORK"/logs/soft-*.log 2>/dev/null \
-      | sed "s/.*\`\([A-Za-z0-9_]*\)'/\1/" | sort -u | head -14 | while read -r sym; do
+      | sed "s/.*\`\([A-Za-z0-9_]*\)'/\1/" | sort -u \
+      | awk '/^vk/{v[NR]=$0; next} {o[++n]=$0} END{for(i=1;i<=NR;i++) if(v[i]!="") print v[i]; for(i=1;i<=n;i++) print o[i]}' \
+      | head -24 | while read -r sym; do
         [ -n "$sym" ] || continue
         hit=$(awk -v S="$sym" '$1==S{printf "%s ", $2}' "$DEFS" | sed 's/ *$//')
         echo "$sym -> ${hit:-NIKDE v SDK ani portlibs}"
