@@ -87,7 +87,8 @@ jobs:
           
           - **Renderer:** build obsahuje jen `NetherSX2_nx_gl.nro`, takže v launcheru nastav **Renderer = OpenGL**. Default je Vulkan a ten v tomhle buildu není.
           - **SD:** `sdmc:/switch/NetherSX2.nro`, vlastní BIOS do `sdmc:/switch/nethersx2/bios/`.
-          - **Logy pro ladění:** `sdmc:/switch/nethersx2/nethersx2-mesa.log` a `sdmc:/switch/nethersx2/nethersx2-exception.log`.
+          - **Extrakce jádra:** launcher pri startu hry kopiruje `romfs:/cores/emucore_4248.so` a `romfs:/emu/NetherSX2_nx_gl.nro` na kartu. Hlaska „Could not extract emulator files (SD full?)" zpusoboval vlastni launcher (overovaci kontrola NRO hlavicky), ne plna SD — ta je v tomhle buildu opravena.
+          - **Logy pro ladění:** pri kazdem startu hry se pise `sdmc:/switch/nethersx2/launcher-diag.log` (stav obou cest, volne misto, hlavicky souboru). Log emulatoroveho jadra zapnes prazdnym souborem `sdmc:/switch/nethersx2/ci-logging.enabled` -> `sdmc:/switch/nethersx2/nethersx2-core.log`. K tomu `nethersx2-mesa.log` a `nethersx2-exception.log`.
           - Není ověřeno na hardwaru — jen že se to sestavilo a nalinkovalo.
           EOF
           # Job běží BEZ actions/checkout, teda gh musí dostat repozitář
@@ -99,6 +100,12 @@ jobs:
           rc=$?
           if [ "$rc" -eq 0 ]; then
             gh release view "$tag" -R "$GITHUB_REPOSITORY" --json url --jq '"::notice::DOWNLOAD " + .url'
+            # rolling odkaz: jedny staly URL, který se dá posílat dál bez toho,
+            # jestli zrovna proběhl další build
+            gh release delete nro-latest -R "$GITHUB_REPOSITORY" --yes --cleanup-tag >/dev/null 2>&1
+            gh release create nro-latest -R "$GITHUB_REPOSITORY" \
+              --title "NetherSX2.nro (CI, OpenGL) — nejnovější" --notes-file notes.md --prerelease "$nro" >/dev/null 2>&1 \
+              && echo "::notice::STÁLÉ https://github.com/$GITHUB_REPOSITORY/releases/download/nro-latest/NetherSX2.nro"
           else
             echo "::error::gh release create rc=$rc"
             head -4 /tmp/gherr | sed 's/^/::error::/'

@@ -477,72 +477,50 @@ VKSHIM
   # EGL implicitně čekaj. LIBS si přepsat netroufáme (je to := v Makefile a
   # duplikovat upstream list je křehký), místo toho ty archivy nacpeme do
   # libvulkan.a -- ar na tohle existuje precisely.
-  # Makefile v unified větvi má
-  #   LIBS = --start-group -lvulkan -lEGL -lGLESv2 -lglapi … --end-group
-  #          -lcurl -lelf -lexpat -lz -lzstd
-  # tj. `-lvulkan` (naše mega archivka z nxvk Mesy) SE JEDNÉ groupě s
-  # portlibs `libEGL.a`, který má vlastní kopie Mesa util/glsl/hash_table
-  # objektů. Dokud jsme je z libvulkan.a vyhodili, link skončil na
-  # „multiple definition of _mesa_hash_data / glsl_type_* / half_float".
-  # Necháváme to vyfilterovat automatiku: rozbalíme členy, necháme nm-rem
-  # spočítat jejich symboly a smažeme ty, co už definujou portlibs. Je to
-  # přesně ta konfigurace, kterou předpokládá upstream (EGL/gles Comes from
-  # switch-mesa, NVK/runtime z nxvk).
-  SRCSDK="$VKSDK"
-  rm -rf "$WORK/vk-sdk"; mkdir -p "$WORK/vk-sdk"
-  cp -r "$SRCSDK/." "$WORK/vk-sdk/" 2>/dev/null || die "kopie vk sdk"
-  VKSDK="$WORK/vk-sdk"
+  # Unified větev Makefile má
+  #   LIBS = --start-group -lvulkan -lEGL -lGLESv2 -lglapi -lmesa_util* …
+  #          --end-group -lcurl -lelf -lexpat -lz -lzstd
+  # tj. nxvk Mesu (libvulkan.a) a switch-mesa portlib libEGL.a v JEDNÉ groupě.
+  # Oba obsahujou Mesa util/glsl/hash_table objekty -> „multiple definition of
+  # _mesa_hash_data / glsl_type_* / half_float". První pomoc byla vyhodit
+  # kolizní členy z libvulkan.a — selhalo, protože_membery nesou i unikátní
+  # symboly (vkCreateDevice, vkGetInstanceProcAddr), jež pak chyběly. Správně
+  # je nechat rozhodnout linker: -z muldefs vezme první definici, a tou je
+  # díky pořadí v groupě nxvk Mesa, která k NVK driverovi patří ✓.
+  #
+  # LDFLAGS se nedaj rozšířit z příkazový řádky (přepsáním by zmizel
+  # -specs=switch.specs), takže je potřeba je doplnit v Makefilu.
+  if [ -f "$SRC/Makefile" ] && ! grep -q 'z,muldefs' "$SRC/Makefile"; then
+    python3 - "$SRC/Makefile" <<'MULDEFS'
+import sys
+path = sys.argv[1]
+text = open(path, encoding="utf-8", errors="surrogateescape").read()
+needle = "LDFLAGS\t=\t-specs=$(DEVKITPRO)/libnx/switch.specs"
+if needle in text:
+    text = text.replace(needle, "LDFLAGS\t=\t-Wl,-z,muldefs -specs=$(DEVKITPRO)/libnx/switch.specs", 1)
+    open(path, "w", encoding="utf-8", errors="surrogateescape").write(text)
+    print("Makefile: LDFLAGS + -Wl,-z,muldefs")
+    sys.exit(0)
+print("Makefile: wzorec LDFLAGS nenalezen")
+sys.exit(1)
+MULDEFS
+    [ $? -eq 0 ] && key "Makefile patchen o -z muldefs" || warn "-z muldefs do Makefile nešlo zapsat, VK pokus pravděpodobně spadne na duplicitách"
+  fi
 
   # -lelf je v LIBS, ale žádná switch portlibs libelf nemaj — prázdrnej
-  # archiv stačí, symboly z něj Makefile ve skutečnosti nevolá
+  # archiv stačí, nikdo z něj symboly nevolá
   if [ ! -f "$VKSDK/lib/libelf.a" ] && [ ! -f "$PORTLIBS/lib/libelf.a" ]; then
     aarch64-none-elf-ar rcs "$VKSDK/lib/libelf.a" >/dev/null 2>&1
     key "prázdrnej libelf.a (LIBS chce -lelf, portlibs ho nemá)"
   fi
 
-  MEMBERS="$WORK/vk-members"; rm -rf "$MEMBERS"; mkdir -p "$MEMBERS"
-  PL_SYMS="$WORK/portlibs.syms"
-  { for p in libEGL.a libGLESv2.a libglapi.a; do
-      [ -f "$PORTLIBS/lib/$p" ] && aarch64-none-elf-nm --defined-only --extern-only "$PORTLIBS/lib/$p" 2>/dev/null
-    done; } | awk '/ [A-Za-z] /{print $NF}' | sort -u > "$PL_SYMS"
-  ( cd "$MEMBERS" && aarch64-none-elf-ar x "$VKSDK/lib/libvulkan.a" ) >/dev/null 2>&1
-  DROP="$WORK/drop-members.txt"; : > "$DROP"
-  for o in "$MEMBERS"/*.o; do   # *.c.o je jen podsada *.o, zvlášť glob nemusí
-    [ -e "$o" ] || continue
-    b=$(basename "$o")
-    aarch64-none-elf-nm --defined-only --extern-only "$o" 2>/dev/null \
-      | awk '/ [A-Za-z] /{print $NF}' | sort -u > "$WORK/m.syms"
-    if [ -s "$WORK/m.syms" ] && comm -12 "$WORK/m.syms" "$PL_SYMS" | grep -q .; then
-      grep -qxF "$b" "$DROP" || echo "$b" >> "$DROP"
-    fi
-  done
-  ndrop=$(wc -l < "$DROP" | tr -d ' ')
-  if [ "${ndrop:-0}" -gt 0 ]; then
-    xargs -a "$DROP" aarch64-none-elf-ar d "$VKSDK/lib/libvulkan.a" >/dev/null 2>&1
-    key "libvulkan.a: vyhozeno $ndrop členů, co už maj portlibs (EGL/GLESv2/glapi)"
-  else
-    key "libvulkan.a: žádná kolize s portlibs (nic se nemazalo)"
-  fi
-
-  # Druhá půlka stejného problému: LIBS unified větve si bere
-  #   -lmesa_util_c11 -lblake3 -lmesa_util -lmesa_util_simd -lxmlconfig
-  # z $MESA_SDK_ROOT/lib a switch-mesa `libEGL.a` má týž Mesa util objekty
-  # vložený v sobě -> duplicate definition. Všechny ty archivy jsou už
-  # slepený uvnitř libvulkan.a (vznikla ze všech 23), takže je v SDK můžeme
-  # klidne vyprázdnit: ať je jedina definace ta, co přežila v libvulkan.a,
-  # plus kopie z portlibu pro symboly, který jsme smazali výše.
-  for a in libmesa_util.a libmesa_util_simd.a libmesa_util_c11.a libblake3.a libxmlconfig.a; do
-    if [ -f "$VKSDK/lib/$a" ]; then
-      rm -f "$VKSDK/lib/$a"
-      aarch64-none-elf-ar rcs "$VKSDK/lib/$a" >/dev/null 2>&1
-    fi
-  done
-  key "SDK: util archivy vyprázdněny (jsou uvnitř libvulkan.a), členů libvulkan.a: $(aarch64-none-elf-ar t "$VKSDK/lib/libvulkan.a" 2>/dev/null | wc -l | tr -d ' ')"
-
-  # drm_nouveau v LIBS není, ale NVK/WINSYS ho volá -> přilep ho dovnitř
-  if [ -f "$PORTLIBS/lib/libdrm_nouveau.a" ]; then
+  # LIBS unified větve NEobsahuje -ldrm_nouveau, ale nouveau_wsi z MESA SDK ho
+  # volá -> navážeme ho do libvulkan.a. Pozor: `create` v MRI archiv přepíše,
+  # tudíž jako prvního člena musíme přidat ten stávající.
+  if [ -f "$PORTLIBS/lib/libdrm_nouveau.a" ] && [ -f "$VKSDK/lib/libvulkan.a" ]; then
     m=$(mktemp)
-    { printf 'create %s/lib/libvulkan.a\naddlib %s/lib/libvulkan.a\naddlib %s/lib/libdrm_nouveau.a\nsave\nend\n' "$VKSDK" "$VKSDK" "$PORTLIBS" > "$m"; }
+    printf 'create %s/lib/libvulkan.a\naddlib %s/lib/libvulkan.a\naddlib %s/lib/libdrm_nouveau.a\nsave\nend\n' \
+      "$VKSDK" "$VKSDK" "$PORTLIBS" > "$m"
     if aarch64-none-elf-ar -M < "$m" > "$WORK/logs/ar-extend.log" 2>&1; then
       key "libvulkan.a + libdrm_nouveau.a = $(stat -c %s "$VKSDK/lib/libvulkan.a") B"
     else
