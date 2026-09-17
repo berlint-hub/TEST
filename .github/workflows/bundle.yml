@@ -90,12 +90,18 @@ jobs:
           - **Logy pro ladění:** `sdmc:/switch/nethersx2/nethersx2-mesa.log` a `sdmc:/switch/nethersx2/nethersx2-exception.log`.
           - Není ověřeno na hardwaru — jen že se to sestavilo a nalinkovalo.
           EOF
+          # Job běží BEZ actions/checkout, teda gh musí dostat repozitář
+          # explicitně — bez -R končí na "no git repository" a nejde to
+          # poznat, dokud nevypíšeš stderr.
           tag="nro-$(date -u +%Y%m%d-%H%M%S)"
-          gh release create "$tag" --title "NetherSX2.nro (CI, OpenGL)" --notes-file notes.md --prerelease "$nro"
-          if [ $? -eq 0 ]; then
-            gh release view "$tag" --json url --jq '"::notice::DOWNLOAD " + .url'
+          gh release create "$tag" -R "$GITHUB_REPOSITORY" \
+            --title "NetherSX2.nro (CI, OpenGL)" --notes-file notes.md --prerelease "$nro" 2> /tmp/gherr
+          rc=$?
+          if [ "$rc" -eq 0 ]; then
+            gh release view "$tag" -R "$GITHUB_REPOSITORY" --json url --jq '"::notice::DOWNLOAD " + .url'
           else
-            echo "::error::gh release create selhal — read-only workflow perms (Settings → Actions → General → Workflow permissions → Read and write)"
+            echo "::error::gh release create rc=$rc"
+            head -4 /tmp/gherr | sed 's/^/::error::/'
             echo "::warning::zatím stáhni artifact 'nethersx2-nro-bundle' z jobu bundle"
             exit 1
           fi

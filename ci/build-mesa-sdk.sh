@@ -151,31 +151,54 @@ done
 [ -f "$SDK/include/vulkan/vulkan_core.h" ] \
     && note "vulkan_core.h OK" || err "vulkan_core.h chybí — NetherSX2_nx ho kontroluje"
 
-# NetherSX2_nx má dvě VK větve: flat `vulkan/lib` s 23 -l: archivy, anebo
-# MESA_SDK_ROOT (unified), kde stačí `-lvulkan -lEGL -lGLESv2 -lglapi
-# -lmesa_util_c11 -lblake3 -lmesa_util -lmesa_util_simd -lxmlconfig`.
-# Flat větev nám nepostačí (nikde v ní není -lEGL => eglGetError je undefined),
-# takže připravíme i ten unified tvar: jednu `libvulkan.a` ze všech driverových
-# archivů. MRI skript je táž technika, jakou nxvk používá ve vlastním `package` targetu.
-BUNDLE="libnvk.a libvulkan_runtime.a libvulkan_lite_runtime.a
+# NetherSX2_nx má dvě VK větve: flat `vulkan/lib` se 23 -l: archivy, anebo
+# MESA_SDK_ROOT (unified) s `-lvulkan -lEGL -lGLESv2 -lglapi -lmesa_util*
+# -lblake3 -lxmlconfig`. Flat větev v Makefile neobsahuje -lEGL ani vulkan
+# loader, takže na ní zůstanou nedefinovaný egl*/vkEnumerate* (ověřeno během).
+# Připravíme i unified tvar: jedinou libvulkan.a ze všech driverových archivů.
+#
+# Balí se UVNITŘ image: hostitelskej `ar` ani `llvm-ar` tenhle MRI skript
+# nesežraly (první pokus na hostu selhal bez detailů), kdežto
+# aarch64-none-elf-ar je přesně ten nástroj, na kterej spoléhá i nxvk own
+# `package` target.
+BUNDLE_LIST="libnvk.a libvulkan_runtime.a libvulkan_lite_runtime.a
 libvulkan_instance.a libvulkan_lite_instance.a libvulkan_util.a libvulkan_wsi.a
 libnak.a libnak_rs.a libvtn.a libnil.a liblibnil_format_table.a
 libnouveau_mme.a libnouveau_ws.a libnvidia_headers_c.a
 libnir.a libcompiler.a libcompiler_c_helpers.a"
-ARQ=ar
-command -v llvm-ar >/dev/null 2>&1 && ARQ=llvm-ar
+
+cat > "$SRC/.ci-stage-sdk.sh" <<'STAGE_EOF'
+#!/usr/bin/env bash
+set -uo pipefail
+C=/work/switch/build/cross
+D=/work/switch/build/sdk
+AR=/opt/devkitpro/devkitA64/bin/aarch64-none-elf-ar
+[ -x "$AR" ] || AR=ar
+rm -rf "$D"; mkdir -p "$D/lib"
+mri="$D/bundle.mri"
 {
-  printf 'create %s/lib/libvulkan.a\n' "$SDK"
-  for a in $BUNDLE; do
-    [ -f "$SDK/lib/$a" ] && printf 'addlib %s/lib/%s\n' "$SDK" "$a"
+  echo "create $D/lib/libvulkan.a"
+  for a in $1; do
+    f=$(find "$C" -name "$a" -type f 2>/dev/null | head -1)
+    if [ -n "$f" ]; then echo "addlib $f"; else echo "STAGE-MISSING $a" >&2; fi
   done
-  printf 'save\nend\n'
-} > "$WORK/libvulkan.mri"
-if (cd "$WORK" && "$ARQ" -M < libvulkan.mri) > "$WORK/logs/ar.log" 2>&1; then
-  key "libvulkan.a $(stat -c %s "$SDK/lib/libvulkan.a") B z $(printf '%s\n' $BUNDLE | wc -w) archivů"
+  echo save
+  echo end
+} > "$mri"
+"$AR" -M < "$mri" || exit 1
+ls -la "$D/lib" || true
+du -sh "$D/lib/libvulkan.a" || true
+STAGE_EOF
+
+if stage "balit libvulkan.a uvnitř imageu" \
+     docker run --rm -v "$SRC:/work" -w /work "$IMAGE" \
+     bash /work/.ci-stage-sdk.sh "$(printf '%s ' $BUNDLE_LIST)"; then
+    cp -f "$SRC/switch/build/sdk/lib/libvulkan.a" "$SDK/lib/" 2>/dev/null
+fi
+if [ -f "$SDK/lib/libvulkan.a" ]; then
+    key "libvulkan.a=$(stat -c %s "$SDK/lib/libvulkan.a")"
 else
-  err "nepovedlo se sbalit libvulkan.a ($ARQ -M)"
-  tail -8 "$WORK/logs/ar.log" | bash "$HERE/annotate.sh" error 8
+    err "libvulkan.a nevzniklo — MESA_SDK_ROOT větev neprojde"
 fi
 
 note "SDK velikost: $(du -sh "$SDK" | cut -f1), lib: $(ls "$SDK/lib" | wc -l) archivů"
@@ -185,8 +208,8 @@ key "SDK velikost $(du -sh "$SDK" | cut -f1), headerů $(find "$SDK/include" -na
 echo "::notice::MESA DIGEST: $(tr '\n' ' ' < "$DIGEST" | cut -c1-190)"
 
 # přísný konec: neúplné SDK nemá smysl posílat dál, ať je run červené
-if [ "$have" -lt "$want" ]; then
-    err "SDK je neúplné ($have/$want) — končím"
+if [ "$have" -lt "$want" ] || [ ! -f "$SDK/lib/libvulkan.a" ]; then
+    err "SDK je neúplné ($have/$want archivy, libvulkan.a $([ -f "$SDK/lib/libvulkan.a" ] && echo OK || echo NE))"
     exit 1
 fi
 exit 0
