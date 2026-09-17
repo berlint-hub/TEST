@@ -524,6 +524,21 @@ VKSHIM
     key "libvulkan.a: žádná kolize s portlibs (nic se nemazalo)"
   fi
 
+  # Druhá půlka stejného problému: LIBS unified větve si bere
+  #   -lmesa_util_c11 -lblake3 -lmesa_util -lmesa_util_simd -lxmlconfig
+  # z $MESA_SDK_ROOT/lib a switch-mesa `libEGL.a` má týž Mesa util objekty
+  # vložený v sobě -> duplicate definition. Všechny ty archivy jsou už
+  # slepený uvnitř libvulkan.a (vznikla ze všech 23), takže je v SDK můžeme
+  # klidne vyprázdnit: ať je jedina definace ta, co přežila v libvulkan.a,
+  # plus kopie z portlibu pro symboly, který jsme smazali výše.
+  for a in libmesa_util.a libmesa_util_simd.a libmesa_util_c11.a libblake3.a libxmlconfig.a; do
+    if [ -f "$VKSDK/lib/$a" ]; then
+      rm -f "$VKSDK/lib/$a"
+      aarch64-none-elf-ar rcs "$VKSDK/lib/$a" >/dev/null 2>&1
+    fi
+  done
+  key "SDK: util archivy vyprázdněny (jsou uvnitř libvulkan.a), členů libvulkan.a: $(aarch64-none-elf-ar t "$VKSDK/lib/libvulkan.a" 2>/dev/null | wc -l | tr -d ' ')"
+
   # drm_nouveau v LIBS není, ale NVK/WINSYS ho volá -> přilep ho dovnitř
   if [ -f "$PORTLIBS/lib/libdrm_nouveau.a" ]; then
     m=$(mktemp)

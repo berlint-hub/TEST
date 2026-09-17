@@ -159,6 +159,32 @@ jobs:
         if: always()
         run: bash ci/verdict.sh ci-bundle.log out/NetherSX2.nro out/NetherSX2_nx_gl.nro out/NetherSX2_nx_vk.nro
 
+      # VK bundle publikuj taky do releasu — je to ten, co má fungovat Vulkan,
+      # takže ho uživatel nesmí najít jen v artifactu za 90 dní.
+      - name: publikuj .nro z VK bundle
+        if: ${{ success() }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set +e
+          nro=out/NetherSX2.nro
+          [ -f "$nro" ] || { echo "::error::$nro chybí"; exit 0; }
+          tag="nro-vk-$(date -u +%Y%m%d-%H%M%S)"
+          size=$(stat -c %s "$nro")
+          vk="ne"; [ -f out/NetherSX2_nx_vk.nro ] && vk="ano"
+          echo "publikuji $tag ($size B, vk uvnitř: $vk)"
+          gh release create "$tag" -R "$GITHUB_REPOSITORY" \
+            -t "NetherSX2.nro (VK pokus, $tag)" \
+            -n "Vulkan se pokouší linknout přes nxvk Mesa SDK. vk_nro_v_baliku=$vk size=$size" \
+            --prerelease "$nro" 2> /tmp/gherr
+          rc=$?
+          if [ $rc -ne 0 ]; then
+  echo "::error::gh release create rc=$rc — detail níže"
+            head -4 /tmp/gherr | bash ci/annotate.sh error 4
+            exit 0
+          fi
+          echo "DOWNLOAD https://github.com/$GITHUB_REPOSITORY/releases/tag/$tag"
+
       - name: artifact
         if: always()
         uses: actions/upload-artifact@v4
