@@ -1229,7 +1229,7 @@ for n in emu/NetherSX2_nx_vk.nro emu/NetherSX2_nx_gl.nro cores/libemucore.so \
   if grep -qa "$name" "$OUT/NetherSX2.nro"; then
     note "  uvnitř .nro: $name"
   elif [ "$VK_ONLY" = "1" ] && [ "$name" = "NetherSX2_nx_gl.nro" ]; then
-    note "  v .nro chybí NetherSX2_nx_gl.nro — v порядку, VK_ONLY=1"
+    note "  v .nro chybí NetherSX2_nx_gl.nro — v pořádku, VK_ONLY=1"
   else
     err "  V .nRO CHYBÍ $name — balík je nepoužitelný"
   fi
