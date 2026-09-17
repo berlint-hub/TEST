@@ -204,6 +204,23 @@ if [ ! -d "$SRC/.git" ]; then
 fi
 note "upstream commit $(git -C "$SRC" rev-parse --short HEAD)"
 
+# nepovinnej vstup: plochý vulkan/ SDK z ci/build-mesa-sdk.sh (artifact
+# 'mesa-sdk'). Bez něj se VK stage přeskočí — GL cesta to nepotřebuje.
+VKSDK="${VULKAN_SDK_DIR:-}"
+if [ -n "$VKSDK" ]; then
+  if [ -d "$VKSDK/lib" ]; then
+    rm -rf "$SRC/vulkan"; mkdir -p "$SRC/vulkan"
+    cp -r "$VKSDK/." "$SRC/vulkan/"
+    note "Vulkan SDK nasazen do $SRC/vulkan: $(ls "$SRC/vulkan/lib" | wc -l) archivů, $(find "$SRC/vulkan/include" -name '*.h' | wc -l) headerů"
+    for a in libnvk.a libnir.a libcompiler.a libmesa_util.a; do
+      [ -f "$SRC/vulkan/lib/$a" ] && note "  $a $(stat -c %s "$SRC/vulkan/lib/$a") B" || err "  v SDK chybí $a"
+    done
+  else
+    err "VULKAN_SDK_DIR=$VKSDK neobsahuje lib/ -> VK přeskočím"
+    VKSDK=""
+  fi
+fi
+
 # ------------------------------------------------------ 6. deps + emulator (GL)
 note "=== stage 6: libsmb2 + libusbhsfs ==="
 DEPS="$SRC/launcher/dependencies"
@@ -217,7 +234,21 @@ make -C "$SRC" clean >/dev/null 2>&1
 run "make emulator GL" make -C "$SRC" -j"$JOBS" RENDERER=GL
 cp -f "$SRC/NetherSX2_nx.nro" "$SRC/NetherSX2_nx_gl.nro"
 stat -c "::notice::emulátor GL = %s B" "$SRC/NetherSX2_nx_gl.nro"
-warn "VK binárka se nebuildí (chybí Mesa/NVK SDK) -> v launcheru je potřeba Renderer=OpenGL"
+
+if [ -n "$VKSDK" ]; then
+  # GL a VK se nesmí linknout spolu (switch-mesa i NVK archivy obsahuj vlastní
+  # kopie mesa util/nir/compiler) -> clean mezi nima, stejně jako build_all.sh.
+  make -C "$SRC" clean >/dev/null 2>&1
+  if run "make emulator VK" make -C "$SRC" -j"$JOBS" RENDERER=VK; then
+    cp -f "$SRC/NetherSX2_nx.nro" "$SRC/NetherSX2_nx_vk.nro"
+    stat -c "::notice::emulátor VK = %s B" "$SRC/NetherSX2_nx_vk.nro"
+  else
+    warn "VK build selhal — GL binárka zůstává, launcher bude potřebovat Renderer=OpenGL"
+    VKSDK=""
+  fi
+else
+  warn "VK binárka se nebuildí (chybí Mesa/NVK SDK) -> v launcheru je potřeba Renderer=OpenGL"
+fi
 
 # ------------------------------------------------------------------ 8. romfs
 note "=== stage 8: romfs bundling ==="
@@ -231,6 +262,10 @@ for b in 4248 3668; do
   rm -rf "$rd/dexopt"
 done
 cp -f "$SRC/NetherSX2_nx_gl.nro" "$SRC/launcher/romfs/emu/NetherSX2_nx_gl.nro"
+if [ -n "$VKSDK" ] && [ -f "$SRC/NetherSX2_nx_vk.nro" ]; then
+  cp -f "$SRC/NetherSX2_nx_vk.nro" "$SRC/launcher/romfs/emu/NetherSX2_nx_vk.nro"
+  note "romfs má oba rendery (GL + VK)"
+fi
 du -sh "$SRC/launcher/romfs" | bash "$HERE/annotate.sh" notice 1
 
 # ------------------------------------------------------ 9. forwarder + launcher
@@ -267,6 +302,7 @@ OUT="${OUT:-$ROOT/out}"
 mkdir -p "$OUT"
 cp -f "$SRC/NetherSX2.nro" "$OUT/NetherSX2.nro" || die "kopie do out/"
 cp -f "$SRC/NetherSX2_nx_gl.nro" "$OUT/" 2>/dev/null
+cp -f "$SRC/NetherSX2_nx_vk.nro" "$OUT/" 2>/dev/null
 stat -c "::notice::VÝSLEDEK %n = %s B" "$OUT/NetherSX2.nro"
 note "sha256 $(sha256sum "$OUT/NetherSX2.nro" | cut -c1-64)"
 note "SD layout: sdmc:/switch/NetherSX2.nro + sdmc:/switch/nethersx2/ (BIOS si kladeš sám)"

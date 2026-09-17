@@ -16,7 +16,7 @@ bash ci/build-switch.sh
 rc=$?
 
 SRC="${SRC:-$PWD/.ciwork/NetherSX2_nx}"
-for f in "$SRC/NetherSX2.nro" "$SRC/NetherSX2_nx_gl.nro" "$SRC/NetherSX2_nx_gl.elf"; do
+for f in "$SRC/NetherSX2.nro" "$SRC/NetherSX2_nx_gl.nro" "$SRC/NetherSX2_nx_vk.nro" "$SRC/NetherSX2_nx_gl.elf"; do
     [ -f "$f" ] && cp -f "$f" out/ 2>/dev/null
 done
 
