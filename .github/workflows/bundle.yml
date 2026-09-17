@@ -95,6 +95,7 @@ jobs:
           if [ $? -eq 0 ]; then
             gh release view "$tag" --json url --jq '"::notice::DOWNLOAD " + .url'
           else
-            echo "::error::gh release create selhal — nejspíš read-only workflow perms (Settings → Actions → Workflow permissions → Read and write)"
+            echo "::error::gh release create selhal — read-only workflow perms (Settings → Actions → General → Workflow permissions → Read and write)"
             echo "::warning::zatím stáhni artifact 'nethersx2-nro-bundle' z jobu bundle"
+            exit 1
           fi
