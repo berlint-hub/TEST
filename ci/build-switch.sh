@@ -1216,6 +1216,24 @@ cp -f "$SRC/NetherSX2.nro" "$OUT/NetherSX2.nro" || die "kopie do out/"
 cp -f "$SRC/NetherSX2_nx_gl.nro" "$OUT/" 2>/dev/null
 cp -f "$SRC/NetherSX2_nx_vk.nro" "$OUT/" 2>/dev/null
 key "nro=$(stat -c %s "$OUT/NetherSX2.nro")"
+
+# Poslední pojištění, který nic nestojí: ověříme se v *exportovaným* souboru,
+# že v něm opravdu jsou obě renderovací binárky. RomFS má tabulku jmen
+# souborů v plaintextu, takže stací grep — hactool na to nepotřebujeme.
+# Bez tohohle testu by nám uniklo třeba to, že romfs/emu zůstalo prázdný a
+# launcher by na kartě hlásil „Could not extract emulator files" — přesně
+# tu hlášku, se kterou sme tohle celý začínali.
+for n in emu/NetherSX2_nx_vk.nro emu/NetherSX2_nx_gl.nro cores/libemucore.so \
+         res/GameIndex.yaml; do
+  name=$(basename "$n")
+  if grep -qa "$name" "$OUT/NetherSX2.nro"; then
+    note "  uvnitř .nro: $name"
+  elif [ "$VK_ONLY" = "1" ] && [ "$name" = "NetherSX2_nx_gl.nro" ]; then
+    note "  v .nro chybí NetherSX2_nx_gl.nro — v порядку, VK_ONLY=1"
+  else
+    err "  V .nRO CHYBÍ $name — balík je nepoužitelný"
+  fi
+done
 key "sha256=$(sha256sum "$OUT/NetherSX2.nro" | cut -c1-16)"
 bash "$HERE/annotate.sh" "notice+" 40 < "$DIGEST"
 note "SD layout: sdmc:/switch/NetherSX2.nro + sdmc:/switch/nethersx2/ (BIOS si kladeš sám)"
