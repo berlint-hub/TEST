@@ -113,7 +113,11 @@ jobs:
   bundle:
     name: NetherSX2.nro (GL + VK)
     needs: [mesa, sdk-src]
-    if: always() && (needs.mesa.result == 'success' || needs.mesa.result == 'skipped')
+    # 'always()' proto, aby skip od mesa jobu neznamenaj automaticky skip tady.
+    # Navic: i kdyz Mesa job *selhal* (napr. mu odpadlo apt), pokracujeme --
+    # sdk-src nam mohl najit pouzitelnej artifact z predchoziho runu, a s tim
+    # aspon overime, jestli VK link odpada uz na samotny Mesce.
+    if: always() && (needs.mesa.result == 'success' || needs.mesa.result == 'skipped' || needs.sdk-src.outputs.run_id != '')
     runs-on: ubuntu-latest
     timeout-minutes: 60
     container:
