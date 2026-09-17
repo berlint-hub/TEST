@@ -172,7 +172,9 @@ jobs:
   publish:
     name: publikuj VK bundle
     needs: bundle
-    if: ${{ needs.bundle.result == 'success' }}
+    # always() MUSÍ být, jinak skip řetězce (mesa job byl přeskočenej) smete
+    # i tenhle job a publish se prostě neprovede — bez chybového hlášení.
+    if: ${{ always() && needs.bundle.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:

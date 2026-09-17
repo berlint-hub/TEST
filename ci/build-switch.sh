@@ -550,7 +550,26 @@ MULDEFS
     cp -f "$SRC/NetherSX2_nx.nro" "$SRC/NetherSX2_nx_vk.nro"
     key "vk=$(stat -c %s "$SRC/NetherSX2_nx_vk.nro")"
   else
-    warn "VK build selhal — GL binárka zůstává, launcher bude potřebovat Renderer=OpenGL"
+    # Konec hádání: kdo ty symboly má dodat. Projedeme všechny archivy v MESA SDK
+  # i v portlibs, uděláme index definovaných symbolů (jedním nm průchodem, ne
+  # 20×) a pro každý nevyřešenej symbol řekneme, kde leží — nebo že nikde, což
+  # znamená, že nxvk Mesa ho při cross-buildu vůbec nevygeneroval.
+  DEFS="$WORK/defs.idx"; : > "$DEFS"
+  for a in "$VKSDK"/lib/*.a "$PORTLIBS"/lib/*.a; do
+    [ -e "$a" ] || continue
+    an=$(basename "$a")
+    aarch64-none-elf-nm --defined-only --extern-only "$a" 2>/dev/null \
+      | awk -v A="$an" '/ [TWViI] /{print $NF, A}' >> "$DEFS"
+  done
+  { echo "census: $(wc -l < "$DEFS" | tr -d ' ') definic v $(ls "$VKSDK"/lib/*.a "$PORTLIBS"/lib/*.a 2>/dev/null | wc -l | tr -d ' ') archivech"
+    grep -ho "undefined reference to \`[A-Za-z0-9_]*'" "$WORK"/logs/soft-*.log 2>/dev/null \
+      | sed "s/.*\`\([A-Za-z0-9_]*\)'/\1/" | sort -u | head -14 | while read -r sym; do
+        [ -n "$sym" ] || continue
+        hit=$(awk -v S="$sym" '$1==S{printf "%s ", $2}' "$DEFS" | sed 's/ *$//')
+        echo "$sym -> ${hit:-NIKDE v SDK ani portlibs}"
+      done; } | bash "$HERE/annotate.sh" "error+" 16
+
+  warn "VK build selhal — GL binárka zůstává, launcher bude potřebovat Renderer=OpenGL"
     key "vk=SELHAL"
     VKSDK=""
   fi
