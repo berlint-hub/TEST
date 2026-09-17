@@ -179,7 +179,7 @@ jobs:
             --prerelease "$nro" 2> /tmp/gherr
           rc=$?
           if [ $rc -ne 0 ]; then
-  echo "::error::gh release create rc=$rc — detail níže"
+            echo "::error::gh release create rc=$rc — detail níže"
             head -4 /tmp/gherr | bash ci/annotate.sh error 4
             exit 0
           fi
