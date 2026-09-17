@@ -101,21 +101,30 @@ jobs:
           RUN_ID: ${{ github.event.inputs.reuse_sdk_run }}
         run: |
           set -uo pipefail
+          # Když Mesa job neběžel (push/PR/reuse), vezmi 23 archivů z
+          # posledníhodoncenejho runu tedhlety workflowu. `gh run download`
+          # umí cizí run a stacilo k tomu actions: read.
           if [ -z "${RUN_ID:-}" ]; then
-            echo "hledám poslední run, co vyexportoval mesa-sdk…"
             RUN_ID=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?per_page=30" \
               --jq '.workflow_runs[]
-                    | select(.status=="completed" and (has("name") and (.name|test("VK"))))
-                    | .id' | head -1)
+                    | select(.status == "completed" and (.name | test("VK")))
+                    | .id' 2>/dev/null | head -1 || true)
           fi
-          echo "run = ${RUN_ID:-?}"
+          echo "zdroj SDK: run ${RUN_ID:-neni-znamej}"
+          ok=0
           if [ -n "${RUN_ID:-}" ]; then
-            gh run download "$RUN_ID" -n mesa-sdk -D mesa-sdk \
-              || echo "::warning::mesa-sdk se nepodařilo stáhnout z runu $RUN_ID (bundle pojede GL-only)"
+            if gh run download "$RUN_ID" -n mesa-sdk -D mesa-sdk; then ok=1; fi
           fi
-          echo "co z toho je:"
-          du -sh mesa-sdk 2>/dev/null || echo "  (adresář mesa-sdk chybí)"
-          ls mesa-sdk/lib/*.a 2>/dev/null | wc -l | xargs -I{} echo "  archivů: {}"
+          # pipefail + glob do prazdnyho adresare by inac ukoncil step chybou
+          set +o pipefail
+          n=$(find mesa-sdk -name '*.a' 2>/dev/null | wc -l)
+          sz=$(du -sh mesa-sdk 2>/dev/null | cut -f1)
+          if [ "$ok" = 1 ]; then
+            echo "::notice::mesa-sdk staženo z runu ${RUN_ID}: ${n} archivů, ${sz:-?}"
+          else
+            echo "::warning::mesa-sdk není k dispozici (run ${RUN_ID:-?}) — bundle pojede GL-only"
+          fi
+          exit 0
 
       - name: co jsme dostali
         run: |
