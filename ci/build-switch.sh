@@ -18,9 +18,9 @@ set -uo pipefail
 note() {
   if [ "${ANNOTATE_EVERY:-0}" = "1" ]; then echo "::notice::$*"; else echo "$*"; fi
 }
-# klíčový čísla sbíráme do jednoho řádku — GitHub annotace omezuje a middle
-# se ztrácejí; DIGEST musí projít
-key() { echo "$*" >> "${DIGEST:-/dev/null}" 2>/dev/null; echo "::notice::$*"; }
+# klíčový čísla sbíráme do DIGESTU — GitHub annotace omezuje a middle se
+# ztrácejí, proto je tady jedině na konci jednoho spojenejho bloku
+key() { echo "$*" >> "${DIGEST:-/dev/null}" 2>/dev/null; }
 err()  { echo "::error::$*"; }
 warn() { echo "::warning::$*"; }
 
@@ -52,8 +52,13 @@ run_soft() {
   rc=$?
   if [ $rc -ne 0 ]; then
     err "✗ $label rc=$rc (pokračuju bez toho)"
-    grep -E "error:|undefined reference|Error [0-9]|FAILED|cannot find -l" "$log" \
-      | sort -u | head -8 | bash "$HERE/annotate.sh" error 8
+    # Filtrovat jen "error:" by nestačilo — linkerový hlášky typu
+    # "region overflowed" ani "multiple definition" do ty kategorie nespadnou,
+    # a právě takhle nám unikla příčina minulýho selhání. Proto i tail logu.
+    { grep -E "error:|undefined reference|multiple definition|overflowed|cannot find -l|No such file|Error [0-9]|FAILED" "$log" \
+        | sort -u | head -10
+      echo "-- posledních 12 řádků $label --"
+      tail -12 "$log"; } | bash "$HERE/annotate.sh" "error+" 22
     return $rc
   fi
   note "✓ $label"
@@ -314,6 +319,56 @@ ssize_t writev(int fd, const struct iovec *vectors, int count) {
 }
 SHIM
   note "psán weak writev shim pro VK link (source/hooks, ne source/switch)"
+
+  # Dva další chybějící symboly ve VK linku: vkEnumerateInstanceVersion a
+  # vkEnumerateInstanceLayerProperties. Mesa je kompiluje jen když je v buildu
+  # Vulkan *loader* — cross-build pro Switch žádnej loader nemá, proto je
+  # nemaj ani libvulkan_runtime.a, ani plochejch 23 archivů. Emulator ale oba
+  # volá ještě *před* vkCreateInstance (zjišťuje verzi a vrstvy), tudíž je
+  # musíme dodat sami. Slabě, aby je Mesa přebila, až je dodá taky.
+  cat > "$SRC/source/hooks/ci_vk_loader_shim.c" <<'VKSHIM'
+/* CI shim, ne část upstreamu — sémantika je přesně ta, co vyžaduje Vulkan
+ * spec pro loader-level funkce bez načtený instance: žádná vrstva, žádná
+ * instance extension, verze 1.3 (co NVK na Switchu skutečně reportuje).
+ *
+ * Vědomě se nejmenujeme podle <vulkan/vulkan.h>: ten hlavičkový cestu vidí
+ * jen VK build, GL build by se na shimu ulil na missing headeru. V C se
+ * nepojmenujou, VkResult je enum => int32, VkLayerProperties/VkExtension-
+ * Properties nikdy nepíšeme do paměti, takže stačí spránej podpis. */
+#include <stdint.h>
+
+typedef enum { VK_SUCCESS = 0, VK_INCOMPLETE = 5 } VkResult_t;
+#define VK_API_VERSION_1_3 ((uint32_t)((1u << 22) | (3u << 12)))
+
+__attribute__((weak))
+VkResult_t vkEnumerateInstanceVersion(uint32_t *pApiVersion) {
+    if (pApiVersion != 0)
+        *pApiVersion = VK_API_VERSION_1_3;
+    return VK_SUCCESS;
+}
+
+__attribute__((weak))
+VkResult_t vkEnumerateInstanceLayerProperties(uint32_t *pCount, void *pProperties) {
+    (void)pProperties;
+    if (pCount == 0)
+        return VK_INCOMPLETE;
+    *pCount = 0; /* na Switchu žádná validation layer není */
+    return VK_SUCCESS;
+}
+
+__attribute__((weak))
+VkResult_t vkEnumerateInstanceExtensionProperties(const char *pLayerName,
+                                                  uint32_t *pCount,
+                                                  void *pProperties) {
+    (void)pLayerName;
+    (void)pProperties;
+    if (pCount == 0)
+        return VK_INCOMPLETE;
+    *pCount = 0;
+    return VK_SUCCESS;
+}
+VKSHIM
+  note "psán weak VK loader shim (instance version/layer/extension enumeration)"
   # Unified větev Makefile linkuje -lvulkan -lEGL -lGLESv2 -lglapi + mesa util,
   # ALN z ní chybí -ldrm_nouveau / -lexpat / -lelf, který Mesa/NVK i switch-mesa
   # EGL implicitně čekaj. LIBS si přepsat netroufáme (je to := v Makefile a
@@ -423,6 +478,6 @@ cp -f "$SRC/NetherSX2_nx_gl.nro" "$OUT/" 2>/dev/null
 cp -f "$SRC/NetherSX2_nx_vk.nro" "$OUT/" 2>/dev/null
 key "nro=$(stat -c %s "$OUT/NetherSX2.nro")"
 key "sha256=$(sha256sum "$OUT/NetherSX2.nro" | cut -c1-16)"
-echo "::notice::BUNDLE DIGEST: $(tr '\n' ' ' < "$DIGEST" | cut -c1-180)"
+bash "$HERE/annotate.sh" "notice+" 40 < "$DIGEST"
 note "SD layout: sdmc:/switch/NetherSX2.nro + sdmc:/switch/nethersx2/ (BIOS si kladeš sám)"
 exit 0
