@@ -168,7 +168,11 @@ note "=== stage 3: portlibs ==="
 have() { [ -f "$PORTLIBS/lib/$1" ]; }
 dkp-pacman -Sy --noconfirm >/dev/null 2>&1 || warn "dkp-pacman -Sy selhal (nezávažné, image už balíčky má)"
 INSTALL=""
+# switch-libexpat/-zlib/-zstd: nxvk package recept je chce jako -lexpat -lz,
+# libxmlconfig a Mesou kullaný zlib bez nich naprosto rozumně hlásí
+# „cannot find -lexpat". Nejsou KRITICKY — bez nich zkusíme portlibs verzi.
 for pair in "libEGL.a:switch-mesa" "libdrm_nouveau.a:switch-libdrm_nouveau" \
+            "libexpat.a:switch-libexpat" "libz.a:switch-zlib" "libzstd.a:switch-zstd" \
             "libcurl.a:switch-curl" "libSDL2.a:switch-sdl2" "libSDL2_ttf.a:switch-sdl2_ttf" \
             "libSDL2_image.a:switch-sdl2_image" "libturbojpeg.a:switch-turbojpeg"; do
   lib="${pair%%:*}"; pkg="${pair##*:}"
@@ -287,6 +291,99 @@ ls -la "$DEPS/build/_deps/libsmb2-build/lib/libsmb2.a" 2>/dev/null | bash "$HERE
 # NetherSX2_nx_vk.nro nelinkne, GL fallback vyrobil zelený run s 55 MB balíkem,
 # který byl k ničemu — bez něj run spadne na místě a je hned vidět, co chybí.
 VK_ONLY="${VK_ONLY:-0}"
+
+# ------------------------------------------------- 7c. VK přes nxvk „package" + loader
+# Preferovaná cesta k VK binárce. Důvod, proč bez generovanýho loaderu nic
+# neprojde: nxvk z Mesa nezveřejňuje žádný public vk* jméno (viz komentář
+# v ci/gen-vk-loader.py), kdežto port je volá natvrdo — na Androidu je dodá
+# Vulkan loader, na Switchu v image žádný není. Takže si ho vyrobíme:
+# forwardery na vk_icdGetInstanceProcAddr, který naopak exportuje.
+nsx_vk_pkg() {
+  local PKG="$VKSDK/pkg" GEN="$WORK/vk-shim"
+  if [ ! -f "$PKG/libnvk.a" ] || [ ! -f "$PKG/libnvk_support.a" ]; then
+    key "VK: $PKG/libnvk*.a nejsou — nxvk package se nepostavil"
+    return 1
+  fi
+  local HDR="$VKSDK/include/vulkan/vulkan_core.h"
+  if [ ! -f "$HDR" ]; then
+    key "VK: chybí $HDR — loader se nedá vygenerovat"
+    return 1
+  fi
+  mkdir -p "$GEN"
+  local hdrs="$HDR" h
+  for h in "$VKSDK"/include/vulkan/vulkan_vi.h "$VKSDK"/include/vulkan/vulkan_nn_vi_surface.h \
+           "$PORTLIBS"/include/vulkan/vulkan_vi.h "$PORTLIBS"/include/vulkan/vulkan_nn_vi_surface.h; do
+    [ -f "$h" ] && hdrs="$hdrs $h"
+  done
+  if ! python3 "$HERE/gen-vk-loader.py" $hdrs "$GEN/vk_loader_shim.c" > "$WORK/logs/vk-shim.log" 2>&1; then
+    err "vk-loader: generování selhalo"
+    tail -5 "$WORK/logs/vk-shim.log" | bash "$HERE/annotate.sh" error 5
+    return 1
+  fi
+  key "vk-loader: $(grep -c '^VKAPI_ATTR' "$GEN/vk_loader_shim.c") forwarderů"
+  local cflags="-O2 -ffunction-sections -fdata-sections -march=armv8-a+crc+crypto"
+  cflags="$cflags -mtune=cortex-a57 -mtp=soft -fPIC -D__SWITCH__ -DVK_USE_PLATFORM_VI_NN"
+  cflags="$cflags -I$VKSDK/include -Wall -Wno-unused-function"
+  run_soft "aarch64-none-elf-gcc vk loader shim" \
+    aarch64-none-elf-gcc -c $cflags -o "$GEN/vk_loader_shim.o" "$GEN/vk_loader_shim.c"
+  if [ ! -f "$GEN/vk_loader_shim.o" ]; then
+    err "vk-loader: kompilace selhala"
+    grep -E "error:" "$WORK/logs/vk-shim.log" | head -8 | bash "$HERE/annotate.sh" error 8
+    return 1
+  fi
+  if ! aarch64-none-elf-ar rcs "$GEN/libnsxvkloader.a" "$GEN/vk_loader_shim.o" >> "$WORK/logs/vk-shim.log" 2>&1; then
+    err "vk-loader: ar rcs selhal"
+    return 1
+  fi
+  key "vk-loader: libnsxvkloader.a $(stat -c %s "$GEN/libnsxvkloader.a") B"
+
+  # Recept přesně z nxvk nxvk.pc / build-nro.sh: driver whole-archive (kvůli
+  # registraci), zbytek v --start-group kvůli cyklickýma závislostem, plus
+  # -u,vk_icdGetInstanceProcAddr ať se ten řetězec fakt vytáhne.
+  local libs="-Wl,--whole-archive $PKG/libnvk.a"
+  [ -f "$PKG/libnvk_gl.a" ] && libs="$libs $PKG/libnvk_gl.a"
+  libs="$libs -Wl,--no-whole-archive -Wl,--start-group $PKG/libnvk_support.a $GEN/libnsxvkloader.a"
+  if have libexpat.a; then libs="$libs -lexpat"; fi
+  if have libz.a; then libs="$libs -lz"; fi
+  if have libEGL.a; then libs="$libs -lEGL -lGLESv2 -lglapi"; fi
+  libs="$libs -Wl,--end-group -Wl,-u,vk_icdGetInstanceProcAddr"
+  if ! python3 - "$SRC/Makefile" "$libs" <<'PKGLIBS'
+import sys
+mk, libs = sys.argv[1], sys.argv[2]
+text = open(mk, encoding="utf-8", errors="surrogateescape").read()
+if "NSX_VK_PKG" in text:
+    print("Makefile: NSX_VK_PKG už sedí")
+    sys.exit(0)
+anchor = "-l:libnvk.a -l:libvulkan_lite_runtime.a"
+if anchor not in text:
+    print("Makefile: kotva flat LIBS nenalezena — přepisu skipuju")
+    sys.exit(1)
+start = text.rindex("LIBS", 0, text.index(anchor))
+end = text.index("\n", text.index("-lnx -lstdc++ -lm", start))
+tail = " $(STORAGE_LIBS) -lcurl -lz -lzstd -lnx -lstdc++ -lm"
+block = ("# NSX_VK_PKG — LIBS přepsal ci/build-switch.sh (archivy z nxvk "
+         "# `make package-gl` + loader z ci/gen-vk-loader.py). Původních "
+         "# 23 -l: archivů nestačí: public vk* v nich nejsou a chybí GL/EGL.\n"
+         "LIBS\t:= " + libs + tail)
+open(mk, "w", encoding="utf-8", errors="surrogateescape").write(text[:start] + block + text[end:])
+print("Makefile: LIBS -> nxvk pkg recept")
+PKGLIBS
+  then
+    err "vk: přepis LIBS neprošel"
+    return 1
+  fi
+  make -C "$SRC" clean >/dev/null 2>&1
+  if run_soft "make emulator VK (nxvk pkg + loader)" make -C "$SRC" -j"$JOBS" RENDERER=VK LTOFLAGS=; then
+    if [ -f "$SRC/NetherSX2_nx.nro" ]; then
+      cp -f "$SRC/NetherSX2_nx.nro" "$SRC/NetherSX2_nx_vk.nro"
+      key "vk=$(stat -c %s "$SRC/NetherSX2_nx_vk.nro") (nxvk pkg + loader)"
+      return 0
+    fi
+  fi
+  key "vk: nxvk pkg recept neprošel — zkusím MESA_SDK_ROOT a flat větev"
+  return 1
+}
+
 note "=== stage 7: emulátor (VK_ONLY=$VK_ONLY) ==="
 make -C "$SRC" clean >/dev/null 2>&1
 # ---------------------------------------------------- 7a. log capture pro core
@@ -576,16 +673,24 @@ MULDEFS
   # primárně unified SDK: má -lEGL/-lGLESv2/-lglapi z portlibs, kdežto flat
   # větev v Makefile žádný EGL link neobsahuje => egl* zůstanou nedefinovaný
   vk_ok=0
-  # LTOFLAGS= vypne -flto/-fuse-linker-plugin v Makefilu: archivy z Mesa SDK
-  # jsou LTO IR z jiného gcc než ten, co je zrovna v imageu, a přesně to
-  # produkuje „ld: <archive>(<member>): error op…“ bez užitečnýho textu.
-  if run_soft "make emulator VK (MESA_SDK_ROOT)" make -C "$SRC" -j"$JOBS" RENDERER=VK MESA_SDK_ROOT="$VKSDK" LTOFLAGS=; then
+  # Pořadí zájmů: 1) nxvk package + vygenerovanej loader (nsx_vk_pkg),
+  # 2) unified MESA_SDK_ROOT větev Makefile, 3) plochých 23 archivů.
+  # Dvojka a trojka zůstávají jako pojistka pro případ, že by nám někdo
+  # do artifactu naskladal jinej neţ nxvk-own SDK.
+  if nsx_vk_pkg; then
     vk_ok=1
   else
-    # bez cleanu by druhej pokus zdědil objekty s -DUSE_UNIFIED_MESA
     make -C "$SRC" clean >/dev/null 2>&1
-    if run_soft "make emulator VK (flat vulkan/)" make -C "$SRC" -j"$JOBS" RENDERER=VK LTOFLAGS=; then
+    # LTOFLAGS= vypne -flto/-fuse-linker-plugin: archivy z Mesa SDK jsou LTO IR
+    # z jinýho gcc, než je v imageu, a to produkuje „error op…“ bez textu.
+    if run_soft "make emulator VK (MESA_SDK_ROOT)" make -C "$SRC" -j"$JOBS" RENDERER=VK MESA_SDK_ROOT="$VKSDK" LTOFLAGS=; then
       vk_ok=1
+    else
+      # bez cleanu by druhej pokus zdědil objekty s -DUSE_UNIFIED_MESA
+      make -C "$SRC" clean >/dev/null 2>&1
+      if run_soft "make emulator VK (flat vulkan/)" make -C "$SRC" -j"$JOBS" RENDERER=VK LTOFLAGS=; then
+        vk_ok=1
+      fi
     fi
   fi
   if [ "$vk_ok" = "1" ]; then

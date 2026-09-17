@@ -160,6 +160,10 @@ jobs:
           ls mesa-sdk/lib 2>/dev/null | wc -l | xargs -I@ echo "::notice::mesa-sdk/lib: @ archivů"
           test -f mesa-sdk/lib/libnvk.a && echo "::notice::libnvk.a přítomen" || echo "::error::libnvk.a chybí"
           test -f mesa-sdk/include/vulkan/vulkan_core.h && echo "::notice::vulkan_core.h přítomen" || echo "::error::vulkan_core.h chybí"
+          # pkg/ jsou archivy z `make package-gl` — přesně ta forma, kterou
+          # build-switch.sh preferuje (public vk* dodáme generovaným loaderem).
+          ls mesa-sdk/pkg 2>/dev/null | tr '\n' ' ' | xargs -I@ echo "::notice::mesa-sdk/pkg: @"
+          test -f mesa-sdk/pkg/libnvk_support.a || echo "::warning::mesa-sdk/pkg chybí → VK padne na MESA_SDK_ROOT/flat větev"
           du -sh mesa-sdk 2>/dev/null | xargs -I@ echo "::notice::velikost SDK @"
 
       - name: build

@@ -218,6 +218,26 @@ if stage "přetavit thin archivy + sbalit libvulkan.a uvnitř imageu" \
     cp -f "$SRC/switch/build/sdk/missing.txt" "$ROOT/stage-missing.txt" 2>/dev/null
 fi
 
+# ------------------------------------------------------- 4b. nxvk own packaging
+# Plochejch 23 meson archivů na VK link STACHT nestačilo — sčítání symbolů
+# (88 643 definic, 137 archivů) ukázalo, že public vk* jména v nich nejsou
+# vůbec: nxvk z Mesa vědomě nestaví Vulkan loader a exportuje jedinou bránu
+# vk_icdGetInstanceProcAddr (PUBLIC v src/nouveau/vulkan/nvk_instance.c).
+# K tomu chybí GL/EGL front-end, který port taky odkazuje (source/imports.c
+# má &eglGetConfigAttrib i ve VK režimu). nxvk si obojí balí sám targetem
+# package / package-gl -> libnvk.a + libnvk_support.a + libnvk_gl.a, a přesně
+# takový soubor archivů používá ve svým switch/build/build-nro.sh. Stáhnu
+# je do $SDK/pkg a build-switch.sh je přednostně zlinkuje + doplní loader.
+stage "make package-gl (zink GL front-end + nxvk archivy)" \
+    "${DRUN[@]}" 'make CONTAINER= package-gl'
+if [ -d "$SRC/switch/build/pkg/lib" ]; then
+    mkdir -p "$SDK/pkg"
+    cp -f "$SRC/switch/build/pkg/lib/"*.a "$SDK/pkg/" 2>/dev/null
+    key "pkg: $(ls "$SDK/pkg" 2>/dev/null | tr '\n' ' ')"
+else
+    warn "make package-gl nic nestylovilo — zůstává jen plochejch archivů"
+fi
+
 have=$(ls "$SDK/lib" 2>/dev/null | wc -l)
 key "archivy: $have / $want (v tom i libvulkan.a)"
 missing=$(tr -d '\r' < "$ROOT/stage-missing.txt" 2>/dev/null | tr '\n' ' ')
