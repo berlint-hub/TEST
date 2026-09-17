@@ -14,6 +14,8 @@ name: build / VK (nxvk Mesa -> NetherSX2_nx)
 # vůbec žádnej run — ani queue, ani cancelled. Překlep v cestě to nebyl
 # (`ci/**` sedí), `workflow_dispatch` je na tuhle integraci 403, takže
 # jedinej spolehlivej trigger je push, kterej saha do tohoto souboru.
+# (Druhej pokus: push c113438 menil jen tenhle soubor a run vznikl —
+# `ci/**` filtr tedy na tuhle integraci nefunguje spolehlivě.)
 on:
   # Pozor: `push:` tu nesmí být dvakrát — YAML by druhý blok přepsal ten
   # první a trigger by zmizel bez jakýkoliv chyby. Main tu záměrně není:

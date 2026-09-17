@@ -350,7 +350,8 @@ nsx_vk_pkg() {
   aarch64-none-elf-nm --defined-only $nmlibs 2>/dev/null | awk '{print $NF}' > "$GEN/libc.syms"
   for sym in dirfd fstatat getuid geteuid getgid getegid getpwuid_r \
              sysconf posix_memalign aligned_alloc fchmodat utimensat \
-             futimens renameat linkat; do
+             futimens renameat linkat flock pthread_sigmask regexec \
+             regfree posix_fadvise madvise fdatasync syncfs; do
     if grep -qx "$sym" "$GEN/libc.syms"; then
       note "posix: $sym je v libc/libnx -> nedefinujeme"
     else
@@ -370,6 +371,26 @@ nsx_vk_pkg() {
 #include <sys/time.h>
 #include <sys/types.h>
 #include <time.h>
+
+/* Hlavičky jen pro ty stuby, co fakt generujeme: kdyby nektera v toolchainu
+ * nebyla (regex je classickej pripad), at se nám rozbije *tenhle* stub,
+ * ne cela VK vetev. __has_include na to staci. */
+#if defined(NSX_STUB_REGEXEC) || defined(NSX_STUB_REGFREE)
+#  if defined(__has_include) && !__has_include(<regex.h>)
+#    undef NSX_STUB_REGEXEC
+#    undef NSX_STUB_REGFREE
+#  else
+#    include <regex.h>
+#  endif
+#endif
+#ifdef NSX_STUB_PTHREAD_SIGMASK
+#  include <signal.h>
+#endif
+#ifdef NSX_STUB_FLOCK
+#  if defined(__has_include) && __has_include(<sys/file.h>)
+#    include <sys/file.h>
+#  endif
+#endif
 #include <fcntl.h>
 #include <malloc.h>
 #include <pwd.h>
@@ -474,6 +495,65 @@ __attribute__((weak)) int renameat(int oldfd, const char *oldpath, int newfd, co
   (void)oldfd; (void)newfd;
   return rename(oldpath, newpath);
 }
+#endif
+
+/* Mesa si własną cache zamyká poradenčním flockem. Na Switchu existuje
+ * jeden proces a jeden odkladací okruh, takže zámka nema co resit —
+ * vracime „zámka drzena", jinak by disk_cache skočil na error cestu. */
+#ifdef NSX_STUB_FLOCK
+__attribute__((weak)) int flock(int fd, int operation) {
+  (void)fd; (void)operation;
+  return 0;
+}
+#endif
+
+/* pthread.h v newlib tuhle funkci deklaruje, ale nobody ji implementoval.
+ * Mesa ji volá jen proto, aby nova vlak nededil SIGINT — na Switchu
+ * żadnej POSIX signal nikomu dorucen neni, takze je no-op presne
+ * ekvivalentni. */
+#ifdef NSX_STUB_PTHREAD_SIGMASK
+__attribute__((weak)) int pthread_sigmask(int how, const sigset_t *set, sigset_t *oldset) {
+  (void)how; (void)set;
+  if (oldset)
+    memset(oldset, 0, sizeof *oldset);   /* sigset_t je tu struct, tu scalar */
+  return 0;
+}
+#endif
+
+/* xmlconfig (drirc) páruje pravidla podle regexu aplikací. Bez regexovy
+ * knihovny necháme regcomp, ať si Mesáckej parser udělá co umí, a
+ * regexec odpoví „neshoda" — Mes se tim vraci k default nastavení, což je
+ * na Switchi jediny správný nastavení. * `regfree` je no-op. */
+#ifdef NSX_STUB_REGEXEC
+__attribute__((weak)) int regexec(const regex_t *preg, const char *string, size_t nmatch,
+                                  regmatch_t pmatch[], int eflags) {
+  (void)preg; (void)string; (void)nmatch; (void)pmatch; (void)eflags;
+  return REG_NOMATCH;
+}
+#endif
+#ifdef NSX_STUB_REGFREE
+__attribute__((weak)) void regfree(regex_t *preg) { (void)preg; }
+#endif
+
+/* Poradenská upozornění pro disk a paměť: nemáme MMU triky ani
+ * advsi, a tvrzení „delam to" je pro Mesu nejskodlivejsi odpoved. */
+#ifdef NSX_STUB_POSIX_FADVISE
+__attribute__((weak)) int posix_fadvise(int fd, off_t offset, off_t len, int advice) {
+  (void)fd; (void)offset; (void)len; (void)advice;
+  return 0;
+}
+#endif
+#ifdef NSX_STUB_MADVISE
+__attribute__((weak)) int madvise(void *addr, size_t length, int advice) {
+  (void)addr; (void)length; (void)advice;
+  return 0;
+}
+#endif
+#ifdef NSX_STUB_FDATASYNC
+__attribute__((weak)) int fdatasync(int fd) { return fsync(fd); }
+#endif
+#ifdef NSX_STUB_SYNCFS
+__attribute__((weak)) int syncfs(int fd) { (void)fd; return 0; }
 #endif
 
 #ifdef NSX_STUB_LINKAT
