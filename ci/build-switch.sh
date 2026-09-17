@@ -37,6 +37,24 @@ run() {
   return 0
 }
 
+# totéž co run(), jen nevolá die() — pro stage, který jsou volitelný
+run_soft() {
+  local label="$1"; shift
+  local log rc
+  log="$(mktemp "$WORK/logs/soft-XXXXXX.log")"
+  note "▶ $label"
+  "$@" > "$log" 2>&1
+  rc=$?
+  if [ $rc -ne 0 ]; then
+    err "✗ $label rc=$rc (pokračuju bez toho)"
+    grep -E "error:|undefined reference|Error [0-9]|FAILED|cannot find -l" "$log" \
+      | sort -u | head -8 | bash "$HERE/annotate.sh" error 8
+    return $rc
+  fi
+  note "✓ $label"
+  return 0
+}
+
 die() {
   echo "::error::končím kvůli: $1"
   echo "::error::DIGEST: $(tr '\n' ' ' < "$DIGEST" 2>/dev/null | cut -c1-180)"
@@ -247,8 +265,36 @@ key "gl=$(stat -c %s "$SRC/NetherSX2_nx_gl.nro")"
 if [ -n "$VKSDK" ]; then
   # GL a VK se nesmí linknout spolu (switch-mesa i NVK archivy obsahuj vlastní
   # kopie mesa util/nir/compiler) -> clean mezi nima, stejně jako build_all.sh.
+  #
+  # Podmíněnej build fix: source/switch/SwitchPosixCompat.cpp definuje writev
+  # jen `#if !defined(USE_VULKAN) && !defined(USE_UNIFIED_MESA)`, jenže
+  # $(STORAGE_LIBS) (libsmb2 -> smb2_write_to_socket) se ve VK linku objevuje
+  # až ZA --start-group s Mesou, takže symbol nikdo nedodá a link padne na
+  # "undefined reference to `writev'". Dodáme proto vlastní slabou variantu;
+  # slabý znamená, že pokud ji Mesa nabízí taky, vyhraje Mesa.
+  cat > "$SRC/source/switch/ci_writev_shim.c" <<'SHIM'
+/* CI shim, ne část upstreamu. Sémantiku (krátkej zápis => return s partial)
+ * kopíruje přesně podle readv/writev v SwitchPosixCompat.cpp. */
+#include <sys/uio.h>
+#include <unistd.h>
+
+__attribute__((weak))
+ssize_t writev(int fd, const struct iovec *vectors, int count) {
+    ssize_t total = 0;
+    for (int index = 0; index < count; ++index) {
+        const ssize_t result = write(fd, vectors[index].iov_base, vectors[index].iov_len);
+        if (result < 0)
+            return total ? total : -1;
+        total += result;
+        if ((size_t)result < vectors[index].iov_len)
+            break;
+    }
+    return total;
+}
+SHIM
+  note "psán weak writev shim pro VK link"
   make -C "$SRC" clean >/dev/null 2>&1
-  if run "make emulator VK" make -C "$SRC" -j"$JOBS" RENDERER=VK; then
+  if run_soft "make emulator VK" make -C "$SRC" -j"$JOBS" RENDERER=VK; then
     cp -f "$SRC/NetherSX2_nx.nro" "$SRC/NetherSX2_nx_vk.nro"
     key "vk=$(stat -c %s "$SRC/NetherSX2_nx_vk.nro")"
   else

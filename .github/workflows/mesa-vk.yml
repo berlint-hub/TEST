@@ -87,7 +87,7 @@ jobs:
           du -sh mesa-sdk 2>/dev/null | xargs -I@ echo "::notice::velikost SDK @"
 
       - name: build
-        run: bash ci/run.sh 2>&1 | tee ci-bundle.log || true
+        run: bash ci/run.sh 2>&1 | tee ci-bundle.log
 
       - name: vyhodnocení
         if: always()
