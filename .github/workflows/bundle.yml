@@ -3,9 +3,9 @@ name: build / NetherSX2.nro (launcher bundle)
 # Úplnej build: jádra z APK + emulátor GL + romfs + launcher -> NetherSX2.nro
 #
 # Pravidlo tohohle workflow: YAML kroky jsou tupé. Runner je pouští přes
-# `bash -e`, takže jakýkoli pokus vyhodnotit výsledek za rourou se prostě
-# nevykoná a log zůstane ležet v /tmp. Log proto teče přímo do workspace
-# (ci-bundle.log) a hodnotí ho samostatnej krok ci/verdict.sh.
+# `bash -e`, takže jakákoli logika za rourou (`cmd | tee log; rc=${PIPESTATUS[0]}`)
+# se při neúspěchu prostě nevykoná a log zůstane ležet v /tmp. Log proto teče
+# přímo do workspace (ci-bundle.log) a vyhodnocuje ho samostatnej krok.
 
 on:
   workflow_dispatch:
@@ -38,7 +38,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: build
-        run: bash ci/run.sh 2>&1 | tee ci-bundle.log
+        run: bash ci/run.sh 2>&1 | tee ci-bundle.log || true
 
       - name: vyhodnocení
         if: always()
@@ -53,3 +53,48 @@ jobs:
             out/
             ci-bundle.log
           if-no-files-found: warn
+
+  # Trvalej odkaz na samostatnej .nro. Vyžaduje Settings → Actions → General →
+  # Workflow permissions → "Read and write permissions"; bez toho job jen
+  # varuje a .nro zůstane dostupný jako artifact v jobu `bundle`.
+  release:
+    name: publikuj .nro jako release
+    needs: bundle
+    if: always() && needs.bundle.result == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: nethersx2-nro-bundle
+          path: dist
+
+      - name: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set +e
+          nro=$(find dist -name 'NetherSX2.nro' | head -1)
+          if [ -z "$nro" ]; then
+            echo "::error::artifact neobsahuje NetherSX2.nro"
+            find dist -type f | head -5
+            exit 1
+          fi
+          stat -c "::notice::publikuji %n = %s B" "$nro"
+          cat > notes.md <<'EOF'
+          Postaveno GitHub Actions z `NaGaa95/NetherSX2_nx` (`main`) + emulátorová jádra z release `Trixarian/NetherSX2-{patch,classic}@2.2n`.
+          
+          - **Renderer:** build obsahuje jen `NetherSX2_nx_gl.nro`, takže v launcheru nastav **Renderer = OpenGL**. Default je Vulkan a ten v tomhle buildu není.
+          - **SD:** `sdmc:/switch/NetherSX2.nro`, vlastní BIOS do `sdmc:/switch/nethersx2/bios/`.
+          - **Logy pro ladění:** `sdmc:/switch/nethersx2/nethersx2-mesa.log` a `sdmc:/switch/nethersx2/nethersx2-exception.log`.
+          - Není ověřeno na hardwaru — jen že se to sestavilo a nalinkovalo.
+          EOF
+          tag="nro-$(date -u +%Y%m%d-%H%M%S)"
+          gh release create "$tag" --title "NetherSX2.nro (CI, OpenGL)" --notes-file notes.md --prerelease "$nro"
+          if [ $? -eq 0 ]; then
+            gh release view "$tag" --json url --jq '"::notice::DOWNLOAD " + .url'
+          else
+            echo "::error::gh release create selhal — nejspíš read-only workflow perms (Settings → Actions → Workflow permissions → Read and write)"
+            echo "::warning::zatím stáhni artifact 'nethersx2-nro-bundle' z jobu bundle"
+          fi
