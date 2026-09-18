@@ -677,7 +677,8 @@ PKGLIBS
       vkmiss=""
       for marker in "NVK_I_WANT_A_BROKEN_VULKAN_DRIVER" "nsx-vk" \
                     "NetherSX2 Vulkan diagnostic" "diag soubor nethersx2-vulkan.log" \
-                    "MESA_SHADER_CACHE_DIR" "FPS %.1f"; do
+                    "MESA_SHADER_CACHE_DIR" "FPS %.1f" "boost=%d" \
+                    "[CI] cores:" "cpu boost DRZIM"; do
         grep -qa "$marker" "$vkbin" || vkmiss="$vkmiss [$marker]"
       done
       if [ -z "$vkmiss" ]; then
@@ -760,6 +761,7 @@ cat > "$SRC/source/hooks/ci_core_log.c" <<'CI_CORE_LOG_C'
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/stat.h>
 
 #define CI_LOG_PATH  "/switch/nethersx2/nethersx2-core.log"
@@ -773,13 +775,13 @@ static int ci_on(void) {
     ci_enabled = (stat(CI_MARK_PATH, &st) == 0) ? 1 : 0;
     if (ci_enabled) {
       if (freopen(CI_LOG_PATH, "a", stdout))
-        setvbuf(stdout, NULL, _IOLBF, 1024);
+        setvbuf(stdout, NULL, _IOFBF, 64 * 1024);   /* NSX_LOG_QUIET */
       /* Mesa (a tím i NVK) hlásí svoje chyby přes vk_errorf/mesa_log na
        * stderr a ten dosud nikam neved — přesně tam je důvod, proč driver
        * nevydá žádný zařízení. Zapisujeme do stejnýho souboru. */
       int stderr_ok = freopen(CI_LOG_PATH, "a", stderr) != NULL;
       if (stderr_ok)
-        setvbuf(stderr, NULL, _IOLBF, 1024);
+        setvbuf(stderr, NULL, _IOFBF, 64 * 1024);   /* NSX_LOG_QUIET */
       /* Runtime důkaz, že patch z build-switch.sh (krok 7a) prošel až sem:
        * bez "1" tady NVK nevydá žádný fyzický zařízení.
        * Poznámka z karty: na Switchi se přesměrovanej stderr do souboru
@@ -799,6 +801,107 @@ static int ci_on(void) {
 
 /* main.c se přes to ptá, jestě má bejt Logging/* z ini (marker na kartě) */
 int ci_logging_enabled(void) { return ci_on(); }
+
+/* ---- NSX_LOG_QUIET -------------------------------------------------------
+ * Native core umí logovat klidně dva řádky NA FRAME: GT3 se každý frame ptá
+ * na čas, což core loguje jako "Timezone=" + "SummerTime=" (v jedné session
+ * z karty 7309x každý, tj. 14,6 tisíce řádků). S řádkovým bufferem to byl
+ * jeden zápis na SD kartu na řádek (~60/s) — a to z emulačního procesu, kde
+ * každá milisekunda na I/O chybí. Fallout tenhle spam neměl a jel 59,9 FPS;
+ * GT3 s ním 31,6. Proto tři změny:
+ *   * stdout/stderr je plně bufferovaný (64 KiB) místo řádkového po 1 KiB —
+ *     SD se dotkneme jen když se buffer naplní,
+ *   * stejné po sobě jdoucí řádky (čísla = '#') se počítají a vypíšou jednou,
+ *   * naše vlastní [VK]/[GL]/[CI]/[nsx-vk] řádky jdou hned (fflush), takže
+ *     FPS měření přežije i pád.
+ * Marker /switch/nethersx2/ci-rawlog.enabled tohle potlačení vypne (surový
+ * log, když jde o to vidět každý řádek). */
+static char ci_last_norm[256];
+static unsigned ci_repeat;
+
+static int ci_is_ours(const char *s) {
+  return !strncmp(s, "[VK] ", 5) || !strncmp(s, "[GL] ", 5) ||
+         !strncmp(s, "[CI] ", 5) || !strncmp(s, "[nsx-vk] ", 9);
+}
+
+static void ci_norm(const char *in, char *out, size_t cap) {
+  size_t o = 0;
+  int digit = 0;
+  for (; *in && o + 1 < cap; ++in) {
+    if (*in >= '0' && *in <= '9') {
+      if (!digit) { out[o++] = '#'; digit = 1; }
+    } else {
+      out[o++] = *in;
+      digit = 0;
+    }
+  }
+  out[o] = 0;
+}
+
+static int ci_raw_log(void) {
+  static int cached = -1;
+  if (cached < 0) {
+    struct stat st;
+    cached = (stat("/switch/nethersx2/ci-rawlog.enabled", &st) == 0) ? 1 : 0;
+  }
+  return cached;
+}
+
+static void ci_flush_repeat(void) {
+  if (ci_repeat > 1)
+    fprintf(stdout, "[CI] ... predchozi radka se opakovala %ux (potlaceno; "
+                    "ci-rawlog.enabled to vypne)\n", ci_repeat);
+  ci_repeat = 1;
+}
+
+static void ci_emit(const char *line) {
+  if (!line)
+    return;
+  if (ci_is_ours(line)) {           /* naše diagnostika: bez dedupu a hned */
+    ci_flush_repeat();
+    fputs(line, stdout);
+    fputc('\n', stdout);
+    fflush(stdout);
+    return;
+  }
+  if (ci_raw_log()) {
+    fputs(line, stdout);
+    fputc('\n', stdout);
+    return;
+  }
+  char norm[256];
+  ci_norm(line, norm, sizeof(norm));
+  if (ci_last_norm[0] && !strcmp(norm, ci_last_norm)) {
+    ++ci_repeat;
+    return;
+  }
+  ci_flush_repeat();
+  strncpy(ci_last_norm, norm, sizeof(ci_last_norm) - 1);
+  ci_last_norm[sizeof(ci_last_norm) - 1] = 0;
+  fputs(line, stdout);
+  fputc('\n', stdout);
+}
+
+/* ---- NSX_KEEP_BOOST ------------------------------------------------------
+ * Port pouští CPU boost (ApmCpuBoostMode_FastLoad = vyší CPU takt) jen na
+ * prvních 60 prezentovaných framů a pak ho shodí („Cover startup without
+ * holding the CPU boost into gameplay"). Pro CPU-bound emulaci to je ztráta
+ * ~40 % taktu hned po dvou sekundách hry — přesně to může být rozdíl mezi
+ * 32 a 50 FPS v GT3. Defaultně proto boost držíme celou hru; marker
+ * /switch/nethersx2/ci-noboost.enabled vrátí upstream chování (na kartě se
+ * to tak dá vyzkoušet bez rebuildu). */
+int ci_keep_cpu_boost(void) {
+  static int cached = -1;
+  if (cached < 0) {
+    struct stat st;
+    cached = (stat("/switch/nethersx2/ci-noboost.enabled", &st) == 0) ? 0 : 1;
+  }
+  return cached;
+}
+
+static int ci_boost_state = 1;
+void ci_set_cpu_boost_state(int on) { ci_boost_state = on; }
+int  ci_get_cpu_boost_state(void) { return ci_boost_state; }
 
 /* Jednoznačná identifikace běžícího .nro. Volá se z main.c až v běhu
  * (po setenv z kroku 7a), takže na rozdíl od hlášky v ci_on() nemůže
@@ -828,15 +931,18 @@ void ci_renderer_banner(void) {
 
 int ci_android_log_write(int prio, const char *tag, const char *text) {
   if (!ci_on()) return 0;
-  fprintf(stdout, "[%d][%s] %s\n", prio, tag ? tag : "-", text ? text : "");
+  char line[640];
+  snprintf(line, sizeof(line), "[%d][%s] %s", prio, tag ? tag : "-", text ? text : "");
+  ci_emit(line);
   return 0;
 }
 
 int ci_android_log_vprint(int prio, const char *tag, const char *fmt, va_list va) {
   if (!ci_on()) return 0;
-  fprintf(stdout, "[%d][%s] ", prio, tag ? tag : "-");
-  vfprintf(stdout, fmt, va);
-  fputc('\n', stdout);
+  char buf[512], line[640];
+  vsnprintf(buf, sizeof(buf), fmt, va);
+  snprintf(line, sizeof(line), "[%d][%s] %s", prio, tag ? tag : "-", buf);
+  ci_emit(line);
   return 0;
 }
 
@@ -900,23 +1006,73 @@ text = open(path, encoding="utf-8", errors="surrogateescape").read()
 keys = ["EnableSystemConsole", "EnableFileLogging", "EnableVerbose",
         "EnableEEConsole", "EnableIOPConsole"]
 first = 'prefs_set_string("Logging/EnableSystemConsole", "0");'
+failed = 0
+
 if "ci_logging_enabled" in text:
-    print("main.c: už patcheno")
-    sys.exit(0)
-if first not in text:
+    print("main.c: Logging/* už patchnuto")
+elif first not in text:
     print("main.c: vzorek Logging/* nenalezen — log zůstane vypnutej")
-    sys.exit(1)
-text = text.replace(first,
-    'extern int ci_logging_enabled(void);\n'
-    '  extern void ci_renderer_banner(void);\n'
-    '  const int ci_log = ci_logging_enabled();\n'
-    '  ci_renderer_banner();\n'
-    '  prefs_set_string("Logging/EnableSystemConsole", ci_log ? "1" : "0");', 1)
-for k in keys[1:]:
-    text = text.replace('prefs_set_string("Logging/%s", "0");' % k,
-                        'prefs_set_string("Logging/%s", ci_log ? "1" : "0");' % k, 1)
+    failed = 1
+else:
+    text = text.replace(first,
+        'extern int ci_logging_enabled(void);\n'
+        '  extern void ci_renderer_banner(void);\n'
+        '  const int ci_log = ci_logging_enabled();\n'
+        '  ci_renderer_banner();\n'
+        '  prefs_set_string("Logging/EnableSystemConsole", ci_log ? "1" : "0");', 1)
+    for k in keys[1:]:
+        text = text.replace('prefs_set_string("Logging/%s", "0");' % k,
+                            'prefs_set_string("Logging/%s", ci_log ? "1" : "0");' % k, 1)
+    print("main.c: Logging/* respektuje marker")
+
+# ---- NSX_KEEP_BOOST -------------------------------------------------------
+# Port zapne CPU boost (FastLoad) na startu a po 60 prezentovaných framech ho
+# shodí. U CPU-bound emulace (GT3) to je po ~2 s hry ztráta ~40 % taktu.
+# Boost proto držíme (rozhoduje ci_keep_cpu_boost() v ci_core_log.c, marker
+# ci-noboost.enabled vrátí upstream chování) a stav hlásíme do FPS řádky.
+boost_edits = [
+    ("  cpu_boost(1);\n",
+     "  cpu_boost(1);\n"
+     "  { extern void ci_set_cpu_boost_state(int); ci_set_cpu_boost_state(1); }\n"),
+    ("      if (boosting && frame_count >= cpu_boost_present_limit) {\n"
+     "        // Cover startup without holding the CPU boost into gameplay.\n"
+     "        cpu_boost(0);\n"
+     "        boosting = 0;\n"
+     "      }",
+     "      if (boosting && frame_count >= cpu_boost_present_limit) {\n"
+     "        /* NSX_KEEP_BOOST: port tu boost shazuje (ApmCpuBoostMode_Normal =\n"
+     "           nižší CPU takt). Pro CPU-bound hry je to ztráta hned po dvou\n"
+     "           sekundách, takže defaultně držíme; marker ci-noboost.enabled\n"
+     "           vrátí upstream chování (a je to vidět v logu). */\n"
+     "        extern int ci_keep_cpu_boost(void);\n"
+     "        extern void ci_set_cpu_boost_state(int);\n"
+     "        if (ci_keep_cpu_boost()) {\n"
+     "          ci_set_cpu_boost_state(1);\n"
+     "          fprintf(stdout, \"[CI] cpu boost DRZIM (FastLoad) — marker \"\n"
+     "                          \"/switch/nethersx2/ci-noboost.enabled ho vypne\\n\");\n"
+     "          fflush(stdout);\n"
+     "        } else {\n"
+     "          cpu_boost(0);\n"
+     "          ci_set_cpu_boost_state(0);\n"
+     "          fprintf(stdout, \"[CI] cpu boost shozen (upstream chovani)\\n\");\n"
+     "          fflush(stdout);\n"
+     "        }\n"
+     "        boosting = 0;\n"
+     "      }"),
+]
+bhit = 0
+for find, repl in boost_edits:
+    if repl in text:
+        bhit += 1          # už patchnuto
+    elif find in text:
+        text = text.replace(find, repl, 1)
+        bhit += 1
+print("main.c: cpu boost patch %d/%d" % (bhit, len(boost_edits)))
+if bhit != len(boost_edits):
+    failed = 1
+
 open(path, "w", encoding="utf-8", errors="surrogateescape").write(text)
-print("main.c: Logging/* respektuje marker")
+sys.exit(failed)
 LOGMAIN
   [ $? -eq 0 ] || warn "main.c patch pro Logging/* neprošel — log bude stručnější"
 
@@ -925,6 +1081,101 @@ else
   # selhal — raději captur stáhni celý, ať GL build projde i tak.
   rm -f "$SRC/source/hooks/ci_core_log.c"
   warn "log capture NEAPLIKOVÁN (imports.c vypadá jinak) — .nro se chová jako upstream"
+fi
+
+# ---------------------------------------- 7b3. rozložení threadů na jádra
+# Uživatelův dotaz „máme 4 jádra — jedno na EE, dvě na VU a čtvrtý na GS?" se
+# dá zodpovědět jen tehdy, když víme, kolik jader proces dostal a kam která
+# vlákna opravdu sedla. pthr.c to počítá (ee_core, work pool, bg core), ale
+# nikam to nehlásí. Přidáme výpis rozložení + řádek za každý vytvořený
+# emulační thread. Je to čistá diagnostika — nic se nepinuje jinak než dřív.
+if python3 - "$SRC/source/pthr.c" <<'PTHRDIAG'
+import sys
+
+path = sys.argv[1]
+text = open(path, encoding="utf-8", errors="surrogateescape").read()
+if "NSX_CORE_DIAG" in text:
+    print("pthr.c: core diag už patchnuto")
+    sys.exit(0)
+
+done = 0
+edits = [
+    ('#include "pthr.h"',
+     '/* NSX_CORE_DIAG: rozložení emulačních threadů do logu. */\n'
+     '#include <stdio.h>\n'
+     '#include "pthr.h"'),
+    ('  work_mask = (hot_count >= 2) ? (hot_mask & ~(1u << ee_core)) : hot_mask;',
+     '  work_mask = (hot_count >= 2) ? (hot_mask & ~(1u << ee_core)) : hot_mask;\n'
+     '\n'
+     '  /* NSX_CORE_DIAG: kolik jader proces dostal a jak se o ně thready podělí.\n'
+     '   * hbmenu dává 3 jádra (čtvrté si drží systém), zástupce v HOME menu 4. */\n'
+     '  fprintf(stdout, "[CI] cores: mask=0x%llx -> hot=0x%x ee=%d work=",\n'
+     '          (unsigned long long)mask, hot_mask, ee_core);\n'
+     '  for (int nsx_i = 0; nsx_i < work_count; nsx_i++)\n'
+     '    fprintf(stdout, "%d%s", work_list[nsx_i], (nsx_i + 1 < work_count) ? "," : "");\n'
+     '  fprintf(stdout, " bg=%d%s\\n", bg_core,\n'
+     '          (bg_core < 0) ? " (jen 3 jadra -> audio se vejde do work poolu)" : "");\n'
+     '  fflush(stdout);'),
+    ('static void assign_work_core(void) {',
+     'static int assign_work_core(void) {'),
+    ('  const int core = work_list[work_rr++ % (unsigned)work_count]; const unsigned m = work_mask;\n'
+     '  mutexUnlock(&core_lock);\n'
+     '  svcSetThreadCoreMask(CUR_THREAD_HANDLE, core, m);\n'
+     '}',
+     '  const int core = work_list[work_rr++ % (unsigned)work_count]; const unsigned m = work_mask;\n'
+     '  mutexUnlock(&core_lock);\n'
+     '  svcSetThreadCoreMask(CUR_THREAD_HANDLE, core, m);\n'
+     '  return core;\n'
+     '}'),
+    ('  // Keep emulator workers off the EE and audio cores.\n'
+     '  assign_work_core();',
+     '  // Keep emulator workers off the EE and audio cores.\n'
+     '  {\n'
+     '    /* NSX_CORE_DIAG: MTGS/VU1/worker thread — na kterém jádře skončil. */\n'
+     '    const int nsx_core = assign_work_core();\n'
+     '    static int nsx_seq = 0;\n'
+     '    fprintf(stdout, "[CI] thread #%d (work: MTGS/VU1/worker) -> core=%d\\n",\n'
+     '            ++nsx_seq, nsx_core);\n'
+     '    fflush(stdout);\n'
+     '  }'),
+    ('  const int core = ee_core; const unsigned m = 1u << ee_core;\n'
+     '  mutexUnlock(&core_lock);\n'
+     '  svcSetThreadCoreMask(CUR_THREAD_HANDLE, core, m);',
+     '  const int core = ee_core; const unsigned m = 1u << ee_core;\n'
+     '  mutexUnlock(&core_lock);\n'
+     '  svcSetThreadCoreMask(CUR_THREAD_HANDLE, core, m);\n'
+     '  /* NSX_CORE_DIAG */\n'
+     '  fprintf(stdout, "[CI] thread EE/VM -> core=%d (vyhrazene)\\n", core);\n'
+     '  fflush(stdout);'),
+    ('  if (bg_core >= 0) { core = bg_core; m = 1u << bg_core; }\n'
+     '  else { core = work_list[bg_rr++ % (unsigned)work_count]; m = work_mask; }\n'
+     '  mutexUnlock(&core_lock);\n'
+     '  svcSetThreadCoreMask(CUR_THREAD_HANDLE, core, m);',
+     '  if (bg_core >= 0) { core = bg_core; m = 1u << bg_core; }\n'
+     '  else { core = work_list[bg_rr++ % (unsigned)work_count]; m = work_mask; }\n'
+     '  mutexUnlock(&core_lock);\n'
+     '  svcSetThreadCoreMask(CUR_THREAD_HANDLE, core, m);\n'
+     '  /* NSX_CORE_DIAG (audio a spol.) */\n'
+     '  fprintf(stdout, "[CI] thread bg (audio/...) -> core=%d%s\\n", core,\n'
+     '          (bg_core < 0) ? " (sdileny work pool)" : "");\n'
+     '  fflush(stdout);'),
+]
+for find, repl in edits:
+    if repl in text:
+        done += 1          # uz patchnuto
+    elif find in text:
+        text = text.replace(find, repl, 1)
+        done += 1
+    else:
+        print("pthr.c: kotva nenalezena: %r" % find[:60])
+open(path, "w", encoding="utf-8", errors="surrogateescape").write(text)
+print("pthr.c: core diag %d/%d" % (done, len(edits)))
+sys.exit(0 if done == len(edits) else 1)
+PTHRDIAG
+then
+  key "diag: rozlozeni threadu na jadra je v logu (pthr.c)"
+else
+  warn "pthr.c patch pro rozlozeni threadu neprosel — uvidime jen FPS radky"
 fi
 
 # --------------------------------------------------------- 7b2. FPS měřidlo (GL)
@@ -1121,6 +1372,32 @@ VkResult_t vkEnumerateInstanceLayerProperties(uint32_t *pCount, void *pPropertie
 VKSHIM
   note "psán weak VK loader shim (instance version/layer/extension enumeration)"
 
+  # ------------------------------------------------- NSX_CLK: jde clkrst?
+  # Takty CPU/GPU/EMC v FPS řádce jsou u CPU-bound hry to nejcennější číslo
+  # (hlavně jestli drží CPU boost). API clkrst se ale mezi verzemi libnx mění
+  # (dřív clkrstGetClockRate(module, &hz), dnes ClkrstSession + openSession),
+  # a špatný odhad by shodil CELÝ VK build. Compile probe to rozhodne za dvě
+  # sekundy a patch podle toho vygeneruje buď čtení, nebo nuly.
+  NSX_CLK_API=0
+  cat > "$WORK/clkprobe.c" <<'CLKPROBE'
+#include <switch.h>
+int nsx_clkprobe(void) {
+  ClkrstSession s;
+  u32 hz = 0;
+  if (R_FAILED(clkrstInitialize())) return 0;
+  if (R_FAILED(clkrstOpenSession(&s, PcvModule_CpuBus, 3))) return 0;
+  if (R_FAILED(clkrstGetClockRate(&s, &hz))) return 0;
+  return (int)(hz / 1000000u);
+}
+CLKPROBE
+  if aarch64-none-elf-gcc -c -o /dev/null "$WORK/clkprobe.c" \
+       -D__SWITCH__ -I"$PORTLIBS/include" -I"$DEVKITPRO/libnx/include" 2>>"$WORK/logs/vk-shim.log"; then
+    NSX_CLK_API=1
+    key "diag: clkrst session API k dispozici -> takty v FPS radce"
+  else
+    note "diag: clkrst API v tomhle libnx nesedi (nebo chybi) -> takty budou 0"
+  fi
+
   # ---------------------------------------------------------------- 7d. diag->stderr
   # Diagnostika portu píše do sdmc:/switch/nethersx2/nethersx2-vulkan.log, jenže
   # z karty (build 37) ten soubor nikdo nedostal — a přitom právě v něm je
@@ -1128,7 +1405,8 @@ VKSHIM
   # i na stderr: ten si ci_core_log.c přesměruje do nethersx2-core.log, který
   # z karty chodí spolehlivě. Navíc si vypíšeme, jestli se ten soubor vůbec
   # podařilo otevřít — to je jediné, co o té záhadě rozhodne.
-  if python3 - "$SRC/source/hooks/vk.c" <<'VKDIAGMIRROR'
+  if NSX_CLK_API="$NSX_CLK_API" python3 - "$SRC/source/hooks/vk.c" <<'VKDIAGMIRROR'
+import os
 import sys
 
 path = sys.argv[1]
@@ -1148,7 +1426,7 @@ note_patch = (note_anchor +
     "   * stdout — viz ci_core_log.c a poznámka v HANDOFF. */\n"
     "  { va_list nsx_mirror; va_start(nsx_mirror, format);\n"
     "    fputs(\"[VK] \", stdout); vfprintf(stdout, format, nsx_mirror);\n"
-    "    fputc('\\n', stdout); va_end(nsx_mirror); }\n")
+    "    fputc('\\n', stdout); va_end(nsx_mirror); }\\n")
 if note_anchor in text:
     text = text.replace(note_anchor, note_patch, 1)
     done += 1
@@ -1194,11 +1472,40 @@ fps_patch = fps_anchor + (
     "    ++nsx_fps_window_frames;\n"
     "    if (nsx_now > nsx_fps_window_start + UINT64_C(1000000000)) {\n"
     "      const double nsx_secs = (double)(nsx_now - nsx_fps_window_start) / 1e9;\n"
-    "      vk_diag_note(\"FPS %.1f | %.2f ms/frame | min %.2f max %.2f ms | %u framu | lsfg=%d\",\n"
+    "      /* NSX_CLK: takty CPU/GPU/EMC. U CPU-bound hry je CPU takt to\n"
+    "       * hlavní — hlavně jestli drží boost (port ho po 60 framech shazoval,\n"
+    "       * NSX_KEEP_BOOST to mění). Session se otevírají zvlášť, aby CPU takt\n"
+    "       * fungoval i když GPU/EMC session neprojde; když clkrst v tomhle libnx\n"
+    "       * není nebo službu nejde otevřít, zůstanou nuly. */\n"
+    "      static int nsx_clk_ok = -1, nsx_have_gpu = 0, nsx_have_emc = 0;\n"
+    "      static unsigned nsx_cpu = 0, nsx_gpu = 0, nsx_emc = 0;\n"
+    + (
+        "      static ClkrstSession nsx_s_cpu, nsx_s_gpu, nsx_s_emc;\n"
+        "      if (nsx_clk_ok < 0) {\n"
+        "        nsx_clk_ok = 0;\n"
+        "        if (R_SUCCEEDED(clkrstInitialize())) {\n"
+        "          if (R_SUCCEEDED(clkrstOpenSession(&nsx_s_cpu, PcvModule_CpuBus, 3))) nsx_clk_ok = 1;\n"
+        "          if (R_SUCCEEDED(clkrstOpenSession(&nsx_s_gpu, PcvModule_GPU, 3))) nsx_have_gpu = 1;\n"
+        "          if (R_SUCCEEDED(clkrstOpenSession(&nsx_s_emc, PcvModule_EMC, 3))) nsx_have_emc = 1;\n"
+        "        }\n"
+        "      }\n"
+        "      if (nsx_clk_ok == 1) {\n"
+        "        u32 nsx_hz = 0;\n"
+        "        if (R_SUCCEEDED(clkrstGetClockRate(&nsx_s_cpu, &nsx_hz))) nsx_cpu = nsx_hz / 1000000u;\n"
+        "        if (nsx_have_gpu && R_SUCCEEDED(clkrstGetClockRate(&nsx_s_gpu, &nsx_hz))) nsx_gpu = nsx_hz / 1000000u;\n"
+        "        if (nsx_have_emc && R_SUCCEEDED(clkrstGetClockRate(&nsx_s_emc, &nsx_hz))) nsx_emc = nsx_hz / 1000000u;\n"
+        "      }\n"
+        if os.environ.get("NSX_CLK_API") == "1" else
+        "      if (nsx_clk_ok < 0) nsx_clk_ok = 0;   /* clkrst API v tomhle libnx není */\n"
+    ) +
+    "      extern int ci_get_cpu_boost_state(void);\n"
+    "      vk_diag_note(\"FPS %.1f | %.2f ms/frame | min %.2f max %.2f ms | %u framu\"\n"
+    "                   \" | lsfg=%d boost=%d | cpu=%u gpu=%u emc=%u MHz\",\n"
     "                   (double)nsx_fps_window_frames / nsx_secs,\n"
     "                   nsx_secs * 1000.0 / (double)nsx_fps_window_frames,\n"
     "                   nsx_fps_window_min / 1e6, nsx_fps_window_max / 1e6,\n"
-    "                   nsx_fps_window_frames, vk_lsfg_is_enabled());\n"
+    "                   nsx_fps_window_frames, vk_lsfg_is_enabled(),\n"
+    "                   ci_get_cpu_boost_state(), nsx_cpu, nsx_gpu, nsx_emc);\n"
     "      nsx_fps_window_start = nsx_now;\n"
     "      nsx_fps_window_min = 0;\n"
     "      nsx_fps_window_max = 0;\n"
