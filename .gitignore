@@ -2,6 +2,8 @@
 # (Dřív se sem omylem dostaly přes `git add -A` a pak pletly další session,
 #  protože vypadaly jako aktuální data.)
 *.log
+# Archiv dozpeleho mereni zustava v repu zamerne (vyjimka z *.log):
+!archiv/logy/*.log
 
 # Meziprodukty CI buildu (build-switch.sh používá .ciwork, výstup jde do out/)
 .ciwork/
