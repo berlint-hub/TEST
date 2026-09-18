@@ -510,3 +510,42 @@ Log navíc diagnostiku aktivně ztěžoval:
    * případně přidat `ci-rawlog.enabled` (kompletní log i přes pád, za cenu
      FPS) a / nebo `ci-nopin.enabled` / `ci-noclk.enabled` a zkoušet znovu —
      podle toho, který marker pád zastaví, je známý viník.
+---
+
+## Build 54 — FIX: fatal v pcv sysmodulu (crash reporty to jmenují)
+
+Uživatel nahrál **Atmosphere crash reporty** z okamžiku pádu (stará větev,
+commit `81101ec`) a ty řeší záhadu definitivně:
+
+| soubor | obsah |
+|---|---|
+| `01789735608_010000000000001a.log` (+ `.bin`, + fatal dump v poznámce) | **`pcv`** (Nintendo, Program ID 010000000000001a): `Result 0xCC0B (2011-0102)`, **User Break** = assert uvnitř sysmodulu taktů |
+| `01789735609_00ff0000636c6bff.log` | **`hoc:clk`** (sys-clk rodina, 00ff0000636c6bff): `Result 0x6159 (2345-0048)`, User Break — umřel 1 s po pcv (domino) |
+
+Chronologie jednoho incidentu (14:46 SELČ): pcv spadne na assertu →
+fatal obrazovka „restartuj konzoli" → hoc-clk padá na mrtvém pcv → po rebootu
+je zase všechno OK. A dřívější umírání session hned po `(AAudioMod) Starting
+stream...` (core log 13:36–13:53) sedí na stav „pcv už leží, další starty
+nenajdou clock service".
+
+**Proč to netrefilo dřív / proč to vypadalo na „poslední build":** diff
+buildu 52 proti 51 (`204d405..7b7bc7f5`) obsahuje **jen dokumentaci a
+analyze skript** — binárky 51/52/53 se chovají stejně. Kolize (emulátor
+drží 3 clkrst session a polluje 1×/s od buildu 47 + governor čte/PÍŠE tytéž
+takty) je pravděpodobnostní a rozjela se až při intenzivním přehazování her.
+
+**Fix v buildu 54** (`ci/patches/ci_core_log.c`):
+
+1. NSX_CLK defaultně **VYPNUT** — žádné `clkrstInitialize`, žádné session,
+   žádné `clkrstGetClockRate`. Emulátor se pcv vůbec nedotkne.
+2. Opt-in čtení: marker **`ci-clk.enabled`** na SD (pro řízená měření).
+3. Zápis (`ci-clk.conf`) vyžaduje od buildu 54 marker **i** conf soubor.
+4. `ci-noclk.enabled` zrušen (nahradil ho výchozí stav); v logu je
+   jednorázové `[CI] clk: cteni taktu VYPNUTO (build 54; ...)` a
+   `[CI] session start build=54 ...` (identifikace binárky).
+5. FPS řádka při vypnutém clkrstu ukazuje `cpu=0 gpu=0 emc=0` — to je
+   očekávané, ne chyba.
+
+Co si má uživatel ohlídat i mimo náš build: `hoc:clk` padal spolu s pcv —
+na FW 22.1.0 + Atmosphère 1.11.2-master je podezřelý i sám o sobě; zvážit
+aktualizaci (sys-clk fork). Emulátor mu od buildu 54 nestojí v cestě.

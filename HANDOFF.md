@@ -8,9 +8,9 @@ během**, ne domněnka; kde se pochybuje, je to napsané.
 > **`VU-GS-OPTIMALIZACE.md`** (zadání, změřené FPS podle taktů, rozložení
 > threadů, hypotézy v pořadí, jak měřit). Tenhle HANDOFF pak čti jako
 > referenci — hlavně §8 (pasti), §9–§11 (výkon a takty).
-> Poslední build: **52** (`nro-latest`; build 51 = 71 594 119 B,
+> Poslední build: **54** (`nro-latest`; build 51 = 71 594 119 B,
 > sha256 `9c719e25cb27b374`). Build 52 = pátrání po pádu při přehazování
-> her (níž §0b), výkonové chování beze změny.
+> = forenzní log; build 54 = FIX pádu (níž §0b).
 
 Cíl uživatele: reproducible CI, který vyrobí `.nro` s funkčním Vulkan
 rendererem, plus zpětná vazba z logů na kartě. Historie: build 37/38 našel
@@ -26,7 +26,48 @@ vůbec nesahá** — `cpu_boost()` je prázdná funkce (`ci/patches/util_no_boos
 protože `FastLoad` srážel GPU na 76 MHz a bil se s governororem uživatele
 (Ultrahand). Takty se jen **čtou** do FPS řádky.
 
-## 0b. STAV: PÁD PŘI PŘEHAZOVÁNÍ HER (2026-09-18, build 52)
+## 0b. STAV: PÁD VYŘEŠEN — KOLIZE V SYSTÉMU TAKTŮ (2026-09-18, build 54)
+
+**Crash reporty z karty (nahrané do `arena/01a0b2a1-test`, commit `81101ec`)
+přímo jmenují viníka:**
+
+* `01789735608_010000000000001a.log` — **fatal v sysmodulu `pcv`**
+  (Program ID 010000000000001a, Process Name `pcv`), `Result 0xCC0B
+  (2011-0102)`, Type **User Break** = assert uvnitř pcv. pcv je služba
+  Nintendo pro řízení taktů (CPU/GPU/EMC). Tohle je ta chyba „musíš vypnout
+  konzoli". FW 22.1.0, Atmosphère 1.11.2-master-5388824be.
+* `01789735609_00ff0000636c6bff.log` — sekundu po něm umřel **`hoc:clk`**
+  (Program ID 00ff0000636c6bff — sys-clk rodina, governor taktů uživatele),
+  `Result 0x6159 (2345-0048)`, taktéž User Break. Domino efekt: pcv leží,
+  governor padá na svých clkrst voláních.
+
+**Mechanismus:** emulátor drží od buildu 47 (NSX_CLK) tři clkrst session
+(cpu/gpu/emc) a polluje je 1×/s do FPS řádky. Governor (`hoc:clk`) na tytéž
+takty zároveň čte **a zapisuje** (to je jeho práce). Někdy se pcv v té
+soutěži dostane do assertu → fatal → dokud se neprovede reboot, umírají
+další spuštěné hry při startu (v core logu proto Fallout i GT3 končily hned
+po `(AAudioMod) Starting stream...`). Že padá „poslední build" je náhoda
+měření — **build 52 obsahoval oproti 51 jen dokumentaci** (diff
+`204d405..7b7bc7f5` = md + analyze skript), tedy 51/52/53 jsou na kartě
+chování identické a padaly všechny.
+
+**Fix (build 54):** emulátor z podsystemu taktů VYSTUPUJE.
+* NSX_CLK defaultně **VYPNUT**: žádné `clkrstInitialize`, žádné session,
+  žádné čtení. FPS řádka místo taktů ukazuje nuly; v logu je jednorázové
+  vysvětlení (`[CI] clk: cteni taktu VYPNUTO (build 54; ...)`) a
+  `[CI] session start build=54 …` na první pohled odliší binárku.
+* Čtení taktů je opt-in: **marker `ci-clk.enabled`** na SD (pro řízená
+  měření, ideálně se vypnutým governorem).
+* Zápis taktů (`ci-clk.conf`) zůstává a je **dvojitě zamčený**: marker
+  `ci-clk.enabled` + existující `ci-clk.conf`. Bez obojího se nezapisuje.
+* Marker `ci-noclk.enabled` (build 52/53) zrušen — nahradil ho default.
+
+**Co s tím uživatel (kromě buildu 54):** governor `hoc:clk` na FW 22.1.0 +
+Atmosphère 1.11.2-master je sám o sobě stejně podezřelý (padal spolu s pcv).
+Zvážit aktualizaci sys-clk/hoc-clk; pro testy stability klidně chvíli jet
+bez něj. Emulátor už mu v buildu 54 do cesty nestojí.
+
+### Historie pátrání (build 52/53, nyní už jen kontext)
 
 Uživatel hlásí: **poslední build shazuje Horizon OS/Atmosphere, když zapne
 GT3 a pak chce spustit Fallout — objeví se chyba a musí Switch vypnout.**

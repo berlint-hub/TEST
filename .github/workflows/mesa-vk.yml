@@ -1,8 +1,12 @@
 name: build / VK (nxvk Mesa -> NetherSX2_nx)
 
-# Build 52 (2026-09-18): pátrání po pádu systému při přehazování her
-# (GT3<->Fallout). Forenzní log (session start/end, unbuffered rawlog mód),
-# markery ci-nopin.enabled / ci-noclk.enabled. Chování defaultně NEZMĚNĚNO.
+# Build 54 (2026-09-18): FIX padu — crash reporty ukazaly fatal v pcv
+# sysmodulu (Result 2011-0102) + pad governoru hoc:clk. Emulator vychazi
+# z podsystemu taktu: NSX_CLK defaultne VYPNUT (opt-in marker
+# ci-clk.enabled), zapis taktu dvojite zamceny (marker + ci-clk.conf).
+
+# Build 52 (2026-09-18): forenzní log (session start/end, unbuffered rawlog)
+# + marker ci-nopin.enabled. Build 54 to dál řeší příčinu (pcv fatal).
 
 # Dva kroky, který si nemůžeš dovolit dělat ručně pokaždý:
 #

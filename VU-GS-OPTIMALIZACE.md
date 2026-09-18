@@ -138,13 +138,13 @@ python3 ci/analyze-core-log.py /tmp/core.log
 |---|---|
 | `ci-logging.enabled` | zapne log do `nethersx2-core.log` (bez něj se neloguje) |
 | `ci-rawlog.enabled` | vypne dedup řádků **a od buildu 52 taky plně bufferuje** (každý řádek hned na SD; pomalé — jen na pátrání po pádu) |
-| `ci-nopin.enabled` | **(build 52)** vypne všechna `svcSetThreadCoreMask` — thready dědí masku procesu. Test, jestli pinování (audio na nejvyšším jádře = core 3) přispívá k pádu při přehazování her. FPS to může mírně ovlivnit, proto jen jako marker |
-| `ci-noclk.enabled` | **(build 52)** úplně vypne clkrst/pcv (i čtení taktů; FPS řádka bude mít `cpu=0 gpu=0 emc=0`). Test, jestli clkrst session nekolidujou s governorem (Ultrahand) |
-| `ci-clk.conf` | **opt-in zápis taktů** (`cpu=1785 gpu=460`) — **s governorem NEPOUŽÍVAT** |
+| `ci-nopin.enabled` | **(build 52)** vypne všechna `svcSetThreadCoreMask` — thready dědí masku procesu. FPS to může mírně ovlivnit, proto jen jako marker |
+| `ci-clk.enabled` | **(build 54, opt-in)** zapne čtení taktů přes clkrst (od buildu 54 defaultně VYPNUTO — fatal v pcv při kolizi s governorem, viz HANDOFF §0b). Běží-li governor (sys-clk/hoc:clk), radši nepoužívat |
+| `ci-clk.conf` | **opt-in zápis taktů** (`cpu=1785 gpu=460`); od buildu 54 navíc vyžaduje i marker `ci-clk.enabled` — **s governorem NEPOUŽÍVAT** |
 
 Zrušené markery (už neexistují): `ci-keepboost.enabled`, `ci-noboost.enabled`.
 
-**Build 52 navíc do logu píše** `[CI] session start build=52 ts=… pid=…`
+**Build 52/54 do logu píše** `[CI] session start build=54 ts=… pid=…`
 (začátek session, hned flush+fsync) a `[CI] session end (korektni exit)`
 jen tehdy, když proces skončil korektně přes `exit()`. **Chybí-li `session
 end` na konci session v logu, proces umřel tvrdě** (pád emulátoru nebo

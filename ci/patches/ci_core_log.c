@@ -22,9 +22,15 @@
 #define CI_MARK_PATH "/switch/nethersx2/ci-logging.enabled"
 #define CI_RAWLOG_MARK   "/switch/nethersx2/ci-rawlog.enabled"
 #define CI_CLK_CONF  "/switch/nethersx2/ci-clk.conf"
-/* Build 52 (test pádu při přehazování her GT3<->Fallout): ci-noclk.enabled
- * úplně vypne clkrst/pcv (i čtení). ci-nopin.enabled čte až patch pthr.c. */
-#define CI_NOCLK_MARK "/switch/nethersx2/ci-noclk.enabled"
+/* Build 54: NSX_CLK je defaultně VYPNUTÝ. Crash reporty z karty (2026-09-18)
+ * ukázaly fatal v pcv sysmodulu (Result 2011-0102, User Break) + pád
+ * governoru hoc:clk (sys-clk rodina) sekundu po něm — při přehazování her.
+ * Emulátor od buildu 47 držel 3 clkrst session (cpu/gpu/emc) a polluje je
+ * 1×/s do FPS řádky; governor je zároveň čte i PÍŠE. Společné pcv to občas
+ * dostane do assertu -> fatal obrazovka -> další hry umírají při startu,
+ * dokud se neprovede reboot. Proto: žádné clkrst defaultně; čtení jen
+ * opt-in markerem ci-clk.enabled (a ideálně jen bez governoru). */
+#define CI_CLK_MARK "/switch/nethersx2/ci-clk.enabled"
 
 static int ci_raw_log(void);
 static void ci_flush_repeat(void);
@@ -91,8 +97,9 @@ static int ci_on(void) {
          * nešahá (util.c má vypnutý CPU boost), jen se čtou. */
         fprintf(stdout, "[CI] boost: NEPOUZIVAME (appletSetCpuBoostMode je "
                         "vynechany ve util.c; takty ridi sysmodul/governor)\n");
-        fprintf(stdout, "[CI] takty: jen cteni; zapis jedine kdyz na karte "
-                        "existuje ci-clk.conf (ci-noclk.enabled vypne i cteni)\n");
+        fprintf(stdout, "[CI] takty: od buildu 54 se nectou a nezapisujou "
+                        "(kolize s governorem taktu = fatal v pcv); opt-in "
+                        "cteni markerem ci-clk.enabled, zapis navic ci-clk.conf\n");
       }
       /* Build 52: identifikace session. Na hraně přehazování her se v logu
        * střídaj dva procesy (starý flushne zbytek bufferu až poté, co nový
@@ -101,7 +108,7 @@ static int ci_on(void) {
        * začátek session přežil i okamžitej pád.
        * NSX_CI_BUILD: ručně zvedat s každým buildem — jediná jistá známka,
        * která binárka na kartě běží (velikosti .nro se mezi buildy nemění). */
-      fprintf(stdout, "[CI] session start build=52 ts=%ld pid=%d%s\n",
+      fprintf(stdout, "[CI] session start build=54 ts=%ld pid=%d%s\n",
               (long)time(NULL), (int)getpid(),
               ci_raw_log() ? " rawlog=unbuffered" : "");
       fflush(stdout);
@@ -356,15 +363,14 @@ static ClkrstSession ci_sess[3];          /* 0=cpu, 1=gpu, 2=emc */
 static int ci_sess_ok[3];
 static int ci_clk_probed;
 static int ci_pcv_ok = -1;
-/* Build 52: marker ci-noclk.enabled = úplně bez clkrst/pcv (i čtení).
- * Pátrání po pádu při přehazování her: sessions na clkrst (PSC) běží celou
- * session a s governorem (Ultrahand/sys-clk) na kartě je tu riziko kolize;
- * tenhle marker to umí izolovaně vyřadit bez rebuildu. */
-static int ci_noclk(void) {
+/* Build 54: marker ci-clk.enabled = JEDINÁ cesta, jak se emulator dotkne
+ * clkrst/pcv (čtení taktů do FPS řádky). Default je vypnuto — viz komentář
+ * u CI_CLK_MARK nahoře (fatal v pcv při kolizi s governorem taktů). */
+static int ci_clk_enabled(void) {
   static int v = -1;
   if (v < 0) {
     struct stat st;
-    v = (stat(CI_NOCLK_MARK, &st) == 0) ? 1 : 0;
+    v = (stat(CI_CLK_MARK, &st) == 0) ? 1 : 0;
   }
   return v;
 }
@@ -384,9 +390,10 @@ static void ci_clk_probe(void) {
   if (ci_clk_probed)
     return;
   ci_clk_probed = 1;
-  if (ci_noclk()) {
-    fprintf(stdout, "[CI] clk: vypnuto markerem ci-noclk.enabled (test "
-                    "stabilnosti; FPS radka bude mit nuly)\n");
+  if (!ci_clk_enabled()) {
+    fprintf(stdout, "[CI] clk: cteni taktu VYPNUTO (build 54; crash report "
+                    "ukazal fatal v pcv sysmodulu pri souboji s governorem "
+                    "taktu — zapnes jen markerem ci-clk.enabled)\n");
     fflush(stdout);
     return;
   }
@@ -440,6 +447,8 @@ void ci_clk_diag(void) {
   done = 1;
 #if CI_SWITCH
   ci_clk_probe();
+  if (!ci_clk_enabled())
+    return;   /* ci_clk_probe už vypsal, proč je čtení vypnuté (build 54) */
   fprintf(stdout, "[CI] clk: clkrst init=0x%x open cpu=0x%x gpu=0x%x emc=0x%x "
                   "pcv=%d (0 = ok)\n",
           (unsigned)ci_r_init, (unsigned)ci_r_open[0], (unsigned)ci_r_open[1],
@@ -500,6 +509,9 @@ void ci_clk_boot(void) {
   done = 1;
   ci_clk_diag();
 #if CI_SWITCH
+  if (!ci_clk_enabled())
+    return;   /* bez markeru ci-clk.enabled se do taktů NEZAPISUJE vůbec
+                 (dvojitá pojistka: marker + existující ci-clk.conf) */
   {
     FILE *f = fopen(CI_CLK_CONF, "r");
     if (!f)
