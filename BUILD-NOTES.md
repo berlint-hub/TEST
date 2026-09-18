@@ -27,8 +27,13 @@ linkuje se přes nxvk Mesu (NVK) + námi generovaný Vulkan loader
 (`ci/gen-vk-loader.py`, 766 forwarderů na `vk_icdGetInstanceProcAddr`).
 Finální `.nro` má 78 716 003 B a obsahuje oba rendery, takže „přepni
 Renderer na OpenGL" už není podmínka — default `EmuCore/GS/Renderer = 14`
-(Vulkan) má co načíst a OpenGL je fallback v Settings. Co zatím na kartě
-neprošlo: inicializace GS (další postup a všechny detaily v HANDOFF.md).
+(Vulkan) má co načíst a OpenGL je fallback v Settings.
+
+Build 35 na kartě došel k `vkEnumeratePhysicalDevices` a dostal **VK_SUCCESS
+s nula zařízeními**; příčina je v nxvk (conformant check odmítá Tegru a
+release build to dělá bez hlášky) a řeší ji jediná proměnná
+`NVK_I_WANT_A_BROKEN_VULKAN_DRIVER=1`, kterou build 37 nastavuje v `main()`.
+Detail a všechna čísla v HANDOFF.md §3.
 
 ## Stav: co ověřeno
 
@@ -187,6 +192,18 @@ nedistribuuje.
   jsme měli stubem s nulou položek a GS na hardwaru pak spadlo na
   „Missing required extension VK_KHR_surface“ — upstream si přes ni nechává
   vypsat seznam extenzí, co smí vůbec povolit. Detail v HANDOFF.md §3.
+- **Conformant check v NVK.** `nvk_is_conformant()`
+  (`src/nouveau/vulkan/nvk_physical_device.c:91`) vrací false pro cokoli jinýho
+  než `NV_DEVICE_TYPE_DIS` a Switch se hlásí jako `NV_DEVICE_TYPE_SOC`.
+  `nvk_physical_device_create()` pak vrátí `VK_ERROR_INCOMPATIBLE_DRIVER` —
+  jenže `--buildtype release` (NDEBUG) to udělá **bez hlášky**.
+  `enumerate_physical_devices_locked()` ten kód spolkne jako „nesedí drver,
+  zkus DRM větev", `drmGetDevices2()` na Switchi nic nenajde → `VK_SUCCESS`
+  a prázdný seznam. Core to hlásí jako `(EnumerateGPUs)
+  vkEnumeratePhysicalDevices (1) failed:  (0: VK_SUCCESS)`. Vlastní appky nxvk
+  si v `main()` volaj `setenv("NVK_I_WANT_A_BROKEN_VULKAN_DRIVER", "1", 1)`
+  (`switch/README.md`, `switch/smoke/nvk_harness.h:138`); port to zapomněl,
+  takže to od buildu 37 dodělává `build-switch.sh` (krok 7a).
 - Detektor VK v balíku už se nedělá z velikosti: stage 10 v `ci/build-switch.sh`
   grepne RomFS tabulku jmen přímo v `out/NetherSX2.nro` a hlásí
   `uvnitř .nro: NetherSX2_nx_vk.nro`, respektive `V .nRO CHYBÍ …`.

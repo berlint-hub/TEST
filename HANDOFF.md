@@ -4,29 +4,30 @@ Nečti tohle jako tutorial. Je to seznam rozhodnutí a čísel, která bys jinak
 objevoval znovu po 20 minutách drahých runner minut. Stav níže je **ověřený
 během**, ne domněnka; kde se pochybuje, je to napsané.
 
-Stav k 2026-09-18: **Vulkan .nro se linkuje i balí, na kartě zatím neprošel
-inicializací GS** — viz „Kam dál". Cíl uživatele: reproducible CI, který
-vyrobí šiřitelné `.nro` s funkčním Vulkan rendererem (LSFG), plus zpětná vazba
-z logů na kartě.
+Stav k 2026-09-18 (build 37): **Vulkan na kartě padal na nula fyzických
+zařízeních — příčina nalezena a opravena** (chybějící
+`NVK_I_WANT_A_BROKEN_VULKAN_DRIVER=1`, viz §3). Teď čeká na test z karty.
+Cíl uživatele: reproducible CI, který vyrobí šiřitelné `.nro` s funkčním
+Vulkan rendererem (LSFG), plus zpětná vazba z logů na kartě.
 
 ## 1. Okamžité další kroky
 
-1. Počkat na dva soubory z karty po buildu 35 (run `35302673001`):
-   `sdmc:/switch/nethersx2/nethersx2-vulkan.log` (diagnostika, zapnuto
-   `VK_DIAG=1` → `-DNETHERSX2_VK_DIAGNOSTIC` v Makefile) a
-   `sdmc:/switch/nethersx2/nethersx2-core.log` (ConsoleLog jádra, sepisuje se
-   jen když na kartě existuje `sdmc:/switch/nethersx2/ci-logging.enabled`).
-2. Minulý stav: jádro selhalo na `Vulkan: Missing required extension
-   VK_KHR_surface`. Příčina byla náš stub (viz §3), teď je pryč. Další
-   očekávané místo pádu je úroveň device/swapchain: `VK_KHR_swapchain`,
-   `VK_KHR_get_surface_capabilities2` a hlavně `vkCreateViSurfaceNN`
-   (WSI pro `VK_NN_vi_surface`). Diagnostika má přesně ta data, aby se
-   poznalo, které z toho chybí.
-3. Uživateli mezitím stačí říct, ať zkusí **Settings → Renderer → OpenGL**:
-   v balíku jsou obě binárky, takže přepnutí funguje bez editace ini. Když
-   GL jede, je zbytek cesty (extrakce, BIOS, ISO, CDVD) ověřený a řeší
-   se jen NVK.
-4. Až bude VK projí: `VK_DIAG: 1` v `.github/workflows/mesa-vk.yml` vypnout
+1. Poslat uživateli build 37 (release `nro-latest`, `sha256=c2d6aa7dad448cf7…`,
+   run `35306142087`) a nechat ho pustit Vulkan. Zpátky chceme tři soubory ze
+   `sdmc:/switch/nethersx2/`: `nethersx2-core.log` (teď v sobě má i **stderr**
+   a řádek `[CI] log capture ON, NVK_I_WANT_A_BROKEN_VULKAN_DRIVER=1`),
+   `nethersx2-vulkan.log` a `nethersx2-mesa.log` (druhý jmenovaný píše Mesa
+   přes `MESA_LOG_FILE`, který port nastavuje v diag buildu).
+2. Když v `nethersx2-core.log` chybí `[CI] log capture ON` nebo je za `=` něco
+   jiného než `1`, proměnná se do binárky nedostala (to je bug buildu, ne
+   driveru) — CI to sice hlídá greppem, ale runtime výpis je poslední slovo.
+3. Bez té proměnný NVK na Tegře nevydá ani jedno fyzický zařízení (viz §3),
+   takže „zase nula zařízení" = patch se nepropsal, ne „NVK je rozbitej".
+4. Další očekávané místo pádu je za enumerací: `vkCreateDevice`, swapchain a
+   hlavně `vkCreateViSurfaceNN` (WSI pro `VK_NN_vi_surface`). Diagnostika
+   (`VK_DIAG=1`) má v `nethersx2-vulkan.log` přesně ta data, aby se poznalo,
+   co z toho chybí.
+5. Až bude VK projí: `VK_DIAG: 1` v `.github/workflows/mesa-vk.yml` vypnout
    (diagnostika píše soubor při každým startu) a rozumně přidat
    `NetherSX2_nx.nro` pro LSFG test — port si pro LSFG povídá s
    `file_readable(lsfg_dll_path())`, tj. potřebuje soubor navic; ten sme
@@ -36,11 +37,12 @@ z logů na kartě.
 
 | Věc | Hodnota |
 |---|---|
-| branch session | `arena/01a0aad9-test` (nikdy nepushovat jinam) |
-| poslední pushnutý commit | `1abb2f1` (návrat logů), před ním `76dcca2` (fix extenzí) |
+| branch session | `arena/01a0b2a1-test` (nikdy nepushovat jinam; stará `arena/01a0aad9-test` už na remote není) |
+| poslední pushnutý commit | `cac2660` (ověření env v binárce), před ním `57bd8d9` (NVK env patch) |
 | rolling release URL | `https://github.com/berlint-hub/TEST/releases/download/nro-latest/NetherSX2.nro` |
-| aktuální build | CI build 35, run `35302673001`, `NetherSX2.nro` = **78 716 003 B** |
+| aktuální build | CI build 37, run `35306142087`, `NetherSX2.nro` = **78 716 003 B**, `sha256=c2d6aa7dad448cf7…` |
 | v balíku | `NetherSX2_nx_vk.nro` 23 116 675 B, `NetherSX2_nx_gl.nro` 7 105 411 B |
+| pozor na velikosti | buildy 34, 35, 36, 37 maj **identickou** velikost (stránkový zarovnání segmentů) — rozlišuj podle `sha256` (35 = `b3a06739…`, 36 = `f6ea45cb…`, 37 = `c2d6aa7d…`) |
 | generovaný loader | 766 forwarderů, `libnsxvkloader.a` = 554 390 B |
 | upstream refáček | `NaGaa95/NetherSX2_nx` @ `f084dc1`; `PalindromicBreadLoaf/nxvk` @ `switch` (`238e06f`) |
 | ceny | Mesa od nuly ~25–35 min, bundle ~9 min, reuse SDK ~4 min; kvóta privátního repa ~2000 runner min/měsíc |
@@ -51,6 +53,23 @@ Artefakty: `nethersx2-nro-vk-bundle` (90 dní), `mesa-sdk` (SDK s `lib/`,
 
 ## 3. Poznání, který bolí nejvíc (přečti si ho, než sáhneš na VK link)
 
+* **„VK_SUCCESS a nula zařízení" = chybějící `NVK_I_WANT_A_BROKEN_VULKAN_DRIVER=1`.**
+  nxvk odmítá Tegru: `nvk_is_conformant()`
+  (`src/nouveau/vulkan/nvk_physical_device.c:91`) vrací false pro cokoli jinýho
+  než `NV_DEVICE_TYPE_DIS`, a Switch se hlásí jako `NV_DEVICE_TYPE_SOC`
+  (`nvkmd_nvgpu_get_dev_info` v `nvkmd_nvgpu_pdev.c`). Build je
+  `--buildtype release` (`switch/build/configure-mesa.sh`), takže NDEBUG větev
+  v `nvk_physical_device_create()` vrátí `VK_ERROR_INCOMPATIBLE_DRIVER`
+  **úplně bez hlášky** — v debug buildu by u toho bylo „WARNING: NVK is not
+  well-tested…". `enumerate_physical_devices_locked()` (mesa runtime,
+  `src/vulkan/runtime/vk_instance.c`) ten kód bere jako „tomuhle drveru to
+  nesedí, zkus DRM větev"; `drmGetDevices2()` na Switchi nic nenajde, takže
+  funkce vrátí `VK_SUCCESS` s **prázdným seznamem**. Core to zaloguje jako
+  `(EnumerateGPUs) vkEnumeratePhysicalDevices (1) failed:  (0: VK_SUCCESS)`
+  a `GS failed to open.` Vlastní appky nxvk si proměnnou nastavujou v `main()`
+  (`switch/README.md:268`, `switch/smoke/nvk_harness.h:138`); port ji neměl,
+  doplňuje ji `build-switch.sh` krok 7a do `source/main.c` pod
+  `#if defined(USE_VULKAN)`.
 * **nxvk záměrně nemá Vulkan loader.** Z Mesy ven jde akorát
   `vk_icdGetInstanceProcAddr` (`PUBLIC` v
   `src/nouveau/vulkan/nvk_instance.c:269`); vlastní appky si všechno
@@ -132,6 +151,11 @@ Artefakty: `nethersx2-nro-vk-bundle` (90 dní), `mesa-sdk` (SDK s `lib/`,
 * Naše sonda je `launcher-diag.log` (píšu se tam velikosti zdroj/cíl,
   prvních 32 bajtů, `statvfs` a `probe()` = fopen/fwrite/fflush/fsync/stat/
   rename/stat pro `cores` i `.emu`).
+* `nethersx2-core.log` (jen když je na kartě `ci-logging.enabled`) teď chytá
+  **stdout i stderr** do jednoho souboru a hned na začátku píše
+  `[CI] log capture ON, NVK_I_WANT_A_BROKEN_VULKAN_DRIVER=…`. V diag buildu
+  k tomu přibývá `nethersx2-vulkan.log` (`VK_DIAG`) a `nethersx2-mesa.log`
+  (`MESA_LOG_FILE`), do kterýho píše Mesa přes `mesa_log`.
 
 ## 5. CI mechanika (4 workflow soubory)
 
@@ -164,6 +188,12 @@ Artefakty: `nethersx2-nro-vk-bundle` (90 dní), `mesa-sdk` (SDK s `lib/`,
   Anotací je ~30–50 na check run a ~230 znaků na text, proto `ci/annotate.sh`
   a `DIGEST` soubor. Raw logy Actions jsou nedostupný (Azure blob blokovaný),
   takže všechna diagnostika musí jít přes anotace.
+* Velikosti `.nro` se mezi buildy **nehýbou** (segmenty se zarovnávaj na
+  stránky), takže buildy 34–37 hlásí všechny `vk=23116675 B` a
+  `nro=78716003 B`. Že se změna opravdu propsala, se pozná jen podle `sha256`,
+  greppem řetězce v binárce (stage 6: `grep -qa "NVK_I_WANT_A_BROKEN_VULKAN_DRIVER"`
+  v `NetherSX2_nx_vk.nro`, jinak `::error::`) a runtime výpisem
+  `[CI] log capture ON, NVK_I_WANT_A_BROKEN_VULKAN_DRIVER=…` z `ci_core_log.c`.
 * Stažený `.nro` localně ověřit nejde (ani `raw.githubusercontent.com`, ani
   `productionresultssa*.blob.core.windows.net` nepustí síť). Ověřuje se v CI:
   grep jmen souborů do RomFS tabulky přimo v `out/NetherSX2.nro`
@@ -215,3 +245,9 @@ jádra ani BIOS se v repozitáři nenachází a nesmí — stahujou se v CI z
 7. `jq` součet stringu a čísla; `gh` uvnitř containeru; `awk gsub` s `&&`;
    multi-line `sed a\` v heredocu (python `str.replace` místo toho).
 8. Sázet se na to, že `raw.githubusercontent.com` / Azure blob něco pustí.
+9. Hledat příčinu „VK_SUCCESS a 0 fyzických zařízení" v našem loaderu /
+   v extenzích / ve flat archivtech. Je to conformant check v nxvk a řeší to
+   jediná proměnná (viz §3). Totéž platí pro úvahy „nvkmd nezvládl
+   nvInitialize" — tenhle kód se ani nespustí, dokud ho conformant check
+   nepustí dál.
+10. Usuzovat z velikosti `.nro`, že se něco změnilo (viz §5).
