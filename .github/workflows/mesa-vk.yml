@@ -1,5 +1,21 @@
 name: build / VK (nxvk Mesa -> NetherSX2_nx)
 
+# Build 55 (2026-09-18): VYKON — thready na vlastni jadra + identita threadu.
+#   * pthr.c: work thread #1 a #2 EXKLUSIVNE na svem jadre (dřív jen
+#     preferované jádro se sdílenou maskou, takže MTGS a VU1 migrovaly na
+#     stejné jádro — měřeno 4×: work=1,2 a thread #3 skončil na core 1).
+#   * imports.c: prctl(PR_SET_NAME) a sched_setaffinity byly no-op stuby,
+#     takže jsme zahazovali jména threadů, která jádro posílá. Teď se logují
+#     -> poprvé poznáme, který thread je MTGS a který VU1 (bez hádání).
+#   * /switch/nethersx2/ci-pin.conf řídí rozvržení bez rebuildu
+#     (mode=auto|off|excl_all, order1/order2, „JMÉNO=jádro|pool").
+#   * markery ci-mtvu / ci-vu1instant / ci-vuflaghack / ci-eecycle /
+#     ci-eeskip přepínají speedhacky jádra bez rebuildu (A/B test).
+#   * FIX logu: __libnx_exit() neběží atexit ani ne-flushuje stdio, proto
+#     v logu buildu 54 chyběl „session end" i posledních ~26 s hry.
+#     Teď se konec session píše explicitně (exit / fatal / CRASH).
+#   * NA TAKTY SE NESAHA — viz build 54 (fatal v pcv při kolizi s governorem).
+
 # Build 54 (2026-09-18): FIX padu — crash reporty ukazaly fatal v pcv
 # sysmodulu (Result 2011-0102) + pad governoru hoc:clk. Emulator vychazi
 # z podsystemu taktu: NSX_CLK defaultne VYPNUT (opt-in marker

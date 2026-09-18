@@ -549,3 +549,111 @@ takty) je pravděpodobnostní a rozjela se až při intenzivním přehazování 
 Co si má uživatel ohlídat i mimo náš build: `hoc:clk` padal spolu s pcv —
 na FW 22.1.0 + Atmosphère 1.11.2-master je podezřelý i sám o sobě; zvážit
 aktualizaci (sys-clk fork). Emulátor mu od buildu 54 nestojí v cestě.
+
+---
+
+## Build 55 — výkon: thready na vlastní jádra + identita threadů (2026-09-18)
+
+Zadání od uživatele: *„Na takty se vyprdni… optimalizuj tu emulační vrstvu, ve
+které jede libemucore.so. Páka je rozvržení threadů + nastavení jádra, což je
+přesně to, co vrstva drží v rukou."* Takty tedy zůstávají nedotčené (žádné
+clkrst/pcv — viz build 54) a veškerá změna je ve vrstvě portu.
+
+### Co je změřeno a proč právě tohle
+
+* **GT3 je CPU-bound**: při stejném CPU (2703 MHz) dal GPU takt 1497 oproti
+  307 MHz jen **+1 %** FPS (34,2 vs 33,8) → GS/Vulkan ven.
+* **EE headroom nic nepřinesl** (snížení EE na 50 % = beze změny) → hrubý
+  výkon EE ven.
+* **Rozvržení threadů (měřeno 4× stejně, build 49 i 54)**:
+  `[CI] cores: mask=0xf -> hot=0x7 ee=0 work=1,2 bg=3`, thready
+  `#1→core 1`, `EE/VM→core 0`, `#2→core 2`, `#3→core 1`, `bg→core 3`.
+  Jádro 0 má EE (+VU0, jeden thread). **O jádra 1 a 2 se dělí MTGS (GS/Vulkan),
+  VU1 (MTVU) i worker thready** — a to je hlavní podezřelý.
+
+Klíč, který v tom bránil: upstream `assign_work_core()` dává work threadu jen
+**preferované** jádro round-robinem, ale maska zůstává `work_mask` (= obě
+jádra 1–2). Thready tedy na sebe **migrují**. A z pořadí vytvoření (`#1/#2/#3`)
+**nejde poznat**, který je MTGS a který VU1 — port přitom měl `prctl` a
+`sched_setaffinity` jako no-op stuby, takže jména, která jádro posílá, končila
+v koši.
+
+### Co build 55 mění
+
+1. **`ci/patches/pthr_pin.py` (pthr.c)** — work thread **#1 a #2 dostanou
+   exkluzivní jádro** (maska = 1 bit, žádná migrace), zbytek zůstává v poolu.
+   Default `mode=auto`, tedy přesně „VU1 a MTGS na vlastní jádra".
+2. **`ci/patches/pthr_pin.c` + `pthr_pin.h` (nové)** — logika pinu a log:
+   `[CI] pin: mode=… order1=… order2=…`, `[CI] pin: work #1 -> core=1
+   EXKLUSIVNE`, `[CI] prctl PR_SET_NAME: tid=… -> "…"`,
+   `[CI] affinity (zadost jadra): tid=… (jméno) maska=0x… -> ZAHOZENO`.
+3. **`ci/patches/imports_pin_diag.py` (imports.c)** — `prctl(PR_SET_NAME/
+   PR_GET_NAME)` se vyhodnocuje (jméno threadu) a `sched_setaffinity` se
+   loguje. **Afinitu jádra dál neprovádíme** — pin řídí výhradně vrstva, aby
+   se jádro a port nepraly o stejná jádra.
+4. **`ci/patches/main_hacks_markers.py` (main.c)** — speedhacky markerem na SD
+   (viz tabulka níž) + explicitní `ci_session_end("exit")` před
+   `__libnx_exit(0)`.
+5. **`ci/patches/error_crash_end.py` (error.c, crash.c)** — `ci_session_end`
+   i na fatální chybě (`"fatal"`) a při výjimce (`"CRASH"`), weak symbol.
+6. **`ci_core_log.c`** — nová funkce `ci_session_end(why)` a `build=55`
+   v `session start`.
+
+### FIX: proč v logu buildu 54 chyběl konec všech pěti session
+
+Nebyl to pád. `source/main.c:2113` končí přes `__libnx_exit(0)` a libnx
+(`nx/source/runtime/init.c:190`) v něm volá `__appExit()` + `__nx_exit()` —
+**atexit se nespustí a stdio se ne-flushne**. Náš `[CI] session end` byl ale
+zavěšený na `atexit`, a 64 KiB buffer stdout se při exitu zahodil. Proto:
+
+* `session end` chyběl u **všech pěti** session (i u té, která ve
+  `nethersx2-vulkan.log` doběhla čistě přes `vkDestroySwapchainKHR` →
+  `vkDestroyDevice`),
+* core log každé session končí u `loadelf version 3.30` = **useknutý buffer**,
+  ne místo smrti,
+* a naopak `source/error.c:45` volá `exit(1)`, takže atexit **proběhl** —
+  značka „korektní exit" by se napíšala při fatální chybě. Přesně obráceně.
+
+Od buildu 55 se konec píše explicitně na všech třech cestách a v logu je tak
+`session end (exit)` / `(fatal)` / `(CRASH)`.
+
+### Markery na SD (`/switch/nethersx2/`) — build 55
+
+| soubor | obsah | efekt |
+|---|---|---|
+| `ci-pin.conf` | `mode=auto\|off\|excl_all`, `order1=N`, `order2=N`, `JMÉNO=N`, `JMÉNO=pool` | rozvržení work threadů; `mode=off` = upstream round-robin |
+| `ci-nopin.enabled` | (prázdný) | hlavní vypínač — nic se nepinuje (build 52) |
+| `ci-mtvu` | `0`/`1` | `EmuCore/Speedhacks/vuThread` (MTVU) |
+| `ci-vu1instant` | `0`/`1` | `EmuCore/Speedhacks/vu1Instant` |
+| `ci-vuflaghack` | `0`/`1` | `EmuCore/Speedhacks/vuFlagHack` |
+| `ci-eecycle` | `0`–`3` | `EmuCore/Speedhacks/EECycleRate` |
+| `ci-eeskip` | `0`–`3` | `EmuCore/Speedhacks/EECycleSkip` |
+
+Každé přepsání se loguje (`[CI] hack: /switch/nethersx2/ci-mtvu = 0 ->
+EmuCore/Speedhacks/vuThread`), takže v datech je vidět, co běželo. Bez
+markeru se nedělá **nic** — platí launcher.
+
+### Jak to změřit (pevný profil governoru)
+
+Uživatel má v Ultrahandu **pevně** cpu 2700 / gpu 1400 / ram 2666 MHz, takže
+A/B se nebude plést s přepínáním profilů. Postup:
+
+1. `nro-latest` (build 55), v logu ověřit `[CI] session start build=55`.
+2. **A** = bez `ci-pin.conf` (default `mode=auto`: #1 a #2 exkluzivně) vs
+   **B** = `ci-pin.conf` s `mode=off` (upstream round-robin). Stejná scéna,
+   stejné místo v GT3, ~60 s.
+3. Z logu přečíst `[CI] prctl PR_SET_NAME` — **poprvé uvidíme jména threadů**.
+   Když jádro jména posílá, přesuneme se v buildu 56 na pravidla
+   `MTGS=1` / `VU1=2` (přesnější než pořadí vytvoření).
+4. `python3 ci/analyze-core-log.py nethersx2-vulkan.log` → FPS medián/p10.
+   Takty v řádce budou `cpu=0 gpu=0 emc=0` — to je záměr (žádné pcv),
+   profil drží governor.
+
+### Co build 55 NEřeší
+
+* **Identitu threadů z pořadí vytvoření nelze odvodit.** Default `mode=auto`
+  pinuje „první dva work thready", což jsou s největší pravděpodobností MTGS
+  a VU1, ale **není to dokázané**. Proto je v buildu 55 diagnostika
+  (`PR_SET_NAME`) — dokud jména neuvidíme, je A/B test platný (dvě těžké
+  vlákna na různých jádrech), ale interpretace „kde je VU1" ne.
+* LSFG zůstává vypnuté (`lsfg_capable=0`; chybí `Lossless.dll`).

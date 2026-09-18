@@ -2,8 +2,9 @@
 
 > **Tenhle soubor je startovní bod.** Přečti ho celý, pak až HANDOFF.md (§9–§11
 > a §8 s pastmi). Všechna čísla níž jsou změřená na kartě uživatele, ne odhad.
-> Poslední build: **51** (`nro-latest`, `NetherSX2.nro`, 71 594 119 B,
-> sha256 `9c719e25cb27b374`).
+> Poslední build: **55** (`nro-latest`) — viz níže „Co je hotové (build 55)".
+> Uživatel má v Ultrahandu **pevný** profil cpu 2700 / gpu 1400 / ram 2666 MHz,
+> takže A/B měření se nemusí přepínat s profily governoru.
 
 ## 0. Kde je kód (přečti první — jinak začneš z prázdna)
 
@@ -101,14 +102,31 @@ VU1 (MTVU) + worker thready round-robin**, jádro 3 = audio.
    Změna: work pool přiřazuje thready round-robin; MTGS a VU1 by měly dostat
    fixní jádra (např. VU1 → core 2, MTGS → core 1) a worker thready zbytek.
    Měření: `[CI] thread … -> core=N` + FPS medián (jen okna na max taktech!).
+   **Hotovo v buildu 55** (`ci/patches/pthr_pin.{c,h,py}`): work #1 a #2 mají
+   **exkluzivní** jádro (dřív jen preferované se sdílenou maskou → migrace),
+   rozvržení řídí `ci-pin.conf` (`mode=auto|off|excl_all`, `order1/order2`,
+   `JMÉNO=jádro|pool`). **Ale**: z pořadí vytvoření není dokázané, který
+   thread je MTGS a který VU1 — proto build 55 zároveň loguje
+   `prctl(PR_SET_NAME)` a `sched_setaffinity` (v portu to byly no-op stuby,
+   takže jména threadů končila v koši). Jakmile jména uvidíme, přepneme
+   v buildu 56 na pravidla `MTGS=1` / `VU1=2`.
 2. **MTVU zapnuto/vypnuto** (`vuThread` v launcheru). U GT3 to může jít oběma
    směry; měřit izolovaně. Přepínač udělat markerem na SD
    (např. `ci-mtvu=0/1`), ať se dá testovat bez rebuildu — vzorem je
    `ci-clk.conf` (parser už v `ci/patches/ci_core_log.c` existuje).
+   **Hotovo v buildu 55**: marker `ci-mtvu` (soubor s `0`/`1`) přepíše
+   `EmuCore/Speedhacks/vuThread` v `run_startup_sequence()`; log hlásí
+   `[CI] hack: … -> …`. Pozn.: s `ci-mtvu=0` VU1 thread nevznikne, takže
+   pin pak sedí ještě čistěji (2 work thready na 2 jádra).
 3. **`EECycleRate` / `EECycleSkip`** — uživatel to má přepnuté (log hlásí
    „Unsafe Settings: Cycle rate/skip is not at default"). Vrátit na default
    a porovnat; patchnout jako marker.
+   **Aktualizace (log buildu 54):** tyhle dvě unsafe hlášky v logu **nejsou** —
+   zůstaly jen *Hardware Download Mode is not set to Accurate* a *GPU Palette
+   Conversion is enabled*. Cykly tedy nejspíš už defaultní jsou. Markery
+   `ci-eecycle` / `ci-eeskip` (0–3) jsou v buildu 55 hotové pro A/B.
 4. **`vu1Instant` / `vuFlagHack`** (VU1 instant = rychlejší, méně přesné).
+   **Hotovo v buildu 55**: markery `ci-vu1instant` / `ci-vuflaghack` (`0`/`1`).
 5. Teprve pak hlubší zásahy do jádra.
 
 **Metodika (nutná, jinak se výsledky nedají srovnat):** měřit **jen okna se
@@ -138,7 +156,11 @@ python3 ci/analyze-core-log.py /tmp/core.log
 |---|---|
 | `ci-logging.enabled` | zapne log do `nethersx2-core.log` (bez něj se neloguje) |
 | `ci-rawlog.enabled` | vypne dedup řádků **a od buildu 52 taky plně bufferuje** (každý řádek hned na SD; pomalé — jen na pátrání po pádu) |
-| `ci-nopin.enabled` | **(build 52)** vypne všechna `svcSetThreadCoreMask` — thready dědí masku procesu. FPS to může mírně ovlivnit, proto jen jako marker |
+| `ci-nopin.enabled` | **(build 52)** vypne všechna `svcSetThreadCoreMask` — thready dědí masku procesu. Hlavní vypínač pinování (i pro build 55) |
+| `ci-pin.conf` | **(build 55)** rozvržení work threadů: `mode=auto\|off\|excl_all`, `order1=N`, `order2=N`, `JMÉNO=N`, `JMÉNO=pool`. Default (bez souboru) = `mode=auto` → work #1 a #2 exkluzivně na svá jádra |
+| `ci-mtvu` | **(build 55)** `0`/`1` → `EmuCore/Speedhacks/vuThread` (MTVU) |
+| `ci-vu1instant` / `ci-vuflaghack` | **(build 55)** `0`/`1` → `EmuCore/Speedhacks/vu1Instant` / `vuFlagHack` |
+| `ci-eecycle` / `ci-eeskip` | **(build 55)** `0`–`3` → `EmuCore/Speedhacks/EECycleRate` / `EECycleSkip` |
 | `ci-clk.enabled` | **(build 54, opt-in)** zapne čtení taktů přes clkrst (od buildu 54 defaultně VYPNUTO — fatal v pcv při kolizi s governorem, viz HANDOFF §0b). Běží-li governor (sys-clk/hoc:clk), radši nepoužívat |
 | `ci-clk.conf` | **opt-in zápis taktů** (`cpu=1785 gpu=460`); od buildu 54 navíc vyžaduje i marker `ci-clk.enabled` — **s governorem NEPOUŽÍVAT** |
 

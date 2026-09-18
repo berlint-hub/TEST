@@ -5,8 +5,9 @@ od buildu 43 vypnutý).
 
 **Kam začít:** [`VU-GS-OPTIMALIZACE.md`](VU-GS-OPTIMALIZACE.md) — zadání
 a plán pro optimalizaci CPU/VU/GS (změřená FPS podle taktů, rozložení threadů,
-hypotézy v pořadí, jak měřit). Aktuální build: **54** (fix pádu — emulátor
-vystoupil z podsystemu taktů, viz BUILD-NOTES.md „Build 54").
+hypotézy v pořadí, jak měřit). Aktuální build: **55** (výkon: work thready
+#1/#2 exkluzivně na vlastní jádra + identita threadů z `prctl(PR_SET_NAME)`;
+viz BUILD-NOTES.md „Build 55" a HANDOFF §0c).
 
 - **[`VU-GS-OPTIMALIZACE.md`](VU-GS-OPTIMALIZACE.md)** — co optimalizovat
   a proč (GT3 je CPU-bound, GS ne), experimenty, metodika měření.

@@ -108,7 +108,7 @@ static int ci_on(void) {
        * začátek session přežil i okamžitej pád.
        * NSX_CI_BUILD: ručně zvedat s každým buildem — jediná jistá známka,
        * která binárka na kartě běží (velikosti .nro se mezi buildy nemění). */
-      fprintf(stdout, "[CI] session start build=54 ts=%ld pid=%d%s\n",
+      fprintf(stdout, "[CI] session start build=55 ts=%ld pid=%d%s\n",
               (long)time(NULL), (int)getpid(),
               ci_raw_log() ? " rawlog=unbuffered" : "");
       fflush(stdout);
@@ -272,6 +272,26 @@ static void ci_atexit(void) {
     return;
   ci_flush_repeat();
   fprintf(stdout, "[CI] session end (korektni exit)\n");
+  fflush(stdout);
+  fsync(fileno(stdout));
+}
+
+/* ---- build 55: konec session, který se DO logu opravdu dostane ------------
+ * atexit výše je na Switchi mrtvá větev: port končí přes __libnx_exit()
+ * (source/main.c:2113), což v libnx (nx/source/runtime/init.c:190) volá
+ * __appExit() + __nx_exit() — atexit se nespustí a stdio se ne-flushne.
+ * Proto v logu buildu 54 nebyl ani „session end", ani posledních ~26 sekund
+ * session 5 (GT3 přitom ve vulkan logu běželo 23 FPS oken a skončilo čistě
+ * přes vkDestroySwapchainKHR/vkDestroyDevice): 64 KiB buffer se zahodil.
+ *
+ * Volá se explicitně z source/main.c (čistý konec), source/error.c (fatal)
+ * a source/crash.c (pád) — `why` říká, která z těch tří cest to byla.
+ */
+void ci_session_end(const char *why) {
+  if (ci_enabled != 1)
+    return;
+  ci_flush_repeat();
+  fprintf(stdout, "[CI] session end (%s)\n", why ? why : "?");
   fflush(stdout);
   fsync(fileno(stdout));
 }

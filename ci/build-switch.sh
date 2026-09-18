@@ -697,7 +697,9 @@ PKGLIBS
                     "NetherSX2 Vulkan diagnostic" "diag soubor nethersx2-vulkan.log" \
                     "MESA_SHADER_CACHE_DIR" "FPS %.1f" \
                     "[CI] clk:" "[CI] boost:" "[CI] takty:" "ci-clk.conf" \
-                    "[CI] cores:"; do
+                    "[CI] cores:" \
+                    "session start build=55" "[CI] pin:" "PR_SET_NAME" \
+                    "ci-pin.conf" "[CI] hack:" "ci-mtvu" "[CI] session end"; do
         # -F: markery maj v sobě [ ] a v regexu by to byla znaková třída
         grep -qaF -- "$marker" "$vkbin" || vkmiss="$vkmiss [$marker]"
       done
@@ -789,6 +791,13 @@ mkdir -p "$SRC/source/hooks"
   # Obsah je v ci/patches/ci_core_log.c (dřív tu byl jako heredoc; v Python
   # řetězcích se pletly zpětné lomítka — build 45 kvůli tomu spadl).
   cp "$HERE/patches/ci_core_log.c" "$SRC/source/hooks/ci_core_log.c" || die "kopie ci_core_log.c"
+  # Build 55: identita emulačních threadů + pinování work threadů na vlastní
+  # jádra (viz sekce 7b4). Soubory musí ležet v source/hooks PŘED syntax
+  # kontrolou níž, aby je zkontrolovala proti libnx hlavičkám — pthr_pin.c
+  # sahá na svcSetThreadCoreMask/svcGetThreadId, a právě na takových věcech
+  # spadl build 47 (názvy enumů, které se mezi verzemi libnx liší).
+  cp "$HERE/patches/pthr_pin.c" "$SRC/source/hooks/pthr_pin.c" || die "kopie pthr_pin.c"
+  cp "$HERE/patches/pthr_pin.h" "$SRC/source/hooks/pthr_pin.h" || die "kopie pthr_pin.h"
 
   # Rychlá compile kontrola našich C souborů PŘED make: build 47 spadl až po
   # pár minutách na názvu enumu, který se mezi verzemi libnx liší
@@ -902,6 +911,46 @@ if python3 "$HERE/patches/pthr_diag.py" "$SRC/source/pthr.c"; then
   key "diag: rozlozeni threadu na jadra je v logu (pthr.c)"
 else
   warn "pthr.c patch pro rozlozeni threadu neprosel — uvidime jen FPS radky"
+fi
+
+# ------------------------- 7b4. build 55: thready na vlastní jádra + identita
+# Měřeno na kartě (build 49 i 54, 4× stejně): mask=0xf -> ee=0 work=1,2 bg=3.
+# Jádro 0 má EE (+VU0). O jádra 1 a 2 se dělí MTGS (GS/Vulkan), VU1 (MTVU)
+# i worker thready — a upstream assign_work_core() jim dává jen PREFEROVANÉ
+# jádro round-robinem se sdílenou maskou, takže na sebe migrují. GT3 je přitom
+# CPU-bound (GPU takt 4,9× víc = +1 % FPS) a EE headroom nic nepřinesl, takže
+# tohle rozvržení je hlavní podezřelý (VU-GS-OPTIMALIZACE.md §5, hypotéza 1).
+#
+# Dvě věci, které se bez sebe neobejdou:
+#   a) IDENTITA: z pořadí vytvoření (#1/#2/#3) NEPOZNÁME, který thread je MTGS
+#      a který VU1. Port má přitom prctl a sched_setaffinity jako no-op stuby —
+#      jádro si thready pojmenovává a pinuje samo a my to zahazovali. Teď se
+#      to loguje (imports_pin_diag.py + pthr_pin.c).
+#   b) PIN: work #1 a #2 dostanou exkluzivní jádro; rozvržení řídí
+#      /switch/nethersx2/ci-pin.conf (mode=auto|off|excl_all, order1/order2,
+#      pravidla podle jména threadu), takže A/B test nepotřebuje rebuild.
+if python3 "$HERE/patches/imports_pin_diag.py" "$SRC/source/imports.c"; then
+  if python3 "$HERE/patches/pthr_pin.py" "$SRC/source/pthr.c"; then
+    key "pin: work #1/#2 exkluzivne na svem jadre + identita threadu v logu"
+  else
+    rm -f "$SRC/source/hooks/pthr_pin.c" "$SRC/source/hooks/pthr_pin.h"
+    die "pthr.c pin patch neprosel — pthr_pin.c by zůstal bez volajícího"
+  fi
+else
+  rm -f "$SRC/source/hooks/pthr_pin.c" "$SRC/source/hooks/pthr_pin.h"
+  die "imports.c thread-ident patch neprosel — bez identit by byl pin naslepo"
+fi
+
+# Konec session do logu: __libnx_exit() neběží atexit ani ne-flushuje stdio
+# (libnx nx/source/runtime/init.c:190), proto v logu buildu 54 chyběl u všech
+# pěti session „session end" i posledních ~26 s hry (64 KiB buffer se zahodil)
+# a vypadalo to jako pět tvrdých pádů. Volá se teď explicitně na všech třech
+# koncích procesu: main.c = exit, error.c = fatal, crash.c = CRASH.
+if python3 "$HERE/patches/main_hacks_markers.py" "$SRC/source/main.c" \
+   && python3 "$HERE/patches/error_crash_end.py" "$SRC/source/error.c" "$SRC/source/crash.c"; then
+  key "session end se pise na vseh trech koncich + speedhack markery na SD"
+else
+  die "main.c/error.c/crash.c patch (session end + hack markery) neprosel"
 fi
 
 # --------------------------------------------------------- 7b2. FPS měřidlo (GL)

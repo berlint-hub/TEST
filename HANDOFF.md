@@ -8,9 +8,10 @@ během**, ne domněnka; kde se pochybuje, je to napsané.
 > **`VU-GS-OPTIMALIZACE.md`** (zadání, změřené FPS podle taktů, rozložení
 > threadů, hypotézy v pořadí, jak měřit). Tenhle HANDOFF pak čti jako
 > referenci — hlavně §8 (pasti), §9–§11 (výkon a takty).
-> Poslední build: **54** (`nro-latest`; build 51 = 71 594 119 B,
+> Poslední build: **55** (`nro-latest`; build 51 = 71 594 119 B,
 > sha256 `9c719e25cb27b374`). Build 52 = pátrání po pádu při přehazování
-> = forenzní log; build 54 = FIX pádu (níž §0b).
+> = forenzní log; build 54 = FIX pádu (§0b); **build 55 = výkon: thready na
+> vlastní jádra + identita threadů (§0c)**.
 
 Cíl uživatele: reproducible CI, který vyrobí `.nro` s funkčním Vulkan
 rendererem, plus zpětná vazba z logů na kartě. Historie: build 37/38 našel
@@ -66,6 +67,43 @@ chování identické a padaly všechny.
 Atmosphère 1.11.2-master je sám o sobě stejně podezřelý (padal spolu s pcv).
 Zvážit aktualizaci sys-clk/hoc-clk; pro testy stability klidně chvíli jet
 bez něj. Emulátor už mu v buildu 54 do cesty nestojí.
+
+## 0c. STAV: PÁD — CO ŘÍKAJÍ LOGY BUILDU 54 (2026-09-18, ověřeno z dat v repu)
+
+**Logy buildu 54 jsou v repu** (`nethersx2-core.log`, `nethersx2-vulkan.log`,
+`launcher-diag.log`; 5 sessions, ts 1789738015 → 1789738523 = 15:26:55 →
+15:35:23 SELČ, tedy **po** publikaci buildu 54 v 15:13:56 SELČ). Pořadí her:
+GT3 → GT3 → GT3 → **Fallout** → GT3 (přehazování her = přesně ten scénář,
+který systém shazoval).
+
+**Co je potvrzené:**
+* Všech 5 sessions se dostalo do emulace (`isoFile open ok`, McdSlot,
+  `loadelf`, audio + PAD otevřené) — tedy **žádná nezemřela hned po
+  `(AAudioMod) Starting stream...`**, což byl příznak mrtvého pcv z §0b.
+* Session 5 (GT3) v `nethersx2-vulkan.log`: **23 FPS oken / ~30 s, medián
+  45,5 FPS, p10 35,9, p90 50,0, nejdelší frame 216 ms**, a **čistý konec**
+  (`vkDestroySwapchainKHR` → `vkDestroyDevice`).
+* `[CI] clk: cteni taktu VYPNUTO (build 54; …)` — emulátor se pcv
+  **nedotkl**, takže mechanismus z §0b je zavřený.
+* `[CI] session start build=54` v každé session — binárka je opravdu 54.
+
+**Co z toho NEPLYNE (a co jsem si minule spletl):** core log **nekončí** tam,
+kde proces umřel. U všech pěti sessions končí u `loadelf version 3.30` a
+chybí `[CI] session end` — jenže to je **useknutý 64 KiB buffer**, ne místo
+smrti. `source/main.c:2113` končí přes `__libnx_exit(0)` a libnx
+(`nx/source/runtime/init.c:190`) v něm volá `__appExit()` + `__nx_exit()`:
+**atexit neběží a stdio se ne-flushne**. Náš `session end` byl přitom na
+atexit. Naopak `source/error.c:45` volá `exit(1)`, takže by se „korektní exit"
+napíšal **při fatální chybě** — značka byla obráceně. **Build 55 to opravuje**
+(explicitní `ci_session_end()` z main.c/error.c/crash.c → `exit`/`fatal`/
+`CRASH`); bez toho se „padá, nebo ne?" z logu poznat nedá.
+
+**Co zbývá ověřit u uživatele:** jestli v `sd:/atmosphere/crash_reports/`
+(resp. `fatal_errors/`) **přibyl** nějaký soubor po 15:35 SELČ 18. 9.
+Crash reporty v repu (`pcv` Result 2011-0102 User Break, `hoc:clk` Result
+2345-0048) nemají v textu časové razítko — HANDOFF §0b uvádí incident
+v 14:46 SELČ, tedy **před** těmi pěti čistými sessions. Pokud od buildu 54
+nic nového nepřibylo, je pád mrtvý a lze v klidu ladit výkon.
 
 ### Historie pátrání (build 52/53, nyní už jen kontext)
 
@@ -160,7 +198,7 @@ Stručně, co je hotové a co ne:
 | branch session | `arena/01a0b2a1-test` (nikdy nepushovat jinam; stará `arena/01a0aad9-test` už na remote není) |
 | poslední pushnutý commit | 204d405 docs: build 51 v tabulce (boost pryc, takty jen ke cteni) (a starší: build 51, log-analyzer, VU-GS plán) |
 | rolling release URL | `https://github.com/berlint-hub/TEST/releases/download/nro-latest/NetherSX2.nro` |
-| aktuální build | CI build 51, run `35339363420`, `NetherSX2.nro` = **71 594 119 B** (VK-only), `sha256=9c719e25cb27b374`, release `nro-latest` „NetherSX2.nro (CI build 51, Vulkan)". Obsahuje: **CPU boost pryč** (util.c; takty řídí sysmodul), log bez SD zápisu na frame, čtení taktů + `ci-clk.conf`, rozložení threadů. Předchozí: 48/49 spadly na stažení jader (api.github.com) — opraveno přímou CDN URL |
+| aktuální build | **55** (větve `arena/01a0b4ce-test`; CI běh ještě neproběhl — build startuje pushem, který sahá na `.github/workflows/mesa-vk.yml`). Na kartě je **54** = 71 598 215 B, release `nro-latest`, run `35348818842`. Předchozí: 51 = 71 594 119 B, `sha256=9c719e25cb27b374`, run `35339363420` |
 | v balíku | build 43: jen `NetherSX2_nx_vk.nro` **23 088 003 B** (LTO + cache v loaderu; build 42 měl 23 124 867 B). GL binárka se nestaví (`VK_ONLY=1`) — zpět ji vrátíš přepnutím `VK_ONLY: 0` v `mesa-vk.yml`; kód i GL FPS měřidlo zůstávají |
 | pozor na velikosti | buildy 34–37 maj **identickou** velikost (stránkový zarovnání segmentů) — rozlišuj podle `sha256` (35 = `b3a06739…`, 36 = `f6ea45cb…`, 37 = `c2d6aa7d…`). Build 38 povyrostl na 78 724 195 B, protože se konečně zkompilovala diagnostika |
 | generovaný loader | 766 forwarderů, `libnsxvkloader.a` = 554 390 B |
@@ -174,9 +212,15 @@ Artefakty: `nethersx2-nro-vk-bundle` (90 dní), `mesa-sdk` (SDK s `lib/`,
 **Nástroje v repu** (co ušetří čas):
 * `ci/analyze-core-log.py <log>` — FPS podle taktů, stutter, rozložení threadů,
   kolik řádků spolkl dedup. Umí i `--full` s rozpadem na jednotlivá okna.
-* `ci/patches/*.py` — patchery zdrojů portu (util_no_boost, vk_diag) — vždy
+  **Pozor:** FPS řádky jsou ve `nethersx2-vulkan.log` (VK větev), ne v core
+  logu — pouštět analyzátor na vulkan log, jinak ukáže 0 FPS oken.
+* `ci/patches/*.py` — patchery zdrojů portu (util_no_boost, vk_diag, pthr_diag,
+  **pthr_pin, imports_pin_diag, main_hacks_markers, error_crash_end**) — vždy
   testovat na **čerstvém** souboru a dvakrát (idempotence).
-* `ci/patches/ci_core_log.c` — log modul + NSX_CLK + `ci-clk.conf`.
+* `ci/patches/ci_core_log.c` — log modul + NSX_CLK + `ci-clk.conf` +
+  `ci_session_end()`.
+* `ci/patches/pthr_pin.{c,h}` — pinování work threadů + identita threadů
+  (build 55).
 
 ## 3. Poznání, který bolí nejvíc (přečti si ho, než sáhneš na VK link)
 
