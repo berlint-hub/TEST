@@ -1,7 +1,15 @@
+[CI] log capture ON, NVK_I_WANT_A_BROKEN_VULKAN_DRIVER=1
+[CI] stderr smerovan do core logu: SELHAL (errno=5)
+[CI] boost: NEPOUZIVAME (appletSetCpuBoostMode je vynechany ve util.c; takty ridi sysmodul/governor)
+[CI] takty: jen cteni; zapis jedine kdyz na karte existuje ci-clk.conf
 [4][NativeLibrary] EmuFolders::DataRoot is '/switch/nethersx2'
 [4][NativeLibrary] EmuFolders::Cache is '/switch/nethersx2/cache'
 [4][NativeLibrary] EmuFolders::Resources is 'file:///android_asset'
 [4][NativeLibrary] EmuFolders::Settings is '/switch/nethersx2'
+[CI] cores: mask=0xf -> hot=0x7 ee=0 work=1,2 bg=3
+[CI] thread #1 (work: MTGS/VU1/worker) -> core=1
+[CI] emulator nro: VK build (GS_RENDERER=14), NVK_I_WANT_A_BROKEN_VULKAN_DRIVER=1
+[CI] thread EE/VM -> core=0 (vyhrazene)
 [4][NativeLibrary] Searching for a BIOS image in '/switch/nethersx2/bios'...
 [4][NativeLibrary] Preparing for a 1280x720 window
 [4][NativeLibrary] Bios Found: USA     v02.30(20/02/2008)  Console 20080220-175343
@@ -12,12 +20,1386 @@
 [4][NativeLibrary]  * CDVD Disk Open: DVD, Single layer or unknown:
 [4][NativeLibrary]  * * Track 1: Data (Mode 1) (1800304 sectors)
 [4][NativeLibrary] Opening GS...
-[4][NativeLibrary] Vulkan: Missing required extension VK_KHR_surface.
-[4][NativeLibrary] Failed to load Vulkan instance functions
-[4][NativeLibrary] Failed to create Vulkan context
-[4][NativeLibrary] Failed to create render device
-[4][NativeLibrary] Failed to acquire host display
-[4][NativeLibrary] GS failed to open.
-[4][NativeLibrary] Failed to open GS.
+[CI] thread #2 (work: MTGS/VU1/worker) -> core=2
+[VK] vkCreateInstance begin api=4198400 app=NetherSX2 engine=NetherSX2 extensions=2
+[VK] instance extension[0]=VK_KHR_surface
+[VK] instance extension[1]=VK_KHR_android_surface
+[VK] vkCreateInstance end result=0 instance=0x449f2bcec0 lsfg_prepared=0
+[4][NativeLibrary] No GPU requested, using first (NVIDIA Tegra X1 (NVK gm20b))
+[VK] vkCreateViSurfaceNN window=0x2aea11fdb8 result=0 surface=0x44c9bcbe20
+[4][NativeLibrary] 1 vulkan queue families
+[VK] vkCreateDevice begin physical=0x449f2bf560 queues=1 extensions=6 lsfg_pref=0
+[VK] vkCreateDevice end result=0 device=0x44cabfc040 lsfg_capable=0 family=4294967295
+[VK] vkGetDeviceQueue family=0 index=0 queue=0x449f2c6c00
+[VK] vkGetDeviceQueue family=0 index=0 queue=0x449f2c6c00
+[4][NativeLibrary] VK_EXT_provoking_vertex is supported
+[4][NativeLibrary] VK_EXT_line_rasterization is supported
+[4][NativeLibrary] VK_EXT_calibrated_timestamps is supported
+[4][NativeLibrary] VK_ARM_rasterization_order_attachment_access is NOT supported
+[VK] vkGetDeviceQueue family=0 index=0 queue=0x449f2c6c00
+[VK] vkCreateSwapchainKHR begin old=0x0 extent=1280x720 format=37 usage=0x10 images=3 mode=0
+[VK] vkCreateSwapchainKHR end result=0 swapchain=0x44d04d76c0 compatible=0 actual_usage=0x10 actual_images=3 actual_mode=0
+[VK] vkGetSwapchainImagesKHR call=1 fill=0 result=0 count=3
+[VK] vkGetSwapchainImagesKHR call=2 fill=1 result=0 count=3
+[CI] thread #3 (work: MTGS/VU1/worker) -> core=1
+[4][NativeLibrary] Read 395 entries from '/switch/nethersx2/cache/vulkan_shaders.idx'
+[4][NativeLibrary] Lazily allocating JNI environment for thread 0x449f2c2da0
+[VK] core VM sequence returned vm_running=1
+[CI] thread bg (audio/...) -> core=3
+[4][NativeLibrary] Opening SPU2...
+[4][NativeLibrary] Initializing SndBuffer at sample rate of 48000...
+[4][NativeLibrary] (AAudioMod) Creating stream...
+[4][NativeLibrary] (AAudioMod) Starting stream...
+[4][NativeLibrary] Opening PAD...
+[CI] thread bg (audio/...) -> core=3
+[4][NativeLibrary] Opening DEV9...
+[4][NativeLibrary] Opening USB...
+[4][NativeLibrary] Opening FW...
+[4][NativeLibrary] McdSlot 0 [File]: /switch/nethersx2/memcards/Mcd001.ps2
+[4][NativeLibrary] EE/iR5900-ARM64 Recompiler Reset
+[4][NativeLibrary] Vsync is OFF
+[4][NativeLibrary] 	Searching for a BIOS image in '/switch/nethersx2/bios'...
+[4][NativeLibrary] 	Bios Found: USA     v02.30(20/02/2008)  Console 20080220-175343
+[4][NativeLibrary] 	Using BIOS '/switch/nethersx2/bios/SCPH-90001_BIOS_V18_USA_230.ROM0' (USA     v02.30(20/02/2008)  Console 20080220-175343 USA)
+[4][NativeLibrary] 	BIOS rom2 module not found, skipping...
+[4][NativeLibrary] VM subsystems initialized in 4558.09 ms
+[CI] ... vzor se opakoval 2x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] McdSlot # [File]: /switch/nethersx#/memcards/Mcd#.ps#
+[4][NativeLibrary] [GameDB] 12847 games on record (loaded in 1377.27ms)
+[4][NativeLibrary] [GameDB] Searching for '20080220-175343' in GameDB
+[4][NativeLibrary] [GameDB] Could not find '20080220-175343' in GameDB
+[4][NativeLibrary] Game Changed:
+[CI] ... vzor se opakoval 2x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] 	Bios Found: USA     v#.#(#/#/#)  Console #-#
+[4][NativeLibrary]   Name: 
+[4][NativeLibrary]   Serial: 20080220-175343
+[4][NativeLibrary]   CRC: 00000000
 [4][NativeLibrary] Applying settings...
-[4][NativeLibrary] Releasing host memory for virtual systems...
+[6][cpuinfo] failed to parse the list of possible processors in /sys/devices/system/cpu/possible
+[CI] ... vzor se opakoval 2x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] [GameDB] Searching for '#-#' in GameDB
+[6][cpuinfo] failed to parse the list of present processors in /sys/devices/system/cpu/present
+[CI] ... vzor se opakoval 2x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] [GameDB] Could not find '#-#' in GameDB
+[6][cpuinfo] failed to parse both lists of possible and present processors
+[4][NativeLibrary] Failed to initialize cpuinfo
+[4][NativeLibrary] OSD [android_warning]: You are using AetherSX2, and it should not be sold, or distributed as part of any other app.
+
+[4][NativeLibrary] If you paid for this app, you should get your money back.
+[4][NativeLibrary] # Initialize memory (rev:4.00, ctm:196Mhz, cpuclk:147Mhz detected)
+
+[CI] ... vzor se opakoval 2x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Applying settings...
+[4][NativeLibrary] [GameDB] Searching for '20080220-175343' in GameDB
+[4][NativeLibrary] [GameDB] Could not find '20080220-175343' in GameDB
+[VK] vkAcquireNextImageKHR call=1 result=0 image=0 semaphore=0x44d1289a80 fence=0x0
+[VK] vkQueueSubmit call=1 count=1 fence=0x44cabd9b60 result=0
+[4][NativeLibrary] 
+PlayStation 2 ======== 
+[4][NativeLibrary] Hard reset boot
+[VK] vkQueuePresentKHR enter call=1 waits=1 swaps=1 lsfg=0
+[4][NativeLibrary] 
+
+[VK] vkQueuePresentKHR call=1 swaps=1 result=0
+[4][NativeLibrary]  ROMGEN=
+[VK] vkAcquireNextImageKHR call=2 result=0 image=1 semaphore=0x44d1289c00 fence=0x0
+[4][NativeLibrary] 2008-0220
+[4][NativeLibrary] , IOP info (CPUID=
+[4][NativeLibrary] 1f
+[4][NativeLibrary] , CACH_CONFIG=
+[4][NativeLibrary] 14000200, 2MB
+[4][NativeLibrary] , IOP mode)
+
+[4][NativeLibrary]  <
+[4][NativeLibrary] 20080220-175343,ROMconf,PS20230WC20080220.bin
+[4][NativeLibrary] :11824>
+
+[4][NativeLibrary] # Total accessable memory size: 32 MB (B:2:8:0) (400:2:7c30)
+
+[4][NativeLibrary] # TLB spad=0 kernel=1:12 default=13:30 extended=31:38
+
+[4][NativeLibrary] # Initialize Start.
+
+[4][NativeLibrary] # Initialize GS ...
+
+[4][NativeLibrary] # Initialize INTC ...
+
+[4][NativeLibrary] # Initialize TIMER ...
+
+[4][NativeLibrary] # Initialize DMAC ...
+
+[4][NativeLibrary] # Initialize VU1 ...
+
+[4][NativeLibrary] # Initialize VIF1 ...
+
+[4][NativeLibrary] # Initialize GIF ...
+
+[4][NativeLibrary] # Initialize IPU ...
+
+[4][NativeLibrary] # Initialize FPU ...
+
+[4][NativeLibrary] # Initialize User Memory ...
+
+[VK] vkQueueSubmit call=2 count=1 fence=0x44cabd9ea0 result=0
+[VK] vkQueuePresentKHR enter call=2 waits=1 swaps=1 lsfg=0
+[VK] vkQueuePresentKHR call=2 swaps=1 result=0
+[VK] vkAcquireNextImageKHR call=3 result=0 image=2 semaphore=0x44d1289d80 fence=0x0
+[VK] vkQueueSubmit call=3 count=1 fence=0x449f2d42c0 result=0
+[VK] vkQueuePresentKHR enter call=3 waits=1 swaps=1 lsfg=0
+[VK] vkQueuePresentKHR call=3 swaps=1 result=0
+[VK] vkAcquireNextImageKHR call=4 result=0 image=0 semaphore=0x44d1289a80 fence=0x0
+[VK] vkQueuePresentKHR enter call=4 waits=1 swaps=1 lsfg=0
+[4][NativeLibrary] # Initialize Scratch Pad ...
+
+[VK] vkQueuePresentKHR call=4 swaps=1 result=0
+[4][NativeLibrary] # Initialize Done.
+
+[CI] ... vzor se opakoval 2x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] # Initialize VU# ...
+
+[4][NativeLibrary] 
+
+[CI] ... vzor se opakoval 2x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] # Initialize VIF# ...
+
+[4][NativeLibrary] EE DECI2 Manager version 0.06 Sep  5 2006 12:57:08
+
+[4][NativeLibrary]   CPUID=2e20, BoardID=0, ROMGEN=2008-0220, 32M
+
+[4][NativeLibrary] (SYSTEM.CNF) Detected PS2 Disc = cdrom0:\SCES_502.94;1
+[4][NativeLibrary] (SYSTEM.CNF) Software version = 2.00
+[4][NativeLibrary] (SYSTEM.CNF) Disc region type = PAL
+[4][NativeLibrary] ELF (cdrom0:\SCES_502.94;1) Game CRC = 0xB590CE04, EntryPoint = 0x01000008
+[4][NativeLibrary] 
+IOP Realtime Kernel Ver.0.9.1
+    Copyright 1999 (C) Sony C
+[CI] ... vzor se opakoval 2x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] 
+
+[4][NativeLibrary] omputer Entertainment Inc. 
+
+[4][NativeLibrary] Reboot service module.(99/11/10)
+
+[4][NativeLibrary] cdvd driver module version 0.1.1 (C)SCEI
+
+[CI] ... vzor se opakoval 2x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] (SYSTEM.CNF) Detected PS# Disc = cdrom#:\SCES_#.#;#
+[4][NativeLibrary] Load File service.(99/11/05)
+
+[CI] ... vzor se opakoval 2x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] (SYSTEM.CNF) Software version = #.#
+[4][NativeLibrary] Multi Threaded Fileio module.(99/11/15) 
+
+[CI] ... vzor se opakoval 2x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] (SYSTEM.CNF) Disc region type = PAL
+[4][NativeLibrary] iop heap service (99/11/03)
+
+[4][NativeLibrary] loadelf: fname cdrom0:¥SCES_502.94;1 secname all
+
+[4][NativeLibrary] loadelf version 3.30
+
+[CI] clk: clkrst init=0x0 open cpu=0x0 gpu=0x0 emc=0x0 pcv=-1 (0 = ok)
+[CI] clk: cpu=1020 gpu=307 emc=1331 MHz (get cpu=0x0 gpu=0x0 emc=0x0)
+[CI] apm: mode=0 handheld=0x20003 docked=0x10001 (rc=0x0/0x0/0x0)
+[VK] FPS 25.6 | 39.04 ms/frame | min 7.46 max 302.78 ms | 26 framu | lsfg=0 | cpu=1020 gpu=307 emc=1331 MHz
+[4][NativeLibrary] Input ELF format filename = cdrom0:¥SCES_502.94;1
+
+[4][NativeLibrary] 0 01000000 000417eb 
+[4][NativeLibrary] .
+[4][NativeLibrary] 
+
+[4][NativeLibrary] Loaded, cdrom0:¥SCES_502.94;1
+
+[4][NativeLibrary] start address 0x1000008
+
+[4][NativeLibrary] gp address 00000000
+
+[4][NativeLibrary] # Restart Without Memory Clear.
+
+[4][NativeLibrary] # Initialize GS ...
+
+[4][NativeLibrary] # Initialize INTC ...
+
+[CI] ... vzor se opakoval 5x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] .
+[4][NativeLibrary] # Initialize TIMER ...
+
+[4][NativeLibrary] # Initialize DMAC ...
+
+[4][NativeLibrary] # Initialize VU1 ...
+
+[4][NativeLibrary] # Initialize VIF1 ...
+
+[4][NativeLibrary] # Initialize GIF ...
+
+[4][NativeLibrary] # Initialize IPU ...
+
+[4][NativeLibrary] # Initialize FPU ...
+
+[4][NativeLibrary] # Initialize Scratch Pad ...
+
+[4][NativeLibrary] # Restart Without Memory Clear Done.
+
+[4][NativeLibrary] Elf entry point @ 0x01000008 about to get recompiled. Load patches first.
+[CI] ... vzor se opakoval 2x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] # Initialize VU# ...
+
+[4][NativeLibrary] [GameDB] Searching for 'sces-50294' in GameDB
+[CI] ... vzor se opakoval 2x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] # Initialize VIF# ...
+
+[4][NativeLibrary] [GameDB] Found 'sces-50294' in GameDB
+[4][NativeLibrary] [GameDB] Searching for patch with CRC 'B590CE04'
+[4][NativeLibrary] [GameDB] No CRC-specific patch or default patch found
+[4][NativeLibrary] Overall 0 Cheats loaded
+[4][NativeLibrary] Game Changed:
+[4][NativeLibrary]   Name: Gran Turismo 3 - A-Spec
+[4][NativeLibrary]   Serial: SCES-50294
+[CI] ... vzor se opakoval 2x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] [GameDB] Searching for 'sces-#' in GameDB
+[4][NativeLibrary]   CRC: B590CE04
+[CI] ... vzor se opakoval 2x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] [GameDB] Found 'sces-#' in GameDB
+[4][NativeLibrary] Applying settings...
+[4][NativeLibrary] [GameDB] Searching for 'sces-50294' in GameDB
+[4][NativeLibrary] [GameDB] Found 'sces-50294' in GameDB
+[4][NativeLibrary] Add 2 seconds play time to 20080220-175343 -> now 2
+[4][NativeLibrary] (UpdateVSyncRate) Mode Changed to PAL.
+[VK] FPS 35.8 | 27.90 ms/frame | min 0.57 max 253.80 ms | 36 framu | lsfg=0 | cpu=1020 gpu=307 emc=1331 MHz
+[4][NativeLibrary] Get Reboot Request From EE
+
+[4][NativeLibrary] 
+PlayStation 2 ======== 
+[4][NativeLibrary] Update rebooting..
+[4][NativeLibrary] 
+
+[VK] FPS 17.8 | 56.04 ms/frame | min 19.89 max 181.25 ms | 18 framu | lsfg=0 | cpu=1020 gpu=307 emc=1331 MHz
+[4][NativeLibrary] Update reboot complete
+[4][NativeLibrary] cdvdman Init
+
+[4][NativeLibrary] 
+IOP Realtime Kernel Ver. 2.1
+    Copyright 1999-2001 (C) So
+[4][NativeLibrary] ny Computer Entertainment Inc. 
+
+[4][NativeLibrary] Reboot service module.(99/11/10)
+
+[CI] ... vzor se opakoval 2x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] 
+PlayStation # ======== 
+[4][NativeLibrary] cdvd driver module version 0.1.1 (C)SCEI
+
+[4][NativeLibrary] Load File service.(99/11/05)
+
+[CI] ... vzor se opakoval 2x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] 
+
+[4][NativeLibrary] Multi Threaded Fileio module.(99/11/15) 
+
+[4][NativeLibrary] iop heap service (99/11/03)
+
+[4][NativeLibrary] loadmodule: fname cdrom0:¥SIO2MAN.IRX;1 args 0 arg 
+
+[4][NativeLibrary] loadmodule: id 25, ret 0
+
+[4][NativeLibrary] loadmodule: fname cdrom0:¥MTAPMAN.IRX;1 args 0 arg 
+
+[4][NativeLibrary] loadmodule: fname cdrom0:¥MCMAN.IRX;1 args 0 arg 
+
+[4][NativeLibrary] loadmodule: fname cdrom0:¥MCSERV.IRX;1 args 0 arg 
+
+[4][NativeLibrary] loadmodule: fname cdrom0:¥PADMAN.IRX;1 args 0 arg 
+
+[VK] FPS 23.2 | 43.12 ms/frame | min 5.02 max 190.07 ms | 24 framu | lsfg=0 | cpu=1020 gpu=307 emc=1331 MHz
+[VK] FPS 49.2 | 20.33 ms/frame | min 4.56 max 56.61 ms | 50 framu | lsfg=0 | cpu=1020 gpu=307 emc=1331 MHz
+[VK] FPS 46.1 | 21.70 ms/frame | min 8.97 max 58.69 ms | 47 framu | lsfg=0 | cpu=1020 gpu=307 emc=1331 MHz
+[VK] FPS 50.0 | 20.00 ms/frame | min 19.93 max 20.07 ms | 51 framu | lsfg=0 | cpu=1020 gpu=307 emc=1331 MHz
+[4][NativeLibrary] # Restart Without Memory Clear.
+
+[4][NativeLibrary] # Initialize GS ...
+
+[4][NativeLibrary] OSD [nethersx2_quick_status]: Quick menu: L + R + Plus
+[CI] ... vzor se opakoval 5x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] loadmodule: id #, ret #
+
+[4][NativeLibrary] # Initialize INTC ...
+
+[4][NativeLibrary] # Initialize TIMER ...
+
+[4][NativeLibrary] # Initialize DMAC ...
+
+[4][NativeLibrary] # Initialize VU1 ...
+
+[4][NativeLibrary] # Initialize VIF1 ...
+
+[4][NativeLibrary] # Initialize GIF ...
+
+[4][NativeLibrary] # Initialize IPU ...
+
+[4][NativeLibrary] # Initialize FPU ...
+
+[4][NativeLibrary] # Initialize Scratch Pad ...
+
+[4][NativeLibrary] # Restart Without Memory Clear Done.
+
+[4][NativeLibrary] (UpdateVSyncRate) Mode Changed to PAL.
+[CI] ... vzor se opakoval 2x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] # Initialize VU# ...
+
+[4][NativeLibrary] Get Reboot Request From EE
+
+[VK] FPS 33.9 | 29.48 ms/frame | min 18.63 max 484.63 ms | 49 framu | lsfg=0 | cpu=1020 gpu=307 emc=1331 MHz
+[CI] ... vzor se opakoval 2x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] # Initialize VIF# ...
+
+[4][NativeLibrary] 
+PlayStation 2 ======== 
+[4][NativeLibrary] Update rebooting..
+[4][NativeLibrary] 
+
+[VK] FPS 12.4 | 80.90 ms/frame | min 46.71 max 204.37 ms | 14 framu | lsfg=0 | cpu=1020 gpu=307 emc=1331 MHz
+[4][NativeLibrary] Update reboot complete
+[4][NativeLibrary] cdvdman Init
+
+[4][NativeLibrary] 
+IOP Realtime Kernel Ver. 2.1
+    Copyright 1999-2001 (C) So
+[4][NativeLibrary] ny Computer Entertainment Inc. 
+
+[4][NativeLibrary] Reboot service module.(99/11/10)
+
+[CI] ... vzor se opakoval 2x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] 
+PlayStation # ======== 
+[4][NativeLibrary] cdvd driver module version 0.1.1 (C)SCEI
+
+[4][NativeLibrary] Load File service.(99/11/05)
+
+[CI] ... vzor se opakoval 2x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] 
+
+[4][NativeLibrary] Multi Threaded Fileio module.(99/11/15) 
+
+[4][NativeLibrary] iop heap service (99/11/03)
+
+[4][NativeLibrary] loadmodule: fname cdrom0:¥MEMCLEAR.IRX;1 args 0 arg 
+
+[4][NativeLibrary] loadmodule: id 25, ret 1
+
+[4][NativeLibrary] loadmodule: fname cdrom0:¥SIO2MAN.IRX;1 args 0 arg 
+
+[4][NativeLibrary] loadmodule: fname cdrom0:¥MTAPMAN.IRX;1 args 0 arg 
+
+[4][NativeLibrary] loadmodule: fname cdrom0:¥MCMAN.IRX;1 args 0 arg 
+
+[4][NativeLibrary] loadmodule: fname cdrom0:¥MCSERV.IRX;1 args 0 arg 
+
+[4][NativeLibrary] loadmodule: fname cdrom0:¥PADMAN.IRX;1 args 0 arg 
+
+[4][NativeLibrary] loadmodule: fname cdrom0:¥LIBSD.IRX;1 args 0 arg 
+
+[4][NativeLibrary] loadmodule: fname cdrom0:¥USBD.IRX;1 args 0 arg 
+
+[CI] ... vzor se opakoval 7x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] loadmodule: id #, ret #
+
+[4][NativeLibrary] USB Driver (Version 0.16.0)
+[4][NativeLibrary] 
+
+[4][NativeLibrary] loadmodule: id 32, ret 0
+
+[4][NativeLibrary] loadmodule: fname cdrom0:¥ILINK.IRX;1 args 0 arg 
+
+[4][NativeLibrary] loadmodule: fname cdrom0:¥LIBPDI.IRX;1 args 0 arg 
+
+[4][NativeLibrary] loadmodule: fname cdrom0:¥PDICDVD.IRX;1 args 0 arg 
+
+[4][NativeLibrary] loadmodule: fname cdrom0:¥PDISPU2.IRX;1 args 0 arg 
+
+[4][NativeLibrary] loadmodule: fname cdrom0:¥PDISTR.IRX;1 args 0 arg 
+
+[4][NativeLibrary] loadmodule: fname cdrom0:¥PDI1394.IRX;1 args 0 arg 
+
+[4][NativeLibrary] loadmodule: fname cdrom0:¥PDIUSB.IRX;1 args 0 arg 
+
+[VK] FPS 39.6 | 25.28 ms/frame | min 4.03 max 95.66 ms | 40 framu | lsfg=0 | cpu=1020 gpu=307 emc=1331 MHz
+[VK] FPS 46.3 | 21.58 ms/frame | min 4.91 max 43.51 ms | 47 framu | lsfg=0 | cpu=1020 gpu=307 emc=1331 MHz
+[VK] FPS 49.9 | 20.03 ms/frame | min 4.73 max 54.32 ms | 50 framu | lsfg=0 | cpu=1020 gpu=307 emc=1331 MHz
+[CI] ... vzor se opakoval 8x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] loadmodule: id #, ret #
+
+[4][NativeLibrary] Timezone=60
+
+[4][NativeLibrary] SummerTime=0
+
+[VK] FPS 46.0 | 21.74 ms/frame | min 17.05 max 82.43 ms | 47 framu | lsfg=0 | cpu=1020 gpu=307 emc=1331 MHz
+[CI] ... vzor se opakoval 12x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 12x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 51.1 | 19.56 ms/frame | min 16.35 max 26.11 ms | 52 framu | lsfg=0 | cpu=1020 gpu=307 emc=1331 MHz
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 49.9 | 20.06 ms/frame | min 17.01 max 26.73 ms | 50 framu | lsfg=0 | cpu=1020 gpu=307 emc=1331 MHz
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 47.8 | 20.91 ms/frame | min 15.56 max 80.32 ms | 48 framu | lsfg=0 | cpu=1020 gpu=307 emc=1331 MHz
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 42.4 | 23.59 ms/frame | min 17.18 max 88.12 ms | 46 framu | lsfg=0 | cpu=1020 gpu=307 emc=1331 MHz
+[CI] ... vzor se opakoval 29x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 28x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 30.9 | 32.39 ms/frame | min 17.44 max 82.36 ms | 31 framu | lsfg=0 | cpu=1020 gpu=307 emc=1331 MHz
+[CI] ... vzor se opakoval 20x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 21x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 16.8 | 59.39 ms/frame | min 2.37 max 200.72 ms | 18 framu | lsfg=0 | cpu=1020 gpu=307 emc=1331 MHz
+[CI] ... vzor se opakoval 18x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 17x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 19.5 | 51.32 ms/frame | min 23.78 max 81.51 ms | 20 framu | lsfg=0 | cpu=1020 gpu=307 emc=1331 MHz
+[CI] ... vzor se opakoval 20x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 20x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 20.9 | 47.94 ms/frame | min 22.50 max 90.66 ms | 22 framu | lsfg=0 | cpu=1020 gpu=307 emc=1331 MHz
+[CI] ... vzor se opakoval 23x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 23x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 20.0 | 49.98 ms/frame | min 22.52 max 93.74 ms | 21 framu | lsfg=0 | cpu=1020 gpu=307 emc=1331 MHz
+[CI] ... vzor se opakoval 16x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 16x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 16.4 | 61.05 ms/frame | min 23.63 max 94.43 ms | 17 framu | lsfg=0 | cpu=1020 gpu=307 emc=1331 MHz
+[CI] ... vzor se opakoval 17x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 18x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 17.7 | 56.55 ms/frame | min 22.11 max 100.69 ms | 18 framu | lsfg=0 | cpu=1020 gpu=307 emc=1331 MHz
+[CI] ... vzor se opakoval 19x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 18x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 17.4 | 57.33 ms/frame | min 22.13 max 91.96 ms | 18 framu | lsfg=0 | cpu=1020 gpu=307 emc=1331 MHz
+[CI] ... vzor se opakoval 16x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 16x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 15.9 | 62.83 ms/frame | min 23.38 max 108.34 ms | 16 framu | lsfg=0 | cpu=1020 gpu=307 emc=1331 MHz
+[CI] ... vzor se opakoval 17x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 17x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 16.0 | 62.52 ms/frame | min 22.49 max 99.65 ms | 16 framu | lsfg=0 | cpu=1020 gpu=307 emc=1331 MHz
+[CI] ... vzor se opakoval 17x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 17x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 16.8 | 59.44 ms/frame | min 24.04 max 94.59 ms | 17 framu | lsfg=0 | cpu=1020 gpu=307 emc=1331 MHz
+[CI] ... vzor se opakoval 15x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 15x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 14.5 | 69.13 ms/frame | min 22.60 max 130.66 ms | 15 framu | lsfg=0 | cpu=1020 gpu=307 emc=1331 MHz
+[CI] ... vzor se opakoval 16x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 16x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 16.6 | 60.39 ms/frame | min 25.51 max 93.81 ms | 17 framu | lsfg=0 | cpu=1020 gpu=307 emc=1331 MHz
+[CI] ... vzor se opakoval 17x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 18x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 16.0 | 62.31 ms/frame | min 21.89 max 99.22 ms | 17 framu | lsfg=0 | cpu=1020 gpu=307 emc=1331 MHz
+[CI] ... vzor se opakoval 17x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 16x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 16.8 | 59.66 ms/frame | min 30.42 max 99.92 ms | 17 framu | lsfg=0 | cpu=1020 gpu=307 emc=1331 MHz
+[CI] ... vzor se opakoval 16x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 17x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 15.8 | 63.29 ms/frame | min 27.12 max 96.03 ms | 17 framu | lsfg=0 | cpu=1020 gpu=307 emc=1331 MHz
+[CI] ... vzor se opakoval 17x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 16x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 16.6 | 60.20 ms/frame | min 22.91 max 103.86 ms | 17 framu | lsfg=0 | cpu=1020 gpu=307 emc=1331 MHz
+[CI] ... vzor se opakoval 18x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 18x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 17.9 | 55.77 ms/frame | min 22.77 max 87.00 ms | 19 framu | lsfg=0 | cpu=1020 gpu=307 emc=1331 MHz
+[CI] ... vzor se opakoval 16x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 16x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 14.8 | 67.54 ms/frame | min 21.60 max 107.51 ms | 16 framu | lsfg=0 | cpu=1020 gpu=307 emc=1331 MHz
+[CI] ... vzor se opakoval 16x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 16x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 16.6 | 60.07 ms/frame | min 24.35 max 91.26 ms | 17 framu | lsfg=0 | cpu=1020 gpu=307 emc=1331 MHz
+[CI] ... vzor se opakoval 16x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 17x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 15.8 | 63.35 ms/frame | min 23.58 max 105.28 ms | 16 framu | lsfg=0 | cpu=1020 gpu=307 emc=1331 MHz
+[CI] ... vzor se opakoval 17x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 16x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 16.2 | 61.81 ms/frame | min 22.80 max 96.16 ms | 17 framu | lsfg=0 | cpu=1020 gpu=307 emc=1331 MHz
+[CI] ... vzor se opakoval 17x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 17x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 17.9 | 55.82 ms/frame | min 21.76 max 89.65 ms | 18 framu | lsfg=0 | cpu=1020 gpu=307 emc=1331 MHz
+[CI] ... vzor se opakoval 17x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 17x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 15.1 | 66.34 ms/frame | min 23.44 max 109.46 ms | 16 framu | lsfg=0 | cpu=1020 gpu=307 emc=1331 MHz
+[CI] ... vzor se opakoval 16x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 16x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 15.7 | 63.88 ms/frame | min 22.86 max 103.76 ms | 16 framu | lsfg=0 | cpu=1020 gpu=307 emc=1331 MHz
+[CI] ... vzor se opakoval 16x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 16x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 16.4 | 60.91 ms/frame | min 23.38 max 99.58 ms | 17 framu | lsfg=0 | cpu=1020 gpu=307 emc=1331 MHz
+[CI] ... vzor se opakoval 17x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 17x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 23.0 | 43.48 ms/frame | min 15.06 max 95.58 ms | 23 framu | lsfg=0 | cpu=2703 gpu=307 emc=1331 MHz
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 34.5 | 28.97 ms/frame | min 13.95 max 45.63 ms | 35 framu | lsfg=0 | cpu=2703 gpu=307 emc=1331 MHz
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 33.5 | 29.83 ms/frame | min 13.85 max 51.09 ms | 34 framu | lsfg=0 | cpu=2703 gpu=307 emc=1331 MHz
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 34.0 | 29.41 ms/frame | min 12.47 max 48.45 ms | 35 framu | lsfg=0 | cpu=2703 gpu=1497 emc=1331 MHz
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 33.7 | 29.68 ms/frame | min 13.81 max 41.52 ms | 34 framu | lsfg=0 | cpu=2703 gpu=1497 emc=1331 MHz
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 35.1 | 28.50 ms/frame | min 13.89 max 48.53 ms | 36 framu | lsfg=0 | cpu=2703 gpu=1497 emc=2666 MHz
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 36.6 | 27.32 ms/frame | min 12.39 max 48.62 ms | 37 framu | lsfg=0 | cpu=2703 gpu=1497 emc=2666 MHz
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 36.5 | 27.40 ms/frame | min 11.51 max 44.75 ms | 37 framu | lsfg=0 | cpu=2703 gpu=1497 emc=2666 MHz
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 37.8 | 26.45 ms/frame | min 11.87 max 46.37 ms | 38 framu | lsfg=0 | cpu=2703 gpu=1497 emc=2666 MHz
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 33.9 | 29.52 ms/frame | min 10.46 max 90.15 ms | 36 framu | lsfg=0 | cpu=2703 gpu=1497 emc=2666 MHz
+[CI] ... vzor se opakoval 31x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 31x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 34.9 | 28.64 ms/frame | min 11.51 max 69.31 ms | 35 framu | lsfg=0 | cpu=2703 gpu=1497 emc=2666 MHz
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 36.9 | 27.12 ms/frame | min 11.73 max 42.87 ms | 37 framu | lsfg=0 | cpu=2703 gpu=1497 emc=2666 MHz
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 38.6 | 25.90 ms/frame | min 12.50 max 44.39 ms | 39 framu | lsfg=0 | cpu=2703 gpu=1497 emc=2666 MHz
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 36.6 | 27.31 ms/frame | min 12.31 max 43.62 ms | 37 framu | lsfg=0 | cpu=2703 gpu=1497 emc=2666 MHz
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 37.6 | 26.61 ms/frame | min 11.98 max 38.96 ms | 38 framu | lsfg=0 | cpu=2703 gpu=1497 emc=2666 MHz
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 48.2 | 20.76 ms/frame | min 12.67 max 37.07 ms | 49 framu | lsfg=0 | cpu=2703 gpu=1497 emc=2666 MHz
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 47.0 | 21.28 ms/frame | min 1.16 max 76.21 ms | 47 framu | lsfg=0 | cpu=2703 gpu=1497 emc=2666 MHz
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 50.0 | 20.00 ms/frame | min 19.99 max 20.01 ms | 50 framu | lsfg=0 | cpu=2703 gpu=1497 emc=2666 MHz
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 50.0 | 20.00 ms/frame | min 18.39 max 21.61 ms | 51 framu | lsfg=0 | cpu=2703 gpu=1497 emc=2666 MHz
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 50.0 | 20.00 ms/frame | min 19.99 max 20.01 ms | 51 framu | lsfg=0 | cpu=2703 gpu=1497 emc=2666 MHz
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 41.8 | 23.92 ms/frame | min 12.08 max 46.71 ms | 42 framu | lsfg=0 | cpu=2703 gpu=1497 emc=2666 MHz
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 39.2 | 25.51 ms/frame | min 12.59 max 39.23 ms | 40 framu | lsfg=0 | cpu=2703 gpu=1497 emc=2666 MHz
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 36.6 | 27.32 ms/frame | min 12.48 max 43.61 ms | 37 framu | lsfg=0 | cpu=2703 gpu=1497 emc=2666 MHz
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 36.6 | 27.30 ms/frame | min 12.56 max 43.83 ms | 37 framu | lsfg=0 | cpu=2703 gpu=1497 emc=2666 MHz
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 46.4 | 21.57 ms/frame | min 9.81 max 38.29 ms | 47 framu | lsfg=0 | cpu=2703 gpu=1497 emc=2666 MHz
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 50.0 | 20.01 ms/frame | min 19.71 max 20.29 ms | 50 framu | lsfg=0 | cpu=2703 gpu=1497 emc=2666 MHz
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 50.0 | 20.00 ms/frame | min 19.87 max 20.10 ms | 51 framu | lsfg=0 | cpu=2703 gpu=1497 emc=2666 MHz
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 50.0 | 20.00 ms/frame | min 19.96 max 20.04 ms | 50 framu | lsfg=0 | cpu=2703 gpu=1497 emc=2666 MHz
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 50.0 | 20.00 ms/frame | min 19.80 max 20.22 ms | 51 framu | lsfg=0 | cpu=2703 gpu=1497 emc=2666 MHz
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 50.0 | 20.00 ms/frame | min 19.84 max 20.15 ms | 51 framu | lsfg=0 | cpu=2703 gpu=1497 emc=2666 MHz
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 50.0 | 20.00 ms/frame | min 19.97 max 20.03 ms | 51 framu | lsfg=0 | cpu=2703 gpu=1497 emc=2666 MHz
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 50.0 | 20.00 ms/frame | min 19.97 max 20.03 ms | 50 framu | lsfg=0 | cpu=2703 gpu=1497 emc=2666 MHz
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 50.1 | 19.98 ms/frame | min 18.86 max 20.03 ms | 51 framu | lsfg=0 | cpu=2703 gpu=1497 emc=2666 MHz
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 49.9 | 20.02 ms/frame | min 19.89 max 20.17 ms | 50 framu | lsfg=0 | cpu=2703 gpu=1497 emc=2666 MHz
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 50.0 | 20.00 ms/frame | min 12.61 max 30.55 ms | 51 framu | lsfg=0 | cpu=2703 gpu=1497 emc=2666 MHz
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 50.0 | 20.00 ms/frame | min 12.16 max 43.55 ms | 51 framu | lsfg=0 | cpu=2703 gpu=1497 emc=2666 MHz
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 50.0 | 20.00 ms/frame | min 19.02 max 20.98 ms | 50 framu | lsfg=0 | cpu=2703 gpu=1497 emc=2666 MHz
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 50.0 | 20.00 ms/frame | min 9.27 max 50.58 ms | 51 framu | lsfg=0 | cpu=2703 gpu=1497 emc=2666 MHz
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 50.0 | 20.00 ms/frame | min 16.76 max 23.25 ms | 51 framu | lsfg=0 | cpu=2703 gpu=1497 emc=2666 MHz
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 50.0 | 20.00 ms/frame | min 18.31 max 21.69 ms | 51 framu | lsfg=0 | cpu=2703 gpu=1497 emc=2666 MHz
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 50.0 | 20.00 ms/frame | min 18.31 max 21.70 ms | 51 framu | lsfg=0 | cpu=2703 gpu=1497 emc=2666 MHz
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 35.2 | 28.40 ms/frame | min 10.62 max 330.92 ms | 37 framu | lsfg=0 | cpu=2703 gpu=1497 emc=2666 MHz
+[CI] ... vzor se opakoval 27x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 27x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 24.8 | 40.28 ms/frame | min 10.52 max 434.69 ms | 25 framu | lsfg=0 | cpu=2703 gpu=1497 emc=2666 MHz
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 50.4 | 19.82 ms/frame | min 6.66 max 59.75 ms | 51 framu | lsfg=0 | cpu=2703 gpu=1497 emc=2666 MHz
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 39.9 | 25.09 ms/frame | min 16.47 max 36.04 ms | 40 framu | lsfg=0 | cpu=2703 gpu=1497 emc=2666 MHz
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 50.6 | 19.75 ms/frame | min 4.00 max 54.12 ms | 51 framu | lsfg=0 | cpu=2703 gpu=1497 emc=2666 MHz
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 50.0 | 20.01 ms/frame | min 18.42 max 23.34 ms | 50 framu | lsfg=0 | cpu=2703 gpu=1497 emc=2666 MHz
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 49.7 | 20.11 ms/frame | min 17.51 max 28.72 ms | 50 framu | lsfg=0 | cpu=2703 gpu=1497 emc=2666 MHz
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 31.8 | 31.49 ms/frame | min 29.55 max 34.89 ms | 32 framu | lsfg=0 | cpu=2703 gpu=1497 emc=2666 MHz
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 31.6 | 31.64 ms/frame | min 30.41 max 35.59 ms | 32 framu | lsfg=0 | cpu=2703 gpu=1497 emc=2666 MHz
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 31.8 | 31.46 ms/frame | min 29.97 max 32.90 ms | 32 framu | lsfg=0 | cpu=2703 gpu=1497 emc=2666 MHz
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 31.6 | 31.60 ms/frame | min 30.52 max 34.37 ms | 32 framu | lsfg=0 | cpu=2703 gpu=1497 emc=2666 MHz
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 32.7 | 30.56 ms/frame | min 29.39 max 32.32 ms | 33 framu | lsfg=0 | cpu=2703 gpu=1497 emc=2666 MHz
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 32.0 | 31.22 ms/frame | min 30.21 max 33.64 ms | 33 framu | lsfg=0 | cpu=2703 gpu=1497 emc=2666 MHz
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 32.6 | 30.65 ms/frame | min 29.71 max 31.93 ms | 33 framu | lsfg=0 | cpu=2703 gpu=1497 emc=2666 MHz
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 33.0 | 30.31 ms/frame | min 29.63 max 32.06 ms | 34 framu | lsfg=0 | cpu=2703 gpu=1497 emc=2666 MHz
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 40.2 | 24.86 ms/frame | min 10.16 max 152.95 ms | 41 framu | lsfg=0 | cpu=2703 gpu=1497 emc=2666 MHz
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 40.0 | 25.00 ms/frame | min 17.28 max 34.55 ms | 41 framu | lsfg=0 | cpu=2703 gpu=1497 emc=2666 MHz
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 46.4 | 21.55 ms/frame | min 16.15 max 34.85 ms | 47 framu | lsfg=0 | cpu=2703 gpu=1497 emc=2666 MHz
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 37.7 | 26.52 ms/frame | min 17.75 max 262.06 ms | 38 framu | lsfg=0 | cpu=2703 gpu=1497 emc=2666 MHz
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 44.4 | 22.51 ms/frame | min 20.10 max 24.66 ms | 45 framu | lsfg=0 | cpu=2703 gpu=1497 emc=2666 MHz
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 42.5 | 23.54 ms/frame | min 20.40 max 36.47 ms | 44 framu | lsfg=0 | cpu=2703 gpu=1497 emc=2666 MHz
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 28.0 | 35.77 ms/frame | min 34.57 max 37.26 ms | 28 framu | lsfg=0 | cpu=2703 gpu=1497 emc=2666 MHz
+[CI] ... vzor se opakoval 28x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 28x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 27.9 | 35.78 ms/frame | min 34.25 max 37.46 ms | 28 framu | lsfg=0 | cpu=2703 gpu=1497 emc=2666 MHz
+[CI] ... vzor se opakoval 28x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 28x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 27.6 | 36.19 ms/frame | min 34.98 max 37.51 ms | 28 framu | lsfg=0 | cpu=2703 gpu=1497 emc=2666 MHz
+[CI] ... vzor se opakoval 23x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 23x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 22.2 | 45.04 ms/frame | min 35.06 max 100.29 ms | 23 framu | lsfg=0 | cpu=2703 gpu=1497 emc=2666 MHz
+[CI] ... vzor se opakoval 28x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 28x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 27.7 | 36.04 ms/frame | min 33.17 max 38.93 ms | 28 framu | lsfg=0 | cpu=2703 gpu=1497 emc=2666 MHz
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 33.9 | 29.47 ms/frame | min 20.61 max 61.61 ms | 34 framu | lsfg=0 | cpu=2703 gpu=1497 emc=2666 MHz
+[CI] ... vzor se opakoval 29x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 29x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 25.7 | 38.88 ms/frame | min 37.88 max 39.91 ms | 26 framu | lsfg=0 | cpu=2703 gpu=1497 emc=2666 MHz
+[CI] ... vzor se opakoval 26x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 26x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 26.0 | 38.53 ms/frame | min 37.23 max 41.66 ms | 26 framu | lsfg=0 | cpu=2703 gpu=1497 emc=2666 MHz
+[CI] ... vzor se opakoval 26x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 26x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 33.0 | 30.32 ms/frame | min 20.80 max 39.83 ms | 33 framu | lsfg=0 | cpu=2703 gpu=1497 emc=2666 MHz
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 32.3 | 30.97 ms/frame | min 21.12 max 39.49 ms | 33 framu | lsfg=0 | cpu=2703 gpu=1497 emc=2666 MHz
+[CI] ... vzor se opakoval 28x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 28x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 26.9 | 37.18 ms/frame | min 35.12 max 38.33 ms | 27 framu | lsfg=0 | cpu=2703 gpu=1497 emc=2666 MHz
+[CI] ... vzor se opakoval 27x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 27x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 39.5 | 25.35 ms/frame | min 15.52 max 37.77 ms | 40 framu | lsfg=0 | cpu=2703 gpu=1497 emc=2666 MHz
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 50.8 | 19.69 ms/frame | min 18.03 max 22.65 ms | 51 framu | lsfg=0 | cpu=2703 gpu=1497 emc=2666 MHz
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 50.0 | 20.01 ms/frame | min 17.90 max 22.92 ms | 51 framu | lsfg=0 | cpu=2703 gpu=1497 emc=2666 MHz
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 50.1 | 19.97 ms/frame | min 18.66 max 21.88 ms | 51 framu | lsfg=0 | cpu=2703 gpu=1497 emc=2666 MHz
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 50.0 | 20.00 ms/frame | min 18.54 max 22.67 ms | 50 framu | lsfg=0 | cpu=2703 gpu=1497 emc=2666 MHz
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 49.8 | 20.08 ms/frame | min 18.32 max 23.00 ms | 50 framu | lsfg=0 | cpu=2703 gpu=1497 emc=2666 MHz
+[CI] ... vzor se opakoval 31x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 31x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 30.2 | 33.15 ms/frame | min 20.97 max 37.85 ms | 31 framu | lsfg=0 | cpu=2703 gpu=1497 emc=2666 MHz
+[CI] ... vzor se opakoval 28x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 28x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 27.9 | 35.82 ms/frame | min 34.45 max 38.49 ms | 28 framu | lsfg=0 | cpu=2703 gpu=1497 emc=2666 MHz
+[CI] ... vzor se opakoval 28x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 29x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 28.0 | 35.70 ms/frame | min 34.31 max 37.05 ms | 29 framu | lsfg=0 | cpu=2703 gpu=1497 emc=2666 MHz
+[CI] ... vzor se opakoval 28x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 27x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 27.2 | 36.74 ms/frame | min 35.38 max 38.66 ms | 28 framu | lsfg=0 | cpu=2703 gpu=1497 emc=2666 MHz
+[CI] ... vzor se opakoval 27x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 27x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 26.9 | 37.11 ms/frame | min 35.65 max 38.63 ms | 27 framu | lsfg=0 | cpu=2703 gpu=1497 emc=2666 MHz
+[CI] ... vzor se opakoval 28x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 28x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 27.4 | 36.52 ms/frame | min 34.50 max 39.72 ms | 28 framu | lsfg=0 | cpu=2703 gpu=1497 emc=2666 MHz
+[CI] ... vzor se opakoval 29x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 29x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 29.6 | 33.74 ms/frame | min 20.24 max 37.86 ms | 30 framu | lsfg=0 | cpu=2703 gpu=1497 emc=2666 MHz
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 51.7 | 19.34 ms/frame | min 16.59 max 22.79 ms | 52 framu | lsfg=0 | cpu=2703 gpu=1497 emc=2666 MHz
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 49.5 | 20.19 ms/frame | min 18.05 max 50.79 ms | 50 framu | lsfg=0 | cpu=2703 gpu=1497 emc=2666 MHz
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 50.5 | 19.79 ms/frame | min 17.11 max 21.67 ms | 51 framu | lsfg=0 | cpu=2703 gpu=1497 emc=2666 MHz
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 49.9 | 20.02 ms/frame | min 17.92 max 22.50 ms | 50 framu | lsfg=0 | cpu=2703 gpu=1497 emc=2666 MHz
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 38.7 | 25.83 ms/frame | min 17.99 max 38.24 ms | 40 framu | lsfg=0 | cpu=2703 gpu=1497 emc=2666 MHz
+[CI] ... vzor se opakoval 31x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 31x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 27.6 | 36.27 ms/frame | min 34.51 max 39.40 ms | 28 framu | lsfg=0 | cpu=2703 gpu=1497 emc=2666 MHz
+[CI] ... vzor se opakoval 28x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 28x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 42.6 | 23.49 ms/frame | min 15.42 max 37.32 ms | 43 framu | lsfg=0 | cpu=2703 gpu=1497 emc=2666 MHz
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 49.9 | 20.02 ms/frame | min 18.01 max 21.99 ms | 50 framu | lsfg=0 | cpu=2703 gpu=1497 emc=2666 MHz
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 49.7 | 20.13 ms/frame | min 18.86 max 21.95 ms | 50 framu | lsfg=0 | cpu=2703 gpu=1497 emc=2666 MHz
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 50.3 | 19.87 ms/frame | min 16.98 max 22.66 ms | 51 framu | lsfg=0 | cpu=2703 gpu=1497 emc=2666 MHz
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 49.5 | 20.20 ms/frame | min 18.99 max 22.57 ms | 50 framu | lsfg=0 | cpu=2703 gpu=1497 emc=2666 MHz
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 49.2 | 20.34 ms/frame | min 19.38 max 23.84 ms | 50 framu | lsfg=0 | cpu=2703 gpu=1497 emc=2666 MHz
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 49.0 | 20.43 ms/frame | min 17.72 max 22.46 ms | 49 framu | lsfg=0 | cpu=2703 gpu=1497 emc=2666 MHz
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 48.9 | 20.45 ms/frame | min 16.58 max 23.53 ms | 49 framu | lsfg=0 | cpu=2703 gpu=1497 emc=2666 MHz
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 47.1 | 21.25 ms/frame | min 19.35 max 24.21 ms | 48 framu | lsfg=0 | cpu=2703 gpu=1497 emc=2666 MHz
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 46.2 | 21.66 ms/frame | min 20.01 max 23.70 ms | 47 framu | lsfg=0 | cpu=2703 gpu=1497 emc=2666 MHz
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 44.1 | 22.66 ms/frame | min 20.82 max 25.22 ms | 45 framu | lsfg=0 | cpu=2703 gpu=1497 emc=2666 MHz
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 47.7 | 20.95 ms/frame | min 18.56 max 23.41 ms | 48 framu | lsfg=0 | cpu=2703 gpu=1497 emc=2666 MHz
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 49.1 | 20.36 ms/frame | min 18.11 max 23.03 ms | 50 framu | lsfg=0 | cpu=2703 gpu=1497 emc=2666 MHz
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 50.0 | 19.98 ms/frame | min 10.05 max 32.17 ms | 51 framu | lsfg=0 | cpu=2703 gpu=1497 emc=2666 MHz
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Timezone=#
+
+[CI] ... vzor se opakoval 32x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] SummerTime=#
+
+[VK] FPS 50.2 | 19.91 ms/frame | min 17.42 max 23.42 ms | 51 framu | lsfg=0 | cpu=2703 gpu=1497 emc=2666 MHz
+[CI] ... vzor se opakoval 32x[CI] log capture ON, NVK_I_WANT_A_BROKEN_VULKAN_DRIVER=1
+[CI] stderr smerovan do core logu: SELHAL (errno=5)
+[CI] boost: NEPOUZIVAME (appletSetCpuBoostMode je vynechany ve util.c; takty ridi sysmodul/governor)
+[CI] takty: jen cteni; zapis jedine kdyz na karte existuje ci-clk.conf
+[4][NativeLibrary] EmuFolders::DataRoot is '/switch/nethersx2'
+[4][NativeLibrary] EmuFolders::Cache is '/switch/nethersx2/cache'
+[4][NativeLibrary] EmuFolders::Resources is 'file:///android_asset'
+[4][NativeLibrary] EmuFolders::Settings is '/switch/nethersx2'
+[CI] cores: mask=0xf -> hot=0x7 ee=0 work=1,2 bg=3
+[CI] thread #1 (work: MTGS/VU1/worker) -> core=1
+[CI] emulator nro: VK build (GS_RENDERER=14), NVK_I_WANT_A_BROKEN_VULKAN_DRIVER=1
+[CI] thread EE/VM -> core=0 (vyhrazene)
+[4][NativeLibrary] Searching for a BIOS image in '/switch/nethersx2/bios'...
+[4][NativeLibrary] Preparing for a 1280x720 window
+[4][NativeLibrary] Bios Found: USA     v02.30(20/02/2008)  Console 20080220-175343
+[4][NativeLibrary] Using BIOS '/switch/nethersx2/bios/SCPH-90001_BIOS_V18_USA_230.ROM0' (USA     v02.30(20/02/2008)  Console 20080220-175343 USA)
+[4][NativeLibrary] Opening CDVD...
+[4][NativeLibrary] isoFile open ok: /Roms/PS2/Fallout - Brotherhood of Steel (USA).iso
+[4][NativeLibrary] 	Image type  = DVD
+[4][NativeLibrary]  * CDVD Disk Open: DVD, Single layer or unknown:
+[4][NativeLibrary]  * * Track 1: Data (Mode 1) (1498432 sectors)
+[4][NativeLibrary] Opening GS...
+[CI] thread #2 (work: MTGS/VU1/worker) -> core=2
+[VK] vkCreateInstance begin api=4198400 app=NetherSX2 engine=NetherSX2 extensions=2
+[VK] instance extension[0]=VK_KHR_surface
+[VK] instance extension[1]=VK_KHR_android_surface
+[VK] vkCreateInstance end result=0 instance=0x449f2bd160 lsfg_prepared=0
+[4][NativeLibrary] No GPU requested, using first (NVIDIA Tegra X1 (NVK gm20b))
+[VK] vkCreateViSurfaceNN window=0x4a16287db8 result=0 surface=0x44c9bcbe60
+[4][NativeLibrary] 1 vulkan queue families
+[VK] vkCreateDevice begin physical=0x449f2bf740 queues=1 extensions=6 lsfg_pref=0
+[VK] vkCreateDevice end result=0 device=0x44cabfc040 lsfg_capable=0 family=4294967295
+[VK] vkGetDeviceQueue family=0 index=0 queue=0x449f2d70c0
+[VK] vkGetDeviceQueue family=0 index=0 queue=0x449f2d70c0
+[4][NativeLibrary] VK_EXT_provoking_vertex is supported
+[4][NativeLibrary] VK_EXT_line_rasterization is supported
+[4][NativeLibrary] VK_EXT_calibrated_timestamps is supported
+[4][NativeLibrary] VK_ARM_rasterization_order_attachment_access is NOT supported
+[VK] vkGetDeviceQueue family=0 index=0 queue=0x449f2d70c0
+[VK] vkCreateSwapchainKHR begin old=0x0 extent=1280x720 format=37 usage=0x10 images=3 mode=0
+[VK] vkCreateSwapchainKHR end result=0 swapchain=0x44d04d76c0 compatible=0 actual_usage=0x10 actual_images=3 actual_mode=0
+[VK] vkGetSwapchainImagesKHR call=1 fill=0 result=0 count=3
+[VK] vkGetSwapchainImagesKHR call=2 fill=1 result=0 count=3
+[CI] thread #3 (work: MTGS/VU1/worker) -> core=1
+[4][NativeLibrary] Read 397 entries from '/switch/nethersx2/cache/vulkan_shaders.idx'
+[4][NativeLibrary] Lazily allocating JNI environment for thread 0x449f2bc040
+[VK] core VM sequence returned vm_running=1
+[CI] thread bg (audio/...) -> core=3
+[4][NativeLibrary] Opening SPU2...
+[4][NativeLibrary] Initializing SndBuffer at sample rate of 48000...
+[4][NativeLibrary] (AAudioMod) Creating stream...
+[4][NativeLibrary] (AAudioMod) Starting stream...
+[4][NativeLibrary] Opening PAD...
+[CI] thread bg (audio/...) -> core=3
+[CI] log capture ON, NVK_I_WANT_A_BROKEN_VULKAN_DRIVER=1
+[CI] stderr smerovan do core logu: SELHAL (errno=5)
+[CI] boost: NEPOUZIVAME (appletSetCpuBoostMode je vynechany ve util.c; takty ridi sysmodul/governor)
+[CI] takty: jen cteni; zapis jedine kdyz na karte existuje ci-clk.conf
+[4][NativeLibrary] EmuFolders::DataRoot is '/switch/nethersx2'
+[4][NativeLibrary] EmuFolders::Cache is '/switch/nethersx2/cache'
+[4][NativeLibrary] EmuFolders::Resources is 'file:///android_asset'
+[4][NativeLibrary] EmuFolders::Settings is '/switch/nethersx2'
+[CI] cores: mask=0xf -> hot=0x7 ee=0 work=1,2 bg=3
+[CI] thread #1 (work: MTGS/VU1/worker) -> core=1
+[CI] emulator nro: VK build (GS_RENDERER=14), NVK_I_WANT_A_BROKEN_VULKAN_DRIVER=1
+[CI] thread EE/VM -> core=0 (vyhrazene)
+[4][NativeLibrary] Searching for a BIOS image in '/switch/nethersx2/bios'...
+[4][NativeLibrary] Preparing for a 1280x720 window
+[4][NativeLibrary] Bios Found: USA     v02.30(20/02/2008)  Console 20080220-175343
+[4][NativeLibrary] Using BIOS '/switch/nethersx2/bios/SCPH-90001_BIOS_V18_USA_230.ROM0' (USA     v02.30(20/02/2008)  Console 20080220-175343 USA)
+[4][NativeLibrary] Opening CDVD...
+[4][NativeLibrary] isoFile open ok: /Roms/PS2/Fallout - Brotherhood of Steel (USA).iso
+[4][NativeLibrary] 	Image type  = DVD
+[4][NativeLibrary]  * CDVD Disk Open: DVD, Single layer or unknown:
+[4][NativeLibrary]  * * Track 1: Data (Mode 1) (1498432 sectors)
+[4][NativeLibrary] Opening GS...
+[CI] thread #2 (work: MTGS/VU1/worker) -> core=2
+[VK] vkCreateInstance begin api=4198400 app=NetherSX2 engine=NetherSX2 extensions=2
+[VK] instance extension[0]=VK_KHR_surface
+[VK] instance extension[1]=VK_KHR_android_surface
+[VK] vkCreateInstance end result=0 instance=0x36576bd160 lsfg_prepared=0
+[4][NativeLibrary] No GPU requested, using first (NVIDIA Tegra X1 (NVK gm20b))
+[VK] vkCreateViSurfaceNN window=0x363f306db8 result=0 surface=0x3681fcbe60
+[4][NativeLibrary] 1 vulkan queue families
+[VK] vkCreateDevice begin physical=0x36576bf740 queues=1 extensions=6 lsfg_pref=0
+[VK] vkCreateDevice end result=0 device=0x3682ffc040 lsfg_capable=0 family=4294967295
+[VK] vkGetDeviceQueue family=0 index=0 queue=0x36576d70c0
+[VK] vkGetDeviceQueue family=0 index=0 queue=0x36576d70c0
+[4][NativeLibrary] VK_EXT_provoking_vertex is supported
+[4][NativeLibrary] VK_EXT_line_rasterization is supported
+[4][NativeLibrary] VK_EXT_calibrated_timestamps is supported
+[4][NativeLibrary] VK_ARM_rasterization_order_attachment_access is NOT supported
+[VK] vkGetDeviceQueue family=0 index=0 queue=0x36576d70c0
+[VK] vkCreateSwapchainKHR begin old=0x0 extent=1280x720 format=37 usage=0x10 images=3 mode=0
+[VK] vkCreateSwapchainKHR end result=0 swapchain=0x36888d76c0 compatible=0 actual_usage=0x10 actual_images=3 actual_mode=0
+[VK] vkGetSwapchainImagesKHR call=1 fill=0 result=0 count=3
+[VK] vkGetSwapchainImagesKHR call=2 fill=1 result=0 count=3
+[CI] thread #3 (work: MTGS/VU1/worker) -> core=1
+[4][NativeLibrary] Read 397 entries from '/switch/nethersx2/cache/vulkan_shaders.idx'
+[4][NativeLibrary] Lazily allocating JNI environment for thread 0x36576bc040
+[VK] core VM sequence returned vm_running=1
+[CI] thread bg (audio/...) -> core=3
+[4][NativeLibrary] Opening SPU2...
+[4][NativeLibrary] Initializing SndBuffer at sample rate of 48000...
+[4][NativeLibrary] (AAudioMod) Creating stream...
+[4][NativeLibrary] (AAudioMod) Starting stream...
+[4][NativeLibrary] Opening PAD...
+[CI] thread bg (audio/...) -> core=3
+[CI] log capture ON, NVK_I_WANT_A_BROKEN_VULKAN_DRIVER=1
+[CI] stderr smerovan do core logu: SELHAL (errno=5)
+[CI] boost: NEPOUZIVAME (appletSetCpuBoostMode je vynechany ve util.c; takty ridi sysmodul/governor)
+[CI] takty: jen cteni; zapis jedine kdyz na karte existuje ci-clk.conf
+[4][NativeLibrary] EmuFolders::DataRoot is '/switch/nethersx2'
+[4][NativeLibrary] EmuFolders::Cache is '/switch/nethersx2/cache'
+[4][NativeLibrary] EmuFolders::Resources is 'file:///android_asset'
+[4][NativeLibrary] EmuFolders::Settings is '/switch/nethersx2'
+[CI] cores: mask=0xf -> hot=0x7 ee=0 work=1,2 bg=3
+[CI] thread #1 (work: MTGS/VU1/worker) -> core=1
+[CI] emulator nro: VK build (GS_RENDERER=14), NVK_I_WANT_A_BROKEN_VULKAN_DRIVER=1
+[CI] thread EE/VM -> core=0 (vyhrazene)
+[4][NativeLibrary] Searching for a BIOS image in '/switch/nethersx2/bios'...
+[4][NativeLibrary] Preparing for a 1280x720 window
+[4][NativeLibrary] Bios Found: USA     v02.30(20/02/2008)  Console 20080220-175343
+[4][NativeLibrary] Using BIOS '/switch/nethersx2/bios/SCPH-90001_BIOS_V18_USA_230.ROM0' (USA     v02.30(20/02/2008)  Console 20080220-175343 USA)
+[4][NativeLibrary] Opening CDVD...
+[4][NativeLibrary] isoFile open ok: /Roms/PS2/Gran Turismo 3 - A-Spec (Europe, Australia) (En,Fr,De,Es,It) (v2.00).iso
+[4][NativeLibrary] 	Image type  = DVD
+[4][NativeLibrary]  * CDVD Disk Open: DVD, Single layer or unknown:
+[4][NativeLibrary]  * * Track 1: Data (Mode 1) (1800304 sectors)
+[4][NativeLibrary] Opening GS...
+[CI] thread #2 (work: MTGS/VU1/worker) -> core=2
+[VK] vkCreateInstance begin api=4198400 app=NetherSX2 engine=NetherSX2 extensions=2
+[VK] instance extension[0]=VK_KHR_surface
+[VK] instance extension[1]=VK_KHR_android_surface
+[VK] vkCreateInstance end result=0 instance=0x36576bcec0 lsfg_prepared=0
+[4][NativeLibrary] No GPU requested, using first (NVIDIA Tegra X1 (NVK gm20b))
+[VK] vkCreateViSurfaceNN window=0x6a82d78db8 result=0 surface=0x3682fd9750
+[4][NativeLibrary] 1 vulkan queue families
+[VK] vkCreateDevice begin physical=0x36576bf560 queues=1 extensions=6 lsfg_pref=0
+[VK] vkCreateDevice end result=0 device=0x3682ffc040 lsfg_capable=0 family=4294967295
+[VK] vkGetDeviceQueue family=0 index=0 queue=0x36576c6c00
+[VK] vkGetDeviceQueue family=0 index=0 queue=0x36576c6c00
+[4][NativeLibrary] VK_EXT_provoking_vertex is supported
+[4][NativeLibrary] VK_EXT_line_rasterization is supported
+[4][NativeLibrary] VK_EXT_calibrated_timestamps is supported
+[4][NativeLibrary] VK_ARM_rasterization_order_attachment_access is NOT supported
+[VK] vkGetDeviceQueue family=0 index=0 queue=0x36576c6c00
+[VK] vkCreateSwapchainKHR begin old=0x0 extent=1280x720 format=37 usage=0x10 images=3 mode=0
+[VK] vkCreateSwapchainKHR end result=0 swapchain=0x36888d76c0 compatible=0 actual_usage=0x10 actual_images=3 actual_mode=0
+[VK] vkGetSwapchainImagesKHR call=1 fill=0 result=0 count=3
+[VK] vkGetSwapchainImagesKHR call=2 fill=1 result=0 count=3
+[CI] thread #3 (work: MTGS/VU1/worker) -> core=1
+[4][NativeLibrary] Read 398 entries from '/switch/nethersx2/cache/vulkan_shaders.idx'
+[4][NativeLibrary] Lazily allocating JNI environment for thread 0x36576c2da0
+[VK] core VM sequence returned vm_running=1
+[CI] thread bg (audio/...) -> core=3
+[4][NativeLibrary] Opening SPU2...
+[4][NativeLibrary] Initializing SndBuffer at sample rate of 48000...
+[4][NativeLibrary] (AAudioMod) Creating stream...
+[4][NativeLibrary] (AAudioMod) Starting stream...
+[4][NativeLibrary] Opening PAD...
+[CI] thread bg (audio/...) -> core=3

@@ -1,0 +1,309 @@
+name: build / VK (nxvk Mesa -> NetherSX2_nx)
+
+# Build 54 (2026-09-18): FIX padu — crash reporty ukazaly fatal v pcv
+# sysmodulu (Result 2011-0102) + pad governoru hoc:clk. Emulator vychazi
+# z podsystemu taktu: NSX_CLK defaultne VYPNUT (opt-in marker
+# ci-clk.enabled), zapis taktu dvojite zamceny (marker + ci-clk.conf).
+
+# Build 52 (2026-09-18): forenzní log (session start/end, unbuffered rawlog)
+# + marker ci-nopin.enabled. Build 54 to dál řeší příčinu (pcv fatal).
+
+# Dva kroky, který si nemůžeš dovolit dělat ručně pokaždý:
+#
+#   mesa   = postavit nxvk (Mesa NVK pro Switch) v Docker image a vyndat z
+#            něj plochý vulkan/{include,lib} SDK (23 archivů)
+#   bundle = postavit NetherSX2_n S OBĚMA renderama -> NetherSX2.nro, kde
+#            funguje i Vulkan (a tím LSFG frame generation)
+#
+# Job `mesa` MUSÍ běžet na hostiteli, ne v container: potřebuje Docker.
+# Je drahanej — private repozitář má měsíční kvótu runner minut.
+
+# 2026-09-17: na push b245ee9 (jen ci/build-switch.sh) Actions nevytvořily
+# vůbec žádnej run — ani queue, ani cancelled. Překlep v cestě to nebyl
+# (`ci/**` sedí), `workflow_dispatch` je na tuhle integraci 403, takže
+# jedinej spolehlivej trigger je push, kterej saha do tohoto souboru.
+# (Druhej pokus: push c113438 menil jen tenhle soubor a run vznikl —
+# `ci/**` filtr tedy na tuhle integraci nefunguje spolehlivě.)
+on:
+  # Pozor: `push:` tu nesmí být dvakrát — YAML by druhý blok přepsal ten
+  # první a trigger by zmizel bez jakýkoliv chyby. Main tu záměrně není:
+  # každej build žere ~15 min runner minut z měsíční kvóty privátního repa.
+  push:
+    branches: ["arena/**"]
+    paths:
+      - ".github/workflows/mesa-vk.yml"
+      - "ci/**"
+  workflow_dispatch:
+    inputs:
+      reuse_sdk_run:
+        description: "ID runu, ze kterýho se má stáhnout artifact mesa-sdk (ušetří ~14 minut Mesa buildu). Prázdné = buildni Mesu znovu."
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: mesa-vk-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  sdk-src:
+    name: najít run s mesa-sdk
+    # Tenhle job existuje jen proto, že `gh` CLI není uvnitř devkitA64 containeru
+    # a hledání artifactu by v něm tichounce selhalo. Host runner ho zvládne za
+    # ~15 s a předá bundle jobu jen cislo runu.
+    if: ${{ github.event.inputs.reuse_sdk_run != '' || github.event_name != 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      run_id: ${{ steps.find.outputs.run_id }}
+    steps:
+      - name: hledej
+        id: find
+        env:
+          GH_TOKEN: ${{ github.token }}
+          WANTED: ${{ github.event.inputs.reuse_sdk_run }}
+        run: |
+          set +e
+          if [ -n "$WANTED" ]; then
+            echo "reuse_sdk_run=$WANTED"
+            echo "run_id=$WANTED" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # Hledáme poslední ARTIFACT mesa-sdk, ne poslední run: list runů má
+          # okno per_page napříč všemi workflowma a čtyři workflow ho právě
+          # mine — přesně takhle nám run tichounce skočil na GL-only. Artifact
+          # API je přímý a seřazený od nejnovějšího.
+          RID=$(gh api "repos/$GITHUB_REPOSITORY/actions/artifacts?per_page=100" \
+            --jq '[.artifacts[]
+                   | select(.name == "mesa-sdk" and .expired == false)
+                   | .workflow_run.id][0] // ""' 2>/dev/null)
+          if [ -n "$RID" ]; then
+            echo "mesa-sdk artifact nalezen v runu $RID"
+            echo "run_id=$RID" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::v repáři není žádnej mesa-sdk artifact — ať ho staví Mesa job"
+          fi
+
+  mesa:
+    name: nxvk / Mesa NVK SDK
+    # Drahá etapa (~14 min, 4,2 GB Docker image). Pouští se na explicitní
+    # dispatch bez reuse_sdk_run, nebo na push jehož commit message obsahuje
+    # `[mesa]` — to druhé je úniková cesta, protože workflow_dispatch umí
+    # vrátit 403 „Resource not accessible by integration“ a bez ní bychom
+    # nešli SDK upravit vůbec. Každý jinej push bere SDK z předchozího runu.
+    # ... nebo když sdk-src nenašel žádnej artifact: bez SDK není co linkovat,
+    # ať se radši postaví, než aby run skončil na prázdnym mesa-sdk.
+    needs: sdk-src
+    if: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.reuse_sdk_run == '') || (github.event_name == 'push' && contains(github.event.head_commit.message, '[mesa]')) || needs.sdk-src.outputs.run_id == '' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    env:
+      NXVK_TAG: switch
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: build SDK
+        run: bash ci/build-mesa-sdk.sh 2>&1 | tee ci-mesa.log
+
+      - name: vyhodnocení
+        if: always()
+        run: bash ci/verdict.sh ci-mesa.log mesa-sdk/lib/libnvk.a
+
+      - name: artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          # JEDNA cesta — víc cest v `path:` znamená, že se do artifactu
+          # uloží i samotný prefix (mesa-sdk/mesa-sdk/lib) a druhý job
+          # pak nic nenajde.
+          name: mesa-sdk
+          path: mesa-sdk
+          if-no-files-found: error
+
+  bundle:
+    name: NetherSX2.nro (GL + VK)
+    needs: [mesa, sdk-src]
+    # 'always()' proto, aby skip od mesa jobu neznamenaj automaticky skip tady.
+    # Navic: i kdyz Mesa job *selhal* (napr. mu odpadlo apt), pokracujeme --
+    # sdk-src nam mohl najit pouzitelnej artifact z predchoziho runu, a s tim
+    # aspon overime, jestli VK link odpada uz na samotny Mesce.
+    if: always() && (needs.mesa.result == 'success' || needs.mesa.result == 'skipped' || needs.sdk-src.outputs.run_id != '')
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    container:
+      image: devkitpro/devkita64:latest
+    env:
+      DEVKITPRO: /opt/devkitpro
+      CORE_TAG: main
+      APK_TAG: "2.2n"
+      VULKAN_SDK_DIR: ${{ github.workspace }}/mesa-sdk
+      # VK_ONLY=1 = v balíku je JEN Vulkan .nro (žádný OpenGL). Rozhodnutí
+      # uživatele (2026-09-18): „nejde ho odstranit a nechat jen vulkan a
+      # zaměřit se na něj?" — Switch GPU je NVN/Vulkan-native a GL větev
+      # v mesa/NVC0 nemá ani texture_barrier, ani DSA (core to sám hlásí:
+      # „this will reduce performance"), takže fallback nemá cenu držet
+      # v každém buildu.
+      # Co to přinese: ~4 min runner minut a 7 MB balíku navíc ušetřeno
+      # a v Settings → Renderer zmizí dvě volby, které dnes vedly k tomu, že
+      # člověk omylem jel GL (per-game profil s „12" přebíjí globální
+      # nastavení). Launcher se v tomhle režimu patchem v build-switch.sh
+      # zamkne na Vulkan i kdyby profil hry tvrdil opak.
+      # Návrat GL = VK_ONLY: 0 (kód i FPS měřidlo pro GL zůstávají).
+      VK_ONLY: 1
+      # VK build si sem tahá vlastní diagnostiku do souboru na kartě
+      # (viz nsx_vk_pkg v build-switch.sh). Vypneme, až bude Vulkan
+      # prubozkousany; dokud neni, je to nejlevnejsi zpusob, jak ziskat
+      # vic nez jen „GS failed to open".
+      VK_DIAG: 1
+      # 2026-09-18, build 37 (karta): fyzické zařízení se už najde
+      # ("No GPU requested, using first (NVIDIA Tegra X1 (NVK gm20b))"), ale
+      # padá hned povrch:
+      #   (CreateVulkanSurface) vkCreateAndroidSurfaceKHR failed: (-3)
+      # -3 = VK_ERROR_INITIALIZATION_FAILED, což je fallback našeho loaderu pro
+      # funkci, kterou přes vk_icdGetInstanceProcAddr((VkInstance)0, …) nenašel.
+      # Mesa runtime totiž s NULL instancí vydá jen pět pre-instance entrypointů
+      # (`if (instance == NULL) return NULL;` ve vk_instance_get_proc_addr) a
+      # vkCreateViSurfaceNN mezi ně nepatří. Loader si proto od tohohle buildu
+      # instanci z vkCreateInstance pamatuje; test na hostiteli:
+      # před = -3, po = VK_SUCCESS (a vkGetDeviceProcAddr("vkCmdDraw") dřív NULL).
+      #
+      # Druhá záplata téhož večera: VK diagnostika se zapínala patchem Makefile,
+      # který se chytil na string v tom Makefile samotném (`ifneq ...
+      # $(NETHERSX2_VK_DIAGNOSTIC)`) a tiše nic nepřidal — proto se
+      # nethersx2-vulkan.log nikdy neobjevil. Teď se předává jako make
+      # proměnná (NETHERSX2_VK_DIAGNOSTIC=1) a CI greppem v binárce ověřuje,
+      # že v ní je i řetězec "NetherSX2 Vulkan diagnostic".
+      #
+      # Pozor na velikosti: .nro mezi buildy nerostou (segmenty se zarovnávaj
+      # na stránky), takže buildy 34–38 hlásí vk=23116675 B a nro=78716003 B.
+      # Rozlišuj podle sha256 + podle greppu markerů ve stagi 6 a runtime výpisu
+      # v nethersx2-core.log ("[CI] log capture ON, ...=1").
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Dva kanály, jak k SDK přijít: jestli ho stavěl mesa job *tohohle* runu,
+      # vezmeme ho jako běžnej artifact. Jinak (push/PR/reuse) si ho vytáhneme
+      # z předchozího runu přes `gh run download` -- nepotřebujeme na to
+      # workflow_dispatch práva, jen actions: read.
+      - name: stáhni Mesa SDK (z tohohle runu)
+        if: ${{ needs.mesa.result == 'success' }}
+        uses: actions/download-artifact@v4
+        with:
+          name: mesa-sdk
+          path: mesa-sdk
+
+      # Kdyz SDK stavěl tenhle run, je to beznej artifact. Jinak ho stáhneme
+      # z predchoziho runu — `run-id` to umí a běží to v JS akcích na hostiteli,
+      # ne uvnitř containeru.
+      - name: stáhni Mesa SDK z předchozího runu
+        if: ${{ needs.mesa.result != 'success' && needs.sdk-src.outputs.run_id != '' }}
+        uses: actions/download-artifact@v4
+        with:
+          name: mesa-sdk
+          path: mesa-sdk
+          run-id: ${{ needs.sdk-src.outputs.run_id }}
+          github-token: ${{ github.token }}
+
+      - name: co jsme dostali
+        run: |
+          set +e
+          ls mesa-sdk/lib 2>/dev/null | wc -l | xargs -I@ echo "::notice::mesa-sdk/lib: @ archivů"
+          test -f mesa-sdk/lib/libnvk.a && echo "::notice::libnvk.a přítomen" || echo "::error::libnvk.a chybí"
+          test -f mesa-sdk/include/vulkan/vulkan_core.h && echo "::notice::vulkan_core.h přítomen" || echo "::error::vulkan_core.h chybí"
+          # pkg/ jsou archivy z `make package-gl` — přesně ta forma, kterou
+          # build-switch.sh preferuje (public vk* dodáme generovaným loaderem).
+          ls mesa-sdk/pkg 2>/dev/null | tr '\n' ' ' | xargs -I@ echo "::notice::mesa-sdk/pkg: @"
+          test -f mesa-sdk/pkg/libnvk_support.a || echo "::warning::mesa-sdk/pkg chybí → VK padne na MESA_SDK_ROOT/flat větev"
+          du -sh mesa-sdk/pkg 2>/dev/null | xargs -I@ echo "::notice::velikost pkg @"
+          du -sh mesa-sdk 2>/dev/null | xargs -I@ echo "::notice::velikost SDK @"
+
+      - name: build
+        run: bash ci/run.sh 2>&1 | tee ci-bundle.log
+
+      - name: vyhodnocení
+        if: always()
+        run: bash ci/verdict.sh ci-bundle.log out/NetherSX2.nro out/NetherSX2_nx_vk.nro
+
+      - name: artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nethersx2-nro-vk-bundle
+          path: |
+            out/
+            ci-bundle.log
+          if-no-files-found: warn
+
+  publish:
+    name: publikuj VK bundle
+    needs: bundle
+    # always() MUSÍ být, jinak skip řetězce (mesa job byl přeskočenej) smete
+    # i tenhle job a publish se prostě neprovede — bez chybového hlášení.
+    if: ${{ always() && needs.bundle.result == 'success' }}
+    runs-on: ubuntu-latest
+    # 20 minut, ne 10: pri 78 MB assetu je upload na uploads.github.com klidně
+    # 2 minusty a prvni pokus mi padnul přesně proto, ze mu dosel cas.
+    timeout-minutes: 25
+    permissions:
+      contents: write
+    steps:
+      - name: stáhni VK bundle
+        uses: actions/download-artifact@v4
+        with:
+          name: nethersx2-nro-vk-bundle
+          path: dist
+
+      - name: publikuj
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set +e
+          nro=$(find dist -name NetherSX2.nro | head -1)
+          if [ -z "$nro" ]; then echo "::error::v artifactu žádný NetherSX2.nro"; exit 0; fi
+          size=$(stat -c %s "$nro")
+          vk=ne; find dist -name 'NetherSX2_nx_vk.nro' | grep -q . && vk=ano
+          gl=ne; find dist -name 'NetherSX2_nx_gl.nro' | grep -q . && gl=ano
+          if [ "$gl" = "ano" ]; then
+            label="Vulkan + OpenGL"
+            notes="Vulkan (nxvk Mesa NVK) + OpenGL fallback v balíku. vk=$vk gl=$gl velikost=$size run=${GITHUB_RUN_ID}"
+          else
+            label="Vulkan"
+            notes="Vulkan-only balík (OpenGL záměrně vyřazen, viz VK_ONLY v tomto workflow). vk=$vk gl=$gl velikost=$size run=${GITHUB_RUN_ID}"
+          fi
+          # GPL-2.0: driver i Mesu linkujeme staticky, takže distribuce .nra
+          # nese povinnost doložit zdrojáče. Odkaz na repáček + workflow je
+          # levnější než přikládat 500 MB tarbaru; artifact `mesa-sdk` má
+          # všechny archivy i hlavičky, takže sestavitelný je podle něj.
+          notes="$notes — staticky linked GPL-2.0 sources: github.com/PalindromicBreadLoaf/nxvk (branch switch), postaveno tímto workflow (job 'nxvk / Mesa NVK SDK', artifact mesa-sdk)."
+
+          # JEDNA release, jedno nahrání. Předchozi verze teto kroky delala
+          # datovanej tag *a* rolling tag, tedy dva uploadý po 78 MB — a
+          # druhý z nich pri 10min timeoutu utekl, takze nro-latest visel
+          # bez souboru. GitHub neumí sdílet asset mezi releasema, tak se
+          # datum neříší druhým uploadem ale jmenem release; historickej
+          # soubor zustava v artifactu `nethersx2-nro-vk-bundle` 90 dne.
+          gh release delete nro-latest -R "$GITHUB_REPOSITORY" --yes --cleanup-tag >/dev/null 2>&1
+          gh release create nro-latest -R "$GITHUB_REPOSITORY" --prerelease \
+            -t "NetherSX2.nro (CI build ${GITHUB_RUN_NUMBER}, ${label})" \
+            -n "$notes" >/dev/null 2>&1
+          ok=0
+          for p in 1 2 3; do
+            if gh release upload nro-latest "$nro" -R "$GITHUB_REPOSITORY" --clobber 2>/tmp/gherr; then
+              ok=1; break
+            fi
+            echo "::warning::upload pokus $p selhal: $(head -c 150 /tmp/gherr)"
+            sleep $((p * 15))
+          done
+          if [ "$ok" != 1 ]; then
+            echo "::error::NetherSX2.nro se nepodarilo nahrat ani na treti pokus"
+            exit 1
+          fi
+          gh api "repos/$GITHUB_REPOSITORY/releases/tags/nro-latest" \
+            --jq '"::notice::nro-latest: " + (.assets|map(.name+" "+(.size|tostring)+"B")|join(","))'
+          echo "STÁLE https://github.com/$GITHUB_REPOSITORY/releases/download/nro-latest/NetherSX2.nro"
+          exit 0

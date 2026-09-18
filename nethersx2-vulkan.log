@@ -1,0 +1,40 @@
+NetherSX2 Vulkan diagnostic 1.3.0
+[1789732414.083] host main entered renderer=14
+[1789732414.089] storage ready disc=/Roms/PS2/Gran Turismo 3 - A-Spec (Europe, Australia) (En,Fr,De,Es,It) (v2.00).iso
+[1789732414.093] configuration core=/switch/nethersx2/cores/libemucore_4248.so bios_boot=0 fastmem=hybrid lsfg=0
+[1789732414.101] syscalls, input data, and SMC initialized
+[1789732414.105] heap ready mb=2904 so_base=0x370c400000 so_limit=268435456 screen=1280x720
+[1789732414.268] core image loaded base=0x370c400000 size=208453632
+[1789732414.273] core imports relocated and resolved
+[1789732414.303] core constructors completed
+[1789732414.308] starting core VM sequence
+[1789732416.121] vkCreateInstance begin api=4198400 app=NetherSX2 engine=NetherSX2 extensions=2
+[1789732416.126] instance extension[0]=VK_KHR_surface
+[1789732416.130] instance extension[1]=VK_KHR_android_surface
+[1789732416.136] vkCreateInstance end result=0 instance=0x36576bcec0 lsfg_prepared=0
+[1789732417.016] vkCreateViSurfaceNN window=0x6a82d78db8 result=0 surface=0x3682fd9750
+[1789732417.023] vkCreateDevice begin physical=0x36576bf560 queues=1 extensions=6 lsfg_pref=0
+[1789732417.031] vkCreateDevice end result=0 device=0x3682ffc040 lsfg_capable=0 family=4294967295
+[1789732417.035] vkGetDeviceQueue family=0 index=0 queue=0x36576c6c00
+[1789732417.040] vkGetDeviceQueue family=0 index=0 queue=0x36576c6c00
+[1789732417.055] vkGetDeviceQueue family=0 index=0 queue=0x36576c6c00
+[1789732417.227] vkCreateSwapchainKHR begin old=0x0 extent=1280x720 format=37 usage=0x10 images=3 mode=0
+[1789732417.236] vkCreateSwapchainKHR end result=0 swapchain=0x36888d76c0 compatible=0 actual_usage=0x10 actual_images=3 actual_mode=0
+[1789732417.240] vkGetSwapchainImagesKHR call=1 fill=0 result=0 count=3
+[1789732417.244] vkGetSwapchainImagesKHR call=2 fill=1 result=0 count=3
+[1789732417.401] core VM sequence returned vm_running=1
+[1789732419.822] vkAcquireNextImageKHR call=1 result=0 image=0 semaphore=0x3689689c60 fence=0x0
+[1789732419.832] vkQueueSubmit call=1 count=1 fence=0x3682fd9d00 result=0
+[1789732419.843] vkQueuePresentKHR enter call=1 waits=1 swaps=1 lsfg=0
+[1789732419.851] vkQueuePresentKHR call=1 swaps=1 result=0
+[1789732419.861] vkAcquireNextImageKHR call=2 result=0 image=1 semaphore=0x3689689de0 fence=0x0
+[1789732420.056] vkQueueSubmit call=2 count=1 fence=0x3682fd9f20 result=0
+[1789732420.063] vkQueuePresentKHR enter call=2 waits=1 swaps=1 lsfg=0
+[1789732420.072] vkQueuePresentKHR call=2 swaps=1 result=0
+[1789732420.080] vkAcquireNextImageKHR call=3 result=0 image=2 semaphore=0x3683074f00 fence=0x0
+[1789732420.089] vkQueueSubmit call=3 count=1 fence=0x36576d4480 result=0
+[1789732420.096] vkQueuePresentKHR enter call=3 waits=1 swaps=1 lsfg=0
+[1789732420.108] vkQueuePresentKHR call=3 swaps=1 result=0
+[1789732420.120] vkAcquireNextImageKHR call=4 result=0 image=0 semaphore=0x3689689c60 fence=0x0
+[1789732420.127] vkQueuePresentKHR enter call=4 waits=1 swaps=1 lsfg=0
+[1789732420.141] vkQueuePresentKHR call=4 swaps=1 result=0
