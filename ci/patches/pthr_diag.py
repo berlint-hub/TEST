@@ -2,13 +2,18 @@
 
 Co přidává:
   1. NSX_CORE_DIAG — rozložení emulačních threadů na jádra do logu
-     ("[CI] cores: mask=… ee=… work=… bg=…" + řádek za každý thread).
+      ("[CI] cores: mask=… ee=… work=… bg=…" + řádek za každý thread).
   2. NSX_CORE_PINOFF (build 52) — marker /switch/nethersx2/ci-nopin.enabled
-     vypne všechna svcSetThreadCoreMask: thready dědí masku procesu, nic se
-     nepinuje. Izolace podezření, že pinování (audio thread na nejvyšším
-     jádře = core 3, kde žijou sysmoduly) přispívá k pádu systému při
-     přehazování her GT3<->Fallout. Pinování je upstream chování; tenhle
-     marker jen umí vypnout test bez rebuildu.
+      vypne všechna svcSetThreadCoreMask: thready dědí masku procesu, nic se
+      nepinuje. Izolace podezření, že pinování (audio thread na nejvyšším
+      jádře = core 3, kde žijou sysmoduly) přispívá k pádu systému při
+      přehazování her GT3<->Fallout. Pinování je upstream chování; tenhle
+      marker jen umí vypnout test bez rebuildu.
+  3. NSX_CORE_4WAY — marker /switch/nethersx2/ci-4core.enabled přepne
+      work pool z round-robin na stabilní čtyřjádrový rozpis:
+      EE/VU0 = core 0, VU1 = core 1, MTGS = core 2, audio = core 3.
+      To je bezpečný první pokus, který nezapíná takty ani neřeší dlouhé
+      stuttery v GS, ale snižuje contention mezi VU1 a GS na 4jádrovém masku.
 
 Dřív byl tenhle patch heredocem uvnitř ci/build-switch.sh; od buildu 52 je
 souborem (stejně jako ci_core_log.c / vk_diag.py / util_no_boost.py), ať se
@@ -20,8 +25,8 @@ import sys
 
 path = sys.argv[1]
 text = open(path, encoding="utf-8", errors="surrogateescape").read()
-if "NSX_CORE_DIAG" in text:
-    print("pthr.c: core diag už patchnuto")
+if "NSX_CORE_DIAG" in text and "NSX_CORE_4WAY" in text:
+    print("pthr.c: core diag + 4-core split už patchnuto")
     sys.exit(0)
 
 done = 0
@@ -36,11 +41,23 @@ edits = [
      ' * nepinuje. Test bez rebuildu, jestli pinování na jádra (audio na\n'
      ' * nejvyšším, kde žijou sysmoduly) přispívá k pádu systému při\n'
      ' * přehazování her. */\n'
+     '/* NSX_CORE_4WAY: marker /switch/nethersx2/ci-4core.enabled přepne\n'
+     ' * work pool z round-robin na stabilní 4-core rozpis:\n'
+     ' *   EE/VU0 = core 0, VU1 = core 1, MTGS = core 2, audio = core 3.\n'
+     ' * Zajišťuje méně contention mezi VU1 a GS bez zásahu do taktů. */\n'
      'static int nsx_nopin(void) {\n'
      '  static int v = -1;\n'
      '  if (v < 0) {\n'
      '    struct stat st;\n'
      '    v = (stat("/switch/nethersx2/ci-nopin.enabled", &st) == 0) ? 1 : 0;\n'
+     '  }\n'
+     '  return v;\n'
+     '}\n'
+     'static int nsx_4core_enabled(void) {\n'
+     '  static int v = -1;\n'
+     '  if (v < 0) {\n'
+     '    struct stat st;\n'
+     '    v = (stat("/switch/nethersx2/ci-4core.enabled", &st) == 0) ? 1 : 0;\n'
      '  }\n'
      '  return v;\n'
      '}'),
@@ -58,6 +75,9 @@ edits = [
      '  fprintf(stdout, "[CI] pin: %s\\n", nsx_nopin()\n'
      '          ? "VYPNUTO markerem ci-nopin.enabled (thready drzi masku procesu)"\n'
      '          : "zapnuty (default; ci-nopin.enabled ho vypne)");\n'
+     '  fprintf(stdout, "[CI] work-mode: %s\\n", nsx_4core_enabled()\n'
+     '          ? "4-core split (VU1=core 1, MTGS=core 2)"\n'
+     '          : "round-robin");\n'
      '  fflush(stdout);'),
     ('static void assign_work_core(void) {',
      'static int assign_work_core(void) {'),
@@ -65,26 +85,38 @@ edits = [
      '  mutexUnlock(&core_lock);\n'
      '  svcSetThreadCoreMask(CUR_THREAD_HANDLE, core, m);\n'
      '}',
+     '  if (nsx_4core_enabled() && work_count >= 2) {\n'
+     '    static unsigned nsx_4seq = 0;\n'
+     '    const int pick = (nsx_4seq++ & 1);\n'
+     '    int core = work_list[pick % work_count];\n'
+     '    if (core == ee_core || (bg_core >= 0 && core == bg_core))\n'
+     '      core = work_list[(pick ^ 1) % work_count];\n'
+     '    const unsigned m = 1u << core;\n'
+     '    mutexUnlock(&core_lock);\n'
+     '    if (!nsx_nopin()) svcSetThreadCoreMask(CUR_THREAD_HANDLE, core, m);\n'
+     '    return core;\n'
+     '  }\n'
      '  const int core = work_list[work_rr++ % (unsigned)work_count]; const unsigned m = work_mask;\n'
      '  mutexUnlock(&core_lock);\n'
      '  if (!nsx_nopin()) svcSetThreadCoreMask(CUR_THREAD_HANDLE, core, m);\n'
      '  return core;\n'
      '}'),
     ('  // Keep emulator workers off the EE and audio cores.\n'
-     '  assign_work_core();',
+      '  assign_work_core();',
      '  // Keep emulator workers off the EE and audio cores.\n'
      '  {\n'
      '    /* NSX_CORE_DIAG: MTGS/VU1/worker thread — na kterém jádře skončil. */\n'
      '    const int nsx_core = assign_work_core();\n'
      '    static int nsx_seq = 0;\n'
-     '    fprintf(stdout, "[CI] thread #%d (work: MTGS/VU1/worker) -> core=%d%s\\n",\n'
+     '    fprintf(stdout, "[CI] thread #%d (work: MTGS/VU1/worker) -> core=%d%s%s\\n",\n'
      '            ++nsx_seq, nsx_core,\n'
+     '            nsx_4core_enabled() ? " (4-core split)" : "",\n'
      '            nsx_nopin() ? " (pin vypnut markerem)" : "");\n'
      '    fflush(stdout);\n'
      '  }'),
     ('  const int core = ee_core; const unsigned m = 1u << ee_core;\n'
-     '  mutexUnlock(&core_lock);\n'
-     '  svcSetThreadCoreMask(CUR_THREAD_HANDLE, core, m);',
+      '  mutexUnlock(&core_lock);\n'
+      '  svcSetThreadCoreMask(CUR_THREAD_HANDLE, core, m);',
      '  const int core = ee_core; const unsigned m = 1u << ee_core;\n'
      '  mutexUnlock(&core_lock);\n'
      '  if (!nsx_nopin()) svcSetThreadCoreMask(CUR_THREAD_HANDLE, core, m);\n'
@@ -93,9 +125,9 @@ edits = [
      '          nsx_nopin() ? " (pin vypnut markerem)" : "");\n'
      '  fflush(stdout);'),
     ('  if (bg_core >= 0) { core = bg_core; m = 1u << bg_core; }\n'
-     '  else { core = work_list[bg_rr++ % (unsigned)work_count]; m = work_mask; }\n'
-     '  mutexUnlock(&core_lock);\n'
-     '  svcSetThreadCoreMask(CUR_THREAD_HANDLE, core, m);',
+      '  else { core = work_list[bg_rr++ % (unsigned)work_count]; m = work_mask; }\n'
+      '  mutexUnlock(&core_lock);\n'
+      '  svcSetThreadCoreMask(CUR_THREAD_HANDLE, core, m);',
      '  if (bg_core >= 0) { core = bg_core; m = 1u << bg_core; }\n'
      '  else { core = work_list[bg_rr++ % (unsigned)work_count]; m = work_mask; }\n'
      '  mutexUnlock(&core_lock);\n'
@@ -108,12 +140,12 @@ edits = [
 ]
 for find, repl in edits:
     if repl in text:
-        done += 1          # uz patchnuto
+        done += 1
     elif find in text:
         text = text.replace(find, repl, 1)
         done += 1
     else:
         print("pthr.c: kotva nenalezena: %r" % find[:60])
 open(path, "w", encoding="utf-8", errors="surrogateescape").write(text)
-print("pthr.c: core diag %d/%d" % (done, len(edits)))
+print("pthr.c: core diag + 4-core split %d/%d" % (done, len(edits)))
 sys.exit(0 if done == len(edits) else 1)
