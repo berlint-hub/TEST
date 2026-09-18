@@ -24,7 +24,7 @@ z logů na kartě.
    poznalo, které z toho chybí.
 3. Uživateli mezitím stačí říct, ať zkusí **Settings → Renderer → OpenGL**:
    v balíku jsou obě binárky, takže přepnutí funguje bez editace ini. Když
-   GL jede, je ověřená celá zbytek cesty (extrakce, BIOS, ISO, CDVD) a řeší
+   GL jede, je zbytek cesty (extrakce, BIOS, ISO, CDVD) ověřený a řeší
    se jen NVK.
 4. Až bude VK projí: `VK_DIAG: 1` v `.github/workflows/mesa-vk.yml` vypnout
    (diagnostika píše soubor při každým startu) a rozumně přidat
@@ -44,12 +44,12 @@ z logů na kartě.
 | generovaný loader | 766 forwarderů, `libnsxvkloader.a` = 554 390 B |
 | upstream refáček | `NaGaa95/NetherSX2_nx` @ `f084dc1`; `PalindromicBreadLoaf/nxvk` @ `switch` (`238e06f`) |
 | ceny | Mesa od nuly ~25–35 min, bundle ~9 min, reuse SDK ~4 min; kvóta privátního repa ~2000 runner min/měsíc |
-| uživatelo hardware | BIOS `SCPH-90001_BIOS_V18_USA_230.ROM0`, iso `GT3 (Europe, Australia) (En,Fr,De,Es,It) (v2.00)`, volno na kartě 167 601 MB (SD plná tedy NENÍ) |
+| uživatelovo hardware | BIOS `SCPH-90001_BIOS_V18_USA_230.ROM0`, iso `GT3 (Europe, Australia) (En,Fr,De,Es,It) (v2.00)`, volno na kartě 167 601 MB (SD plná tedy NENÍ) |
 
 Artefakty: `nethersx2-nro-vk-bundle` (90 dní), `mesa-sdk` (SDK s `lib/`,
 `pkg/`, `include/`).
 
-## 3. Poznání, který bolí nejvíc (přečt si, než sahneš na VK link)
+## 3. Poznání, který bolí nejvíc (přečti si ho, než sáhneš na VK link)
 
 * **nxvk záměrně nemá Vulkan loader.** Z Mesy ven jde akorát
   `vk_icdGetInstanceProcAddr` (`PUBLIC` v
