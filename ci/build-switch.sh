@@ -664,7 +664,54 @@ VKDIAG
 
 note "=== stage 7: emulátor (VK_ONLY=$VK_ONLY) ==="
 make -C "$SRC" clean >/dev/null 2>&1
-# ---------------------------------------------------- 7a. log capture pro core
+
+# ---------------------------------------------------- 7a. NVK: Tegra není „conformant"
+# nxvk (PalindromicBreadLoaf/nxvk @ switch) odmítá Tegru, dokud nedostane
+# NVK_I_WANT_A_BROKEN_VULKAN_DRIVER=1:
+#   * nvk_is_conformant() (nvk_physical_device.c) vrací pro cokoli jinýho než
+#     NV_DEVICE_TYPE_DIS false — a Switch se hlásí jako NV_DEVICE_TYPE_SOC,
+#   * build je --buildtype release, takže NDEBUG větev vrátí
+#     VK_ERROR_INCOMPATIBLE_DRIVER úplně bez hlášky (to je ta zákeřná část).
+# enumerate_physical_devices_locked() v mesa runtime tenhle kód bere jako
+# „tomuhle drveru nesedí, zkus DRM větev", drmGetDevices2() na Switchi nic
+# nenajde a funkce vrátí VK_SUCCESS s PRÁZDNÝM seznamem zařízení. Core pak
+# hlásí přesně to, co je v nethersx2-core.log z karty (build 35):
+#   (EnumerateGPUs) vkEnumeratePhysicalDevices (1) failed:  (0: VK_SUCCESS)
+# Vlastní appky nxvk si proměnnou nastavujou v main() (switch/README.md,
+# switch/smoke/nvk_harness.h:138) — port na to zapomněl, takže ji doplňujeme
+# tady. Podmíněný blok v C: GL build zůstává bit-za-bit upstream.
+if python3 - "$SRC/source/main.c" <<'VKENV'
+import sys
+path = sys.argv[1]
+text = open(path, encoding="utf-8", errors="surrogateescape").read()
+if "NVK_I_WANT_A_BROKEN_VULKAN_DRIVER" in text:
+    print("main.c: NVK env už patcheno")
+    sys.exit(0)
+anchor = "int main(void) {\n"
+if anchor not in text:
+    print("main.c: kotva 'int main(void) {' nenalezena")
+    sys.exit(1)
+block = (
+    "int main(void) {\n"
+    "#if defined(USE_VULKAN)\n"
+    "  /* CI patch (ci/build-switch.sh), není součást upstreamu:\n"
+    "   * nxvk nevydá ani jedno fyzický zařízení, dokud nedostane tenhle\n"
+    "   * souhlas — nvk_is_conformant() odmítá Tegru (type=SOC) a v release\n"
+    "   * buildu to dělá úplně bez hlášky. */\n"
+    "  setenv(\"NVK_I_WANT_A_BROKEN_VULKAN_DRIVER\", \"1\", 1);\n"
+    "#endif\n"
+)
+text = text.replace(anchor, block, 1)
+open(path, "w", encoding="utf-8", errors="surrogateescape").write(text)
+print("main.c: setenv NVK_I_WANT_A_BROKEN_VULKAN_DRIVER=1 (USE_VULKAN)")
+VKENV
+then
+  key "vk: main.c -> NVK_I_WANT_A_BROKEN_VULKAN_DRIVER=1"
+else
+  err "vk: patch main.c pro NVK env neprošel — NVK zas vrátí 0 zařízení s VK_SUCCESS"
+fi
+
+# ---------------------------------------------------- 7b. log capture pro core
 # Hláška z launchere je jen dohad; co dělá emulátor, se nedozvíme vůbec:
 # source/imports.c mapuje __android_log_* na PRÁZDNÉ stuby, takže veškerý log
 # Android coreu (PCSX2 ConsoleLog) na Switchu zmizí. Dodáme vlastní impl,
@@ -686,8 +733,15 @@ static int ci_on(void) {
   if (ci_enabled < 0) {
     struct stat st;
     ci_enabled = (stat(CI_MARK_PATH, &st) == 0) ? 1 : 0;
-    if (ci_enabled && freopen(CI_LOG_PATH, "a", stdout))
-      setvbuf(stdout, NULL, _IOLBF, 1024);
+    if (ci_enabled) {
+      if (freopen(CI_LOG_PATH, "a", stdout))
+        setvbuf(stdout, NULL, _IOLBF, 1024);
+      /* Mesa (a tím i NVK) hlásí svoje chyby přes vk_errorf/mesa_log na
+       * stderr a ten dosud nikam neved — přesně tam je důvod, proč driver
+       * nevydá žádný zařízení. Zapisujeme do stejnýho souboru. */
+      if (freopen(CI_LOG_PATH, "a", stderr))
+        setvbuf(stderr, NULL, _IOLBF, 1024);
+    }
   }
   return ci_enabled;
 }
