@@ -84,21 +84,17 @@ fps_patch = fps_anchor + r"""#ifdef NETHERSX2_VK_DIAGNOSTIC
     ++nsx_fps_window_frames;
     if (nsx_now > nsx_fps_window_start + UINT64_C(1000000000)) {
       const double nsx_secs = (double)(nsx_now - nsx_fps_window_start) / 1e9;
-      /* NSX_CLK: takty a jednorázové nastavení taktů z markeru řeší
-       * ci_core_log.c. Slabé symboly = build přežije, i kdyby tam ten
-       * soubor nebyl. */
-      extern void ci_clk_boot(void) __attribute__((weak));
-      extern int ci_clk_read(unsigned *, unsigned *, unsigned *) __attribute__((weak));
-      unsigned nsx_cpu = 0, nsx_gpu = 0, nsx_emc = 0;
-      if (ci_clk_boot) ci_clk_boot();
-      if (ci_clk_read) ci_clk_read(&nsx_cpu, &nsx_gpu, &nsx_emc);
+      /* Build 56: FPS řádka BEZ taktů. Sledování MHz je celé pryč (clkrst/pcv
+       * se v našem procesu už neotevírají — perou se s Ultrahand governorem
+       * uživatele, který drží takty na maximu; viz komentář v ci_core_log.c).
+       * Analyzátor ci/analyze-core-log.py čte takty volitelně, takže starší
+       * logy s "cpu=… gpu=… emc=… MHz" zparsuje dál. */
       vk_diag_note("FPS %.1f | %.2f ms/frame | min %.2f max %.2f ms | %u framu"
-                   " | lsfg=%d | cpu=%u gpu=%u emc=%u MHz",
+                   " | lsfg=%d",
                    (double)nsx_fps_window_frames / nsx_secs,
                    nsx_secs * 1000.0 / (double)nsx_fps_window_frames,
                    nsx_fps_window_min / 1e6, nsx_fps_window_max / 1e6,
-                   nsx_fps_window_frames, vk_lsfg_is_enabled(),
-                   nsx_cpu, nsx_gpu, nsx_emc);
+                   nsx_fps_window_frames, vk_lsfg_is_enabled());
       nsx_fps_window_start = nsx_now;
       nsx_fps_window_min = 0;
       nsx_fps_window_max = 0;

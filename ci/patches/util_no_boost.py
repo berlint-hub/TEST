@@ -38,8 +38,10 @@ patch = """void cpu_boost(int on) {
    *   appletSetCpuBoostMode(on ? ApmCpuBoostMode_FastLoad : ApmCpuBoostMode_Normal);
    * FastLoad sráží GPU na minimum (76 MHz) a na Switchi, kde takty řídí
    * sysmodul (Ultrahand governor / sys-clk), se s ním pere — shazovalo to
-   * systém. Taktům proto necháváme volnou ruku a boost neřešíme; NSX_CLK
-   * je jen čte (a zapisuje jedině když na kartě existuje ci-clk.conf). */
+   * systém. Taktům proto necháváme volnou ruku a boost neřešíme.
+   * Build 56: emulátor takty ani NEČTE — clkrst/pcv/APM jsou z ci_core_log.c
+   * venku (perou se s governorem a při pevném profilu na maximu je čtení
+   * k ničemu). */
   (void)on;
 }
 """

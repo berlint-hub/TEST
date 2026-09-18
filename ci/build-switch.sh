@@ -690,15 +690,14 @@ PKGLIBS
       #   NetherSX2 Vulkan diagnostic       = VK diagnostika je vůbec zapnutá
       #   diag soubor nethersx2-vulkan.log  = diag se zrcadlí i do core logu
       #   MESA_SHADER_CACHE_DIR             = cache u emulátoru, ne v rootu SD
-      #   [CI] clk: / [CI] boost: / [CI] takty: = takty se čtou, boost je vynechaný
+      #   [CI] boost: = CPU boost se nevolá (takty drží Ultrahand governor)
       vkbin="$SRC/NetherSX2_nx_vk.nro"
       vkmiss=""
       for marker in "NVK_I_WANT_A_BROKEN_VULKAN_DRIVER" "nsx-vk" \
                     "NetherSX2 Vulkan diagnostic" "diag soubor nethersx2-vulkan.log" \
                     "MESA_SHADER_CACHE_DIR" "FPS %.1f" \
-                    "[CI] clk:" "[CI] boost:" "[CI] takty:" "ci-clk.conf" \
-                    "[CI] cores:" \
-                    "session start build=55" "[CI] pin:" "PR_SET_NAME" \
+                    "[CI] boost:" "[CI] cores:" \
+                    "session start build=56" "[CI] pin:" "PR_SET_NAME" \
                     "ci-pin.conf" "[CI] hack:" "ci-mtvu" "[CI] session end"; do
         # -F: markery maj v sobě [ ] a v regexu by to byla znaková třída
         grep -qaF -- "$marker" "$vkbin" || vkmiss="$vkmiss [$marker]"
@@ -776,8 +775,8 @@ fi
 
 # ------------------------------------------- 7a2. žádný CPU boost (util.c)
 # appletSetCpuBoostMode(FastLoad) = CPU 1785 MHz **a GPU na minimum** (libnx),
-# což na Switchi s governorem (Ultrahand) shazovalo systém; takty necháváme
-# sysmodulu a jen je čteme (NSX_CLK v ci_core_log.c).
+# což na Switchi s governorem (Ultrahand) shazovalo systém. Takty necháváme
+# výhradně governoru — emulátor je od buildu 56 ani nečte (viz ci_core_log.c).
 if python3 "$HERE/patches/util_no_boost.py" "$SRC/source/util.c"; then
   key "util.c: CPU boost vynechan (takty ridi sysmodul)"
 else
@@ -1154,7 +1153,7 @@ VKSHIM
   # pletly zpětné lomítka — build 45 na tom spadl). Takty si patch bere
   # z ci_core_log.c přes slabé symboly, takže tu není žádný compile probe.
   if python3 "$HERE/patches/vk_diag.py" "$SRC/source/hooks/vk.c"; then
-    key "vk: diag zrcadlena do stderr (nethersx2-core.log) + FPS/takty radka"
+    key "vk: diag zrcadlena do stderr (nethersx2-core.log) + FPS radka"
   else
     warn "vk.c patch pro diag neprošel — zůstává jen nethersx2-vulkan.log"
   fi

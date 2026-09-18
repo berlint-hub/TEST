@@ -8,10 +8,10 @@ během**, ne domněnka; kde se pochybuje, je to napsané.
 > **`VU-GS-OPTIMALIZACE.md`** (zadání, změřené FPS podle taktů, rozložení
 > threadů, hypotézy v pořadí, jak měřit). Tenhle HANDOFF pak čti jako
 > referenci — hlavně §8 (pasti), §9–§11 (výkon a takty).
-> Poslední build: **55** (`nro-latest`; build 51 = 71 594 119 B,
+> Poslední build: **56** (`nro-latest`; build 51 = 71 594 119 B,
 > sha256 `9c719e25cb27b374`). Build 52 = pátrání po pádu při přehazování
-> = forenzní log; build 54 = FIX pádu (§0b); **build 55 = výkon: thready na
-> vlastní jádra + identita threadů (§0c)**.
+> = forenzní log; build 55 = výkon (thready na vlastní jádra + identita
+> threadů, §0c); **build 56 = sledování taktů celé venku (§0b)**.
 
 Cíl uživatele: reproducible CI, který vyrobí `.nro` s funkčním Vulkan
 rendererem, plus zpětná vazba z logů na kartě. Historie: build 37/38 našel
@@ -27,46 +27,57 @@ vůbec nesahá** — `cpu_boost()` je prázdná funkce (`ci/patches/util_no_boos
 protože `FastLoad` srážel GPU na 76 MHz a bil se s governororem uživatele
 (Ultrahand). Takty se jen **čtou** do FPS řádky.
 
-## 0b. STAV: PÁD VYŘEŠEN — KOLIZE V SYSTÉMU TAKTŮ (2026-09-18, build 54)
+## 0b. STAV: KOLIZE V SYSTÉMU TAKTŮ — A PROČ JE SLEDOVÁNÍ TAKTŮ OD BUILDU 56 VENKU
 
-**Crash reporty z karty (nahrané do `arena/01a0b2a1-test`, commit `81101ec`)
-přímo jmenují viníka:**
+> **Oprava (2026-09-18, od uživatele):** crash reporty, které ležely v repu
+> (`01789735608_010000000000001a.log` = fatal v `pcv`, `01789735609_…log` =
+> `hoc:clk`), jsou **z buildu 50**, ne z buildů 51/52/53. Dřívější text tvrdil
+> „51/52/53 jsou na kartě chování identické a padaly všechny" — to byla
+> **chyba minulé session**, odvozená od špatně připsaných souborů. Uživatel je
+> na `main` smazal (commity `1a1f5be`, `200db54`, `42331f7`, `7b76980`);
+> squash commit `6d0d916` je omylem vrátil a v téhle větvi jsou znovu smazané.
+
+**Co reporty říkaly:**
 
 * `01789735608_010000000000001a.log` — **fatal v sysmodulu `pcv`**
   (Program ID 010000000000001a, Process Name `pcv`), `Result 0xCC0B
   (2011-0102)`, Type **User Break** = assert uvnitř pcv. pcv je služba
-  Nintendo pro řízení taktů (CPU/GPU/EMC). Tohle je ta chyba „musíš vypnout
-  konzoli". FW 22.1.0, Atmosphère 1.11.2-master-5388824be.
+  Nintendo pro řízení taktů (CPU/GPU/EMC). FW 22.1.0,
+  Atmosphère 1.11.2-master-5388824be.
 * `01789735609_00ff0000636c6bff.log` — sekundu po něm umřel **`hoc:clk`**
   (Program ID 00ff0000636c6bff — sys-clk rodina, governor taktů uživatele),
-  `Result 0x6159 (2345-0048)`, taktéž User Break. Domino efekt: pcv leží,
-  governor padá na svých clkrst voláních.
+  `Result 0x6159 (2345-0048)`, taktéž User Break.
 
-**Mechanismus:** emulátor drží od buildu 47 (NSX_CLK) tři clkrst session
-(cpu/gpu/emc) a polluje je 1×/s do FPS řádky. Governor (`hoc:clk`) na tytéž
-takty zároveň čte **a zapisuje** (to je jeho práce). Někdy se pcv v té
-soutěži dostane do assertu → fatal → dokud se neprovede reboot, umírají
-další spuštěné hry při startu (v core logu proto Fallout i GT3 končily hned
-po `(AAudioMod) Starting stream...`). Že padá „poslední build" je náhoda
-měření — **build 52 obsahoval oproti 51 jen dokumentaci** (diff
-`204d405..7b7bc7f5` = md + analyze skript), tedy 51/52/53 jsou na kartě
-chování identické a padaly všechny.
+**Mechanismus, který tomu odpovídá (pravděpodobný, nikdy nepotvrzený):**
+emulátor držel od buildu 47 tři clkrst session (cpu/gpu/emc) a polluje je
+1×/s do FPS řádky. Governor (`hoc:clk`) na tytéž takty zároveň čte **a
+zapisuje**. pcv se v té soutěži mohl dostat do assertu. **Build 50 ty session
+měl**, takže to sedí; dokázané to není a dokázat už ani nepůjde (reporty jsou
+smazané).
 
-**Fix (build 54):** emulátor z podsystemu taktů VYSTUPUJE.
-* NSX_CLK defaultně **VYPNUT**: žádné `clkrstInitialize`, žádné session,
-  žádné čtení. FPS řádka místo taktů ukazuje nuly; v logu je jednorázové
-  vysvětlení (`[CI] clk: cteni taktu VYPNUTO (build 54; ...)`) a
-  `[CI] session start build=54 …` na první pohled odliší binárku.
-* Čtení taktů je opt-in: **marker `ci-clk.enabled`** na SD (pro řízená
-  měření, ideálně se vypnutým governorem).
-* Zápis taktů (`ci-clk.conf`) zůstává a je **dvojitě zamčený**: marker
-  `ci-clk.enabled` + existující `ci-clk.conf`. Bez obojího se nezapisuje.
-* Marker `ci-noclk.enabled` (build 52/53) zrušen — nahradil ho default.
+**Proč je sledování taktů od buildu 56 úplně pryč (ne jen vypnuté):**
 
-**Co s tím uživatel (kromě buildu 54):** governor `hoc:clk` na FW 22.1.0 +
-Atmosphère 1.11.2-master je sám o sobě stejně podezřelý (padal spolu s pcv).
-Zvážit aktualizaci sys-clk/hoc-clk; pro testy stability klidně chvíli jet
-bez něj. Emulátor už mu v buildu 54 do cesty nestojí.
+1. Uživatel má Ultrahand s governorem na **max** (pevně cpu 2700 / gpu 1400 /
+   ram 2666 MHz). Čtení z emulátoru nepřináší nic — hodnota je dopředu známá
+   a nemění se.
+2. clkrst/pcv session v našem procesu jsou jediný způsob, jak se do toho
+   souboje vůbec dostat. Bez nich emulátor pcv nevidí.
+3. Zápis taktů (`ci-clk.conf`) navíc shazoval GPU: `ApmCpuBoostMode_FastLoad`
+   podle libnx znamená „Boost CPU. **Additionally, throttle GPU to minimum**"
+   = CPU 1785 + **GPU 76 MHz** (v logu z buildu 49 bylo `gpu=76`).
+
+**Co v buildu 56 zmizelo:** `clkrstInitialize`/`clkrstOpenSession`/
+`clkrstGetClockRate`/`clkrstSetClockRate`, fallback `pcvInitialize`/
+`pcvGetClockRate`, čtení APM režimu (`apmGetPerformanceMode`/
+`apmGetPerformanceConfiguration`), funkce `ci_clk_boot`/`ci_clk_diag`/
+`ci_clk_read`/`ci_clk_parse`/`ci_clk_set_mhz`, markery **`ci-clk.enabled`** a
+**`ci-clk.conf`**, a pole `cpu=… gpu=… emc=… MHz` ve FPS řádce.
+`ci/analyze-core-log.py` čte takty **volitelně**, takže starší logy
+(build 49/54) zparsuje dál.
+
+**CPU boost** je pryč už od buildu 48 (`ci/patches/util_no_boost.py` vyprázdnil
+`cpu_boost()` v `source/util.c` — jediné místo v portu, kde se takty
+nastavovaly). Emulátor se podsystemu taktů **nedotýká vůbec**.
 
 ## 0c. STAV: PÁD — CO ŘÍKAJÍ LOGY BUILDU 54 (2026-09-18, ověřeno z dat v repu)
 
@@ -98,12 +109,13 @@ napíšal **při fatální chybě** — značka byla obráceně. **Build 55 to o
 (explicitní `ci_session_end()` z main.c/error.c/crash.c → `exit`/`fatal`/
 `CRASH`); bez toho se „padá, nebo ne?" z logu poznat nedá.
 
-**Co zbývá ověřit u uživatele:** jestli v `sd:/atmosphere/crash_reports/`
-(resp. `fatal_errors/`) **přibyl** nějaký soubor po 15:35 SELČ 18. 9.
-Crash reporty v repu (`pcv` Result 2011-0102 User Break, `hoc:clk` Result
-2345-0048) nemají v textu časové razítko — HANDOFF §0b uvádí incident
-v 14:46 SELČ, tedy **před** těmi pěti čistými sessions. Pokud od buildu 54
-nic nového nepřibylo, je pád mrtvý a lze v klidu ladit výkon.
+**Dodatek (po opravě datace):** crash reporty v repu byly **z buildu 50**,
+ne z 51/52/53 — viz §0b. Výše uvedený verdikt („žádná session nezemřela hned
+po startu, session 5 doběhla čistě") z logů buildu 54 **platí dál**, jen už
+z něj nelze vyvozovat, že „build 54 opravil pád z 51/52/53"; pád, který ty
+reporty popisovaly, se stal na buildu 50. Jediné čisté tvrzení zní: **na
+buildu 54 přehazování GT3↔Fallout pětkrát za sebou prošlo bez příznaku
+smrti** a od buildu 56 se emulátor pcv nedotkne vůbec.
 
 ### Historie pátrání (build 52/53, nyní už jen kontext)
 
@@ -217,8 +229,8 @@ Artefakty: `nethersx2-nro-vk-bundle` (90 dní), `mesa-sdk` (SDK s `lib/`,
 * `ci/patches/*.py` — patchery zdrojů portu (util_no_boost, vk_diag, pthr_diag,
   **pthr_pin, imports_pin_diag, main_hacks_markers, error_crash_end**) — vždy
   testovat na **čerstvém** souboru a dvakrát (idempotence).
-* `ci/patches/ci_core_log.c` — log modul + NSX_CLK + `ci-clk.conf` +
-  `ci_session_end()`.
+* `ci/patches/ci_core_log.c` — log modul (dedup + 64 KiB buffer, session
+  start/end). **Žádné takty** — NSX_CLK je od buildu 56 venku (§0b).
 * `ci/patches/pthr_pin.{c,h}` — pinování work threadů + identita threadů
   (build 55).
 

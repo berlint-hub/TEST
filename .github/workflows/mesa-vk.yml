@@ -1,5 +1,14 @@
 name: build / VK (nxvk Mesa -> NetherSX2_nx)
 
+# Build 56 (2026-09-18): SLEDOVANI TAKTU JE CELE PRYC. Zadani uzivatele:
+# "automaticky mam pres Ultrahand max takty ... odstran vsechno co hleda
+# takty, je to zbytecny". Venku: clkrst session (cpu/gpu/emc), fallback na
+# pcv, cteni APM rezimu, markery ci-clk.enabled a ci-clk.conf, pole
+# cpu=/gpu=/emc= ve FPS radce. Emulator se podsystemu taktu nedotyka vubec.
+# CPU boost je pryc uz od buildu 48 (FastLoad = CPU 1785 + GPU 76 MHz!).
+# Zaroven: crash reporty v repu (pcv 2011-0102, hoc:clk 2345-0048) byly
+# z BUILDU 50, ne z 51/52/53 — viz HANDOFF §0b/§0c.
+
 # Build 55 (2026-09-18): VYKON — thready na vlastni jadra + identita threadu.
 #   * pthr.c: work thread #1 a #2 EXKLUSIVNE na svem jadre (dřív jen
 #     preferované jádro se sdílenou maskou, takže MTGS a VU1 migrovaly na

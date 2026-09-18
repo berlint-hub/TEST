@@ -6,7 +6,9 @@ Použití:
 
 Co vypíše:
   * souhrn za každou session (ISO, počet FPS oken, medián/min/max FPS),
-  * FPS podle kombinace taktů (cpu/gpu/emc) — tj. jak moc hra stojí na taktech,
+  * FPS podle kombinace taktů (cpu/gpu/emc) — jen u starších logů; od buildu 56
+    emulátor takty NEČTE (clkrst/pcv se perou s Ultrahand governorem), takže
+    se skupina „podle taktů" seskupí do jednoho řádku „bez taktů".
   * okna se stutterem (nejdelší frame),
   * rozložení emulačních threadů na jádra + kolik jader proces dostal,
   * kolik řádků logu spolkl dedup (a jaké vzory).
@@ -23,7 +25,8 @@ from collections import defaultdict
 
 FPS_RE = re.compile(
     r"FPS ([\d.]+) \| ([\d.]+) ms/frame \| min ([\d.]+) max ([\d.]+) ms \| (\d+) framu"
-    r"(?: \| lsfg=(\d))?(?: boost=(\d))? \| cpu=(\d+) gpu=(\d+) emc=(\d+) MHz")
+    r"(?: \| lsfg=(\d))?(?: boost=(\d))?"
+    r"(?: \| cpu=(\d+) gpu=(\d+) emc=(\d+) MHz)?")
 ISO_RE = re.compile(r"isoFile open ok: (.+?)\.iso", re.M)
 CORES_RE = re.compile(r"\[CI\] cores: mask=0x([0-9a-f]+) -> hot=0x([0-9a-f]+) ee=(\d+) work=([\d,]*) bg=(\d+)", re.M)
 THREAD_RE = re.compile(r"\[CI\] thread (?:#(\d+) \(work: ([^)]+)\)|(EE/VM|bg[^)]*)) -> core=(\d+)", re.M)
@@ -100,7 +103,9 @@ def main():
         print("=== FPS podle taktů (všechny sessions) ===")
         by = defaultdict(list)
         for r in all_rows:
-            by[(r[7], r[8], r[9])].append(float(r[0]))
+            # od buildu 56 mají FPS řádky takty vypnuté -> prázdné skupiny
+            clk = (r[7], r[8], r[9]) if r[7] else ("bez", "taktu", "(56+)")
+            by[clk].append(float(r[0]))
         print(f"{'cpu/gpu/emc MHz':<24} {'oken':>5} {'FPS medián':>11} {'p10':>7} {'max':>7}")
         for k, v in sorted(by.items(), key=lambda x: -len(x[1])):
             print(f"{k[0]+'/'+k[1]+'/'+k[2]:<24} {len(v):>5} {statistics.median(v):>11.1f} "
@@ -110,7 +115,8 @@ def main():
             print("\n=== jednotlivá okna ===")
             for r in all_rows:
                 print(f"  {r[0]:>5} FPS | {r[1]:>7} ms | min {r[2]:>6} max {r[3]:>7} | "
-                      f"{r[4]:>3} framů | cpu={r[7]} gpu={r[8]} emc={r[9]}")
+                      f"{r[4]:>3} framů | "
+                      + (f"cpu={r[7]} gpu={r[8]} emc={r[9]}" if r[7] else "takty: nesledujeme (56+)"))
     return 0
 
 

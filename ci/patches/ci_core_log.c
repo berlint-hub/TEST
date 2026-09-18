@@ -21,28 +21,12 @@
 #define CI_LOG_PATH  "/switch/nethersx2/nethersx2-core.log"
 #define CI_MARK_PATH "/switch/nethersx2/ci-logging.enabled"
 #define CI_RAWLOG_MARK   "/switch/nethersx2/ci-rawlog.enabled"
-#define CI_CLK_CONF  "/switch/nethersx2/ci-clk.conf"
-/* Build 54: NSX_CLK je defaultně VYPNUTÝ. Crash reporty z karty (2026-09-18)
- * ukázaly fatal v pcv sysmodulu (Result 2011-0102, User Break) + pád
- * governoru hoc:clk (sys-clk rodina) sekundu po něm — při přehazování her.
- * Emulátor od buildu 47 držel 3 clkrst session (cpu/gpu/emc) a polluje je
- * 1×/s do FPS řádky; governor je zároveň čte i PÍŠE. Společné pcv to občas
- * dostane do assertu -> fatal obrazovka -> další hry umírají při startu,
- * dokud se neprovede reboot. Proto: žádné clkrst defaultně; čtení jen
- * opt-in markerem ci-clk.enabled (a ideálně jen bez governoru). */
-#define CI_CLK_MARK "/switch/nethersx2/ci-clk.enabled"
+/* Build 56: žádné markery pro takty. ci-clk.conf ani ci-clk.enabled už
+ * neexistují — viz komentář u NSX_NO_BOOST níž. */
 
 static int ci_raw_log(void);
 static void ci_flush_repeat(void);
 static void ci_atexit(void);
-
-/* libnx pojmenovává režimy takhle: ApmPerformanceMode_Invalid/Normal/Boost
- * (-1/0/1) a AppletOperationMode_Handheld/Console (0/1). Používáme proto
- * hodnoty s přetypováním: build 47 spadl přesně na tom, že jsem napsal
- * „Handheld/Docked", což v žádné verzi libnx není (viz HANDOFF §8). */
-#define CI_APM_HANDHELD  ((ApmPerformanceMode)0)
-#define CI_APM_DOCKED    ((ApmPerformanceMode)1)
-#define CI_OPMODE_DOCKED ((AppletOperationMode)1)
 
 static int ci_enabled = -1;
 
@@ -97,9 +81,8 @@ static int ci_on(void) {
          * nešahá (util.c má vypnutý CPU boost), jen se čtou. */
         fprintf(stdout, "[CI] boost: NEPOUZIVAME (appletSetCpuBoostMode je "
                         "vynechany ve util.c; takty ridi sysmodul/governor)\n");
-        fprintf(stdout, "[CI] takty: od buildu 54 se nectou a nezapisujou "
-                        "(kolize s governorem taktu = fatal v pcv); opt-in "
-                        "cteni markerem ci-clk.enabled, zapis navic ci-clk.conf\n");
+        /* Build 56: žádná hláška o taktech — emulátor je nečte ani
+         * nezapisuje, takty drží Ultrahand governor uživatele. */
       }
       /* Build 52: identifikace session. Na hraně přehazování her se v logu
        * střídaj dva procesy (starý flushne zbytek bufferu až poté, co nový
@@ -108,7 +91,7 @@ static int ci_on(void) {
        * začátek session přežil i okamžitej pád.
        * NSX_CI_BUILD: ručně zvedat s každým buildem — jediná jistá známka,
        * která binárka na kartě běží (velikosti .nro se mezi buildy nemění). */
-      fprintf(stdout, "[CI] session start build=55 ts=%ld pid=%d%s\n",
+      fprintf(stdout, "[CI] session start build=56 ts=%ld pid=%d%s\n",
               (long)time(NULL), (int)getpid(),
               ci_raw_log() ? " rawlog=unbuffered" : "");
       fflush(stdout);
@@ -308,252 +291,27 @@ void ci_session_end(const char *why) {
  * explicitní požadavek z ci-clk.conf.
  */
 
-/* ---- NSX_CLK: takty CPU/GPU/EMC -----------------------------------------
- * Dvě věci, které se z karty špatně dohledávají:
- *   1) ČTENÍ taktů — build 46 je zkoušel přes clkrst a v logu byly nuly
- *      ("cpu=0 gpu=0 emc=0"), takže se nedalo ověřit ani „GPU na minimu".
- *      Tady se to zkouší znovu a tentokrát se do logu píšou i Result kódy
- *      (init/open/get), aby bylo vidět, který krok vadí. Fallback je starší
- *      služba pcv (na novějším FW už většinou neexistuje).
- *   2) NASTAVENÍ taktů — marker /switch/nethersx2/ci-clk.conf, textový
- *      soubor s řádky jako "cpu=1785 gpu=460 emc=1600" (MHz; co tam není,
- *      se nechá být). Aplikuje se jednou na startu emulace a každý zápis se
- *      loguje včetně hodnoty před/po. Bez markeru se do taktů nesahá.
+/* ---- Build 56: SLEDOVÁNÍ TAKTŮ JE PRYČ ---------------------------------
+ * Byly tu funkce ci_clk_boot/ci_clk_diag/ci_clk_read/ci_clk_parse/
+ * ci_clk_set_mhz (clkrst session cpu/gpu/emc + fallback na starší službu
+ * pcv + čtení APM režimu) a markery ci-clk.enabled / ci-clk.conf.
  *
- * Hodnoty pro orientaci: CPU 1020 (základ) / 1785 (boost), GPU 76 (boost
- * mode!) / 384 / 460 (max handheld) / 768 (docked), EMC 1331/1600.
+ * Proč je to celé venku:
+ *   1) Uživatel má Ultrahand s governorem, který drží takty na maximu
+ *      (cpu 2703 / gpu 1497 / emc 2666 MHz). Čtení z emulátoru nic
+ *      nepřináší — hodnota je dopředu známá a nemění se.
+ *   2) clkrst/pcv session v našem procesu se s tím governorem perou.
+ *      Atmosphere crash reporty z karty (pcv Result 2011-0102 User Break,
+ *      hoc:clk Result 2345-0048) jsou z BUILDU 50, kde tyhle session běhely
+ *      od buildu 47. Od buildu 56 se emulátor pcv nedotkne vůbec, ani
+ *      opt-in.
+ *   3) Zápis taktů (ci-clk.conf) shazoval GPU: ApmCpuBoostMode_FastLoad
+ *      podle libnx znamená „Boost CPU. Additionally, throttle GPU to
+ *      minimum" = CPU 1785 + GPU 76 MHz (v logu bylo gpu=76).
+ *
+ * Kdyby někdy bylo potřeba takty měřit: NE přes clkrst/pcv z emulátoru,
+ * ale zvlášť (sys-clk log / Ultrahand overlay).
  */
-static int ci_atoi_mhz(const char **pp) {
-  const char *p = *pp;
-  unsigned v = 0;
-  if (*p < '0' || *p > '9')
-    return -1;
-  while (*p >= '0' && *p <= '9') {
-    v = v * 10u + (unsigned)(*p - '0');
-    if (v > 100000u) v = 100000u;   /* blbost v souboru → nepřeteče */
-    ++p;
-  }
-  *pp = p;
-  return (int)v;
-}
-
-/* Vrátí bitovou masku toho, co se v textu našlo: 1=cpu, 2=gpu, 4=emc.
- * Je to samostatná funkce (ne static), protože se dá testovat na hostiteli. */
-unsigned ci_clk_parse(const char *text, unsigned *cpu, unsigned *gpu, unsigned *emc) {
-  unsigned mask = 0;
-  const char *p = text ? text : "";
-  while (*p) {
-    while (*p == ' ' || *p == '\t' || *p == ',' || *p == ';' ||
-           *p == '\n' || *p == '\r')
-      ++p;
-    if (!*p)
-      break;
-    if (*p == '#' || *p == '/') {          /* komentář do konce řádku */
-      while (*p && *p != '\n')
-        ++p;
-      continue;
-    }
-    int which = -1;
-    if (!strncmp(p, "cpu", 3)) { which = 0; p += 3; }
-    else if (!strncmp(p, "gpu", 3)) { which = 1; p += 3; }
-    else if (!strncmp(p, "emc", 3)) { which = 2; p += 3; }
-    while (*p == ' ' || *p == '\t')
-      ++p;
-    if (which < 0 || *p != '=') {          /* nesmysl → přeskoč token */
-      while (*p && *p != ' ' && *p != '\t' && *p != '\n' && *p != ',' && *p != ';')
-        ++p;
-      continue;
-    }
-    ++p;
-    while (*p == ' ' || *p == '\t')
-      ++p;
-    int v = ci_atoi_mhz(&p);
-    if (v > 0) {
-      if (which == 0) *cpu = (unsigned)v;
-      else if (which == 1) *gpu = (unsigned)v;
-      else *emc = (unsigned)v;
-      mask |= 1u << which;
-    }
-  }
-  return mask;
-}
-
-#if CI_SWITCH
-static ClkrstSession ci_sess[3];          /* 0=cpu, 1=gpu, 2=emc */
-static int ci_sess_ok[3];
-static int ci_clk_probed;
-static int ci_pcv_ok = -1;
-/* Build 54: marker ci-clk.enabled = JEDINÁ cesta, jak se emulator dotkne
- * clkrst/pcv (čtení taktů do FPS řádky). Default je vypnuto — viz komentář
- * u CI_CLK_MARK nahoře (fatal v pcv při kolizi s governorem taktů). */
-static int ci_clk_enabled(void) {
-  static int v = -1;
-  if (v < 0) {
-    struct stat st;
-    v = (stat(CI_CLK_MARK, &st) == 0) ? 1 : 0;
-  }
-  return v;
-}
-static Result ci_r_init;                  /* Resulty pro diagnostiku */
-static Result ci_r_open[3], ci_r_get[3], ci_r_set[3];
-/* POZOR, tady byl důvod nul v buildu 46: libnx má DVĚ různé sady jmen.
- * PcvModule_CpuBus = 0 (stará služba pcv), ale clkrstOpenSession chce
- * PcvModuleId_CpuBus = 0x40000001 — s nulou session vznikne, ale čtení
- * vrací chybu (proto „cpu=0 gpu=0 emc=0" v celé session). */
-static const PcvModuleId ci_mod_id[3] = { PcvModuleId_CpuBus, PcvModuleId_GPU,
-                                          PcvModuleId_EMC };
-static const char *ci_clk_name(int i) {
-  return i == 0 ? "cpu" : (i == 1 ? "gpu" : "emc");
-}
-
-static void ci_clk_probe(void) {
-  if (ci_clk_probed)
-    return;
-  ci_clk_probed = 1;
-  if (!ci_clk_enabled()) {
-    fprintf(stdout, "[CI] clk: cteni taktu VYPNUTO (build 54; crash report "
-                    "ukazal fatal v pcv sysmodulu pri souboji s governorem "
-                    "taktu — zapnes jen markerem ci-clk.enabled)\n");
-    fflush(stdout);
-    return;
-  }
-  ci_r_init = clkrstInitialize();
-  if (R_SUCCEEDED(ci_r_init)) {
-    for (int i = 0; i < 3; ++i)
-      ci_r_open[i] = clkrstOpenSession(&ci_sess[i], ci_mod_id[i], 3);
-    for (int i = 0; i < 3; ++i)
-      ci_sess_ok[i] = R_SUCCEEDED(ci_r_open[i]);
-  }
-  if (!ci_sess_ok[0] && !ci_sess_ok[1] && !ci_sess_ok[2])
-    ci_pcv_ok = R_SUCCEEDED(pcvInitialize()) ? 1 : 0;   /* starší cesta */
-}
-#endif
-
-#if CI_SWITCH
-static unsigned ci_mhz(u32 hz) { return (unsigned)(hz / 1000000u); }
-#endif
-
-/* Naplní takty v MHz. Vrací 1, když aspoň jedno čtení prošlo. */
-int ci_clk_read(unsigned *cpu, unsigned *gpu, unsigned *emc) {
-  unsigned v[3] = { 0, 0, 0 };
-  int got = 0;
-#if CI_SWITCH
-  ci_clk_probe();
-  for (int i = 0; i < 3; ++i) {
-    if (!ci_sess_ok[i])
-      continue;
-    u32 hz = 0;
-    ci_r_get[i] = clkrstGetClockRate(&ci_sess[i], &hz);
-    if (R_SUCCEEDED(ci_r_get[i])) { v[i] = ci_mhz(hz); got = 1; }
-  }
-  if (!got && ci_pcv_ok == 1) {
-    u32 hz = 0;
-    if (R_SUCCEEDED(pcvGetClockRate(PcvModule_CpuBus, &hz))) { v[0] = ci_mhz(hz); got = 1; }
-    if (R_SUCCEEDED(pcvGetClockRate(PcvModule_GPU, &hz)))    { v[1] = ci_mhz(hz); got = 1; }
-    if (R_SUCCEEDED(pcvGetClockRate(PcvModule_EMC, &hz)))    { v[2] = ci_mhz(hz); got = 1; }
-  }
-#endif
-  if (cpu) *cpu = v[0];
-  if (gpu) *gpu = v[1];
-  if (emc) *emc = v[2];
-  return got;
-}
-
-/* Jednorázová diagnostika taktů: proč (ne)jde čtení + v jakém režimu je APM. */
-void ci_clk_diag(void) {
-  static int done;
-  if (done)
-    return;
-  done = 1;
-#if CI_SWITCH
-  ci_clk_probe();
-  if (!ci_clk_enabled())
-    return;   /* ci_clk_probe už vypsal, proč je čtení vypnuté (build 54) */
-  fprintf(stdout, "[CI] clk: clkrst init=0x%x open cpu=0x%x gpu=0x%x emc=0x%x "
-                  "pcv=%d (0 = ok)\n",
-          (unsigned)ci_r_init, (unsigned)ci_r_open[0], (unsigned)ci_r_open[1],
-          (unsigned)ci_r_open[2], ci_pcv_ok);
-  unsigned c = 0, g = 0, e = 0;
-  int got = ci_clk_read(&c, &g, &e);
-  fprintf(stdout, "[CI] clk: cpu=%u gpu=%u emc=%u MHz (get cpu=0x%x gpu=0x%x "
-                  "emc=0x%x)%s\n",
-          c, g, e, (unsigned)ci_r_get[0], (unsigned)ci_r_get[1],
-          (unsigned)ci_r_get[2],
-          got ? "" : " -- cteni taktu nefunguje, v FPS radce budou nuly");
-  if (R_SUCCEEDED(apmInitialize())) {
-    ApmPerformanceMode mode = ApmPerformanceMode_Invalid;
-    u32 ch = 0, cd = 0;
-    Result rm = apmGetPerformanceMode(&mode);
-    Result rh = apmGetPerformanceConfiguration(CI_APM_HANDHELD, &ch);
-    Result rd = apmGetPerformanceConfiguration(CI_APM_DOCKED, &cd);
-    /* Režim 1 = boost. Konfigurace 0x9222000A (handheld) / 0x92220009 (docked)
-     * = CPU nahoru + GPU na minimum, tj. FastLoad. */
-    fprintf(stdout, "[CI] apm: mode=%d handheld=0x%x docked=0x%x "
-                    "(rc=0x%x/0x%x/0x%x)\n",
-            (int)mode, (unsigned)ch, (unsigned)cd, (unsigned)rm,
-            (unsigned)rh, (unsigned)rd);
-    apmExit();
-  } else {
-    fprintf(stdout, "[CI] apm: sluzbu nešlo otevřít (nepůjde číst režim)\n");
-  }
-#endif
-}
-
-#if CI_SWITCH
-static void ci_clk_set_mhz(int which, unsigned mhz, const char *why) {
-  if (mhz == 0)
-    return;
-  if (!ci_sess_ok[which]) {
-    fprintf(stdout, "[CI] clk: %s=%u MHz nelze nastavit (%s) — clkrst session "
-                    "se neotevrela (rc=0x%x)\n",
-            ci_clk_name(which), mhz, why, (unsigned)ci_r_open[which]);
-    fflush(stdout);
-    return;
-  }
-  u32 hz = 0;
-  unsigned before = 0, after = 0;
-  if (R_SUCCEEDED(clkrstGetClockRate(&ci_sess[which], &hz))) before = ci_mhz(hz);
-  ci_r_set[which] = clkrstSetClockRate(&ci_sess[which], mhz * 1000000u);
-  if (R_SUCCEEDED(clkrstGetClockRate(&ci_sess[which], &hz))) after = ci_mhz(hz);
-  fprintf(stdout, "[CI] clk: %s -> %u MHz (bylo %u, po zapisu %u) rc=0x%x (%s)\n",
-          ci_clk_name(which), mhz, before, after, (unsigned)ci_r_set[which], why);
-  fflush(stdout);
-}
-#endif
-
-/* Jednorázově: diagnostika taktů + (opt-in) zápis z ci-clk.conf. */
-void ci_clk_boot(void) {
-  static int done;
-  if (done)
-    return;
-  done = 1;
-  ci_clk_diag();
-#if CI_SWITCH
-  if (!ci_clk_enabled())
-    return;   /* bez markeru ci-clk.enabled se do taktů NEZAPISUJE vůbec
-                 (dvojitá pojistka: marker + existující ci-clk.conf) */
-  {
-    FILE *f = fopen(CI_CLK_CONF, "r");
-    if (!f)
-      return;
-    char text[256];
-    size_t n = fread(text, 1, sizeof(text) - 1, f);
-    text[n] = 0;
-    fclose(f);
-    unsigned cpu = 0, gpu = 0, emc = 0;
-    unsigned mask = ci_clk_parse(text, &cpu, &gpu, &emc);
-    if (!mask) {
-      fprintf(stdout, "[CI] clk: %s nema platny zapis (cekam napr. "
-                      "\"cpu=1785 gpu=460\")\n", CI_CLK_CONF);
-      fflush(stdout);
-      return;
-    }
-    if (mask & 1u) ci_clk_set_mhz(0, cpu, "ci-clk.conf");
-    if (mask & 2u) ci_clk_set_mhz(1, gpu, "ci-clk.conf");
-    if (mask & 4u) ci_clk_set_mhz(2, emc, "ci-clk.conf");
-  }
-#endif
-}
 
 /* Jednoznačná identifikace běžícího .nro. Volá se z main.c až v běhu
  * (po setenv z kroku 7a), takže na rozdíl od hlášky v ci_on() nemůže

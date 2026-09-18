@@ -2,7 +2,10 @@
 
 > **Tenhle soubor je startovní bod.** Přečti ho celý, pak až HANDOFF.md (§9–§11
 > a §8 s pastmi). Všechna čísla níž jsou změřená na kartě uživatele, ne odhad.
-> Poslední build: **55** (`nro-latest`) — viz níže „Co je hotové (build 55)".
+> Poslední build: **56** (`nro-latest`). Od buildu 56 emulátor **vůbec nesleduje
+> takty** (žádné clkrst/pcv/APM, markery `ci-clk.*` zrušeny) — uživatel má
+> Ultrahand governor na pevném maximu, takže čtení nic nepřináší a jen se pere
+> s governorem. CPU boost je pryč od buildu 48.
 > Uživatel má v Ultrahandu **pevný** profil cpu 2700 / gpu 1400 / ram 2666 MHz,
 > takže A/B měření se nemusí přepínat s profily governoru.
 
@@ -129,10 +132,12 @@ VU1 (MTVU) + worker thready round-robin**, jádro 3 = audio.
    **Hotovo v buildu 55**: markery `ci-vu1instant` / `ci-vuflaghack` (`0`/`1`).
 5. Teprve pak hlubší zásahy do jádra.
 
-**Metodika (nutná, jinak se výsledky nedají srovnat):** měřit **jen okna se
-stejnými takty** — governor uživatele přeskakuje mezi profily a rozdíl
-38,7 vs 16,9 FPS je způsobený takty, ne hrou. `ci/analyze-core-log.py` to
-dělá automaticky (tabulka „FPS podle taktů").
+**Metodika:** uživatel má governor na **pevném** profilu (cpu 2700 / gpu 1400 /
+ram 2666 MHz), takže okna jsou srovnatelná, aniž bychom takty četli. Starší logy
+(build 49/54) takty v řádce mají a `ci/analyze-core-log.py` je seskupí do
+tabulky „FPS podle taktů"; od buildu 56 se ta skupina jmenuje „bez taktů".
+**Nikdy nesrovnávat okna z profilu 2703/1497/2666 s okny z 1020/307/1331** —
+rozdíl 38,7 vs 16,9 FPS dělá profil, ne hra.
 
 ## 6. Jak měřit (pracovní postup)
 
@@ -161,10 +166,10 @@ python3 ci/analyze-core-log.py /tmp/core.log
 | `ci-mtvu` | **(build 55)** `0`/`1` → `EmuCore/Speedhacks/vuThread` (MTVU) |
 | `ci-vu1instant` / `ci-vuflaghack` | **(build 55)** `0`/`1` → `EmuCore/Speedhacks/vu1Instant` / `vuFlagHack` |
 | `ci-eecycle` / `ci-eeskip` | **(build 55)** `0`–`3` → `EmuCore/Speedhacks/EECycleRate` / `EECycleSkip` |
-| `ci-clk.enabled` | **(build 54, opt-in)** zapne čtení taktů přes clkrst (od buildu 54 defaultně VYPNUTO — fatal v pcv při kolizi s governorem, viz HANDOFF §0b). Běží-li governor (sys-clk/hoc:clk), radši nepoužívat |
-| `ci-clk.conf` | **opt-in zápis taktů** (`cpu=1785 gpu=460`); od buildu 54 navíc vyžaduje i marker `ci-clk.enabled` — **s governorem NEPOUŽÍVAT** |
+| ~~`ci-clk.enabled`~~ / ~~`ci-clk.conf`~~ | **zrušeno v buildu 56** — emulátor takty nečte ani nezapisuje (HANDOFF §0b). Takty patří do Ultrahand overlaye / sys-clk logu, ne do emulátoru |
 
-Zrušené markery (už neexistují): `ci-keepboost.enabled`, `ci-noboost.enabled`.
+Zrušené markery (už neexistují): `ci-keepboost.enabled`, `ci-noboost.enabled`,
+`ci-noclk.enabled`, `ci-clk.enabled`, `ci-clk.conf`.
 
 **Build 52/54 do logu píše** `[CI] session start build=54 ts=… pid=…`
 (začátek session, hned flush+fsync) a `[CI] session end (korektni exit)`

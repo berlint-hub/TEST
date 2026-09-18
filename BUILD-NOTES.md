@@ -701,3 +701,69 @@ to poznáš jedině podle `[CI] session start build=55` v logu.
 **Co v tomhle běhu nebylo přeložené:** `VK_ONLY=1`, takže GL `.nro` se nestaví
 (`GL build přeskočen — ušetřeno ~4 min`). Větev `NSX_GL_FPS` v `egl.c` tedy
 kompilací neprošla — ale v téhle session jsme ji neměnili.
+
+---
+
+## Build 56 — sledování taktů je celé pryč (2026-09-18)
+
+Zadání od uživatele: *„Nedávej tam žádný cpu boost, protože to snižuje GPU, a
+celkově dej celej systém sledování MHz pryč, protože automaticky mám přes
+Ultrahand max takty. A moje další chyba je, že jsem ti tam nechal ty error logy
+ze Switche — to bylo z verze 50. Takže odstraň všechno, co hledá takty, je to
+zbytečný."*
+
+### 1) Crash reporty byly z buildu 50
+
+Soubory `01789735608_010000000000001a.{log,bin}`, `… ten patri k dumpu bin.log`
+a `01789735609_00ff0000636c6bff.log` popisovaly fatal v `pcv` (Result
+2011-0102, User Break) a pád `hoc:clk` (Result 2345-0048). **Pocházejí
+z buildu 50.** Minulá session je připsala buildům 51/52/53 a odvodila z toho
+„51/52/53 padaly všechny" — to neplatí. Uživatel je na `main` smazal
+(`1a1f5be`, `200db54`, `42331f7`, `7b76980`); squash commit `6d0d916` je vrátil
+a v téhle větvi jsou **smazané znovu**.
+
+Mechanismus (clkrst session emulátoru vs. governor, který stejné takty čte
+i zapisuje) dává smysl a build 50 je měl — ale **potvrzený není** a po smazání
+reportů už potvrdit nepůjde.
+
+### 2) Co je venku (ne „vypnuté", odstraněné)
+
+| odstraněno | kde |
+|---|---|
+| `clkrstInitialize/OpenSession/GetClockRate/SetClockRate` | `ci/patches/ci_core_log.c` |
+| fallback `pcvInitialize` / `pcvGetClockRate` | tamtéž |
+| čtení APM režimu (`apmGetPerformanceMode`, `apmGetPerformanceConfiguration`) | tamtéž |
+| `ci_clk_boot`, `ci_clk_diag`, `ci_clk_read`, `ci_clk_parse`, `ci_clk_set_mhz`, `ci_mhz`, `ci_atoi_mhz` | tamtéž |
+| markery `ci-clk.enabled` a `ci-clk.conf` | tamtéž + dokumentace |
+| hláška `[CI] takty: …` při startu logu | tamtéž |
+| pole `cpu=%u gpu=%u emc=%u MHz` ve FPS řádce + volání `ci_clk_boot`/`ci_clk_read` | `ci/patches/vk_diag.py` |
+| markery `[CI] clk:`, `[CI] takty:`, `ci-clk.conf` z grep kontroly v `.nro` | `ci/build-switch.sh` |
+
+`ci_core_log.c` z 609 → **367 řádků**. Nová FPS řádka:
+`FPS 41.3 | 24.44 ms/frame | min 11.34 max 40.83 ms | 38 framu | lsfg=0`.
+
+**CPU boost** je pryč už od buildu 48 (`util_no_boost.py` vyprázdnil
+`cpu_boost()` v `source/util.c`); v buildu 56 se na tom nic nemění. Emulátor
+se podsystemu taktů **nedotýká vůbec** — ani opt-in.
+
+### 3) Analyzátor umí obojí
+
+`ci/analyze-core-log.py` má takty ve FPS regexu **volitelné**:
+
+```
+r"(?: \| lsfg=(\d))?(?: boost=(\d))?"
+r"(?: \| cpu=(\d+) gpu=(\d+) emc=(\d+) MHz)?"
+```
+
+Takže starší logy (build 49 s `cpu=2703 gpu=1497 emc=2666`, build 54 s nulami)
+se zparsují dál a seskupí do tabulky „FPS podle taktů"; logy od buildu 56
+skončí v řádku `bez/taktu/(56+)`. Ověřeno na `nethersx2-vulkan.log` (23 oken,
+medián 45,5 — výstup stejný jako před změnou) i na umělém logu bez taktů.
+
+### 4) Co z toho plyne pro měření
+
+Takty v logu chybět budou **záměrně**. Uživatel má Ultrahand governor na
+**pevném** profilu (cpu 2700 / gpu 1400 / ram 2666 MHz), takže A/B porovnání
+nepotřebuje takty v datech — stačí, že se profil během měření nemění. Kdyby
+bylo potřeba takty přesto vidět, patří do Ultrahand overlaye nebo sys-clk
+logu, ne do emulátoru.
