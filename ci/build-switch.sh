@@ -659,7 +659,7 @@ PKGLIBS
       vkmiss=""
       for marker in "NVK_I_WANT_A_BROKEN_VULKAN_DRIVER" "nsx-vk" \
                     "NetherSX2 Vulkan diagnostic" "diag soubor nethersx2-vulkan.log" \
-                    "MESA_SHADER_CACHE_DIR"; do
+                    "MESA_SHADER_CACHE_DIR" "FPS %.1f"; do
         grep -qa "$marker" "$vkbin" || vkmiss="$vkmiss [$marker]"
       done
       if [ -z "$vkmiss" ]; then
@@ -1021,9 +1021,54 @@ if reset_anchor in text:
     text = text.replace(reset_anchor, reset_patch, 1)
     done += 1
 
+# FPS do logu: prezentace = vykreslenej frame, takže z tohohle čísla je vidět
+# jak emulační framerate, tak efekt LSFG (2x). Počítá se v okně ~1 s a píše
+# jednou za okno, ať core log nezaplavíme. Kotva je ++vk_present_count;
+# v celým vk.c je právě jednou (ověřeno greppem při psaní patche).
+fps_anchor = "  ++vk_present_count;\n"
+fps_patch = fps_anchor + (
+    "#ifdef NETHERSX2_VK_DIAGNOSTIC\n"
+    "  /* NSX_VK_FPS: měřidlo framerate pro ladění výkonu. */\n"
+    "  {\n"
+    "    static uint64_t nsx_fps_window_start;\n"
+    "    static uint64_t nsx_fps_window_last;\n"
+    "    static uint64_t nsx_fps_window_min;\n"
+    "    static uint64_t nsx_fps_window_max;\n"
+    "    static uint32_t nsx_fps_window_frames;\n"
+    "    const uint64_t nsx_now = lsfg_monotonic_ns();\n"
+    "    if (!nsx_fps_window_start) {\n"
+    "      nsx_fps_window_start = nsx_now;\n"
+    "      nsx_fps_window_min = 0;\n"
+    "      nsx_fps_window_max = 0;\n"
+    "    } else if (nsx_fps_window_frames) {\n"
+    "      /* mezera od předchozí prezentace = délka framu (stutter je vidět) */\n"
+    "      const uint64_t nsx_gap = nsx_now - nsx_fps_window_last;\n"
+    "      if (!nsx_fps_window_min || nsx_gap < nsx_fps_window_min) nsx_fps_window_min = nsx_gap;\n"
+    "      if (nsx_gap > nsx_fps_window_max) nsx_fps_window_max = nsx_gap;\n"
+    "    }\n"
+    "    nsx_fps_window_last = nsx_now;\n"
+    "    ++nsx_fps_window_frames;\n"
+    "    if (nsx_now > nsx_fps_window_start + UINT64_C(1000000000)) {\n"
+    "      const double nsx_secs = (double)(nsx_now - nsx_fps_window_start) / 1e9;\n"
+    "      vk_diag_note(\"FPS %.1f | %.2f ms/frame | min %.2f max %.2f ms | %u framu | lsfg=%d\",\n"
+    "                   (double)nsx_fps_window_frames / nsx_secs,\n"
+    "                   nsx_secs * 1000.0 / (double)nsx_fps_window_frames,\n"
+    "                   nsx_fps_window_min / 1e6, nsx_fps_window_max / 1e6,\n"
+    "                   nsx_fps_window_frames, vk_lsfg_is_enabled());\n"
+    "      nsx_fps_window_start = nsx_now;\n"
+    "      nsx_fps_window_min = 0;\n"
+    "      nsx_fps_window_max = 0;\n"
+    "      nsx_fps_window_frames = 0;\n"
+    "    }\n"
+    "  }\n"
+    "#endif\n")
+if fps_anchor in text:
+    text = text.replace(fps_anchor, fps_patch, 1)
+    done += 1
+
 open(path, "w", encoding="utf-8", errors="surrogateescape").write(text)
-print("vk.c: diag mirror patcheno %d/2" % done)
-sys.exit(0 if done == 2 else 1)
+print("vk.c: diag patch %d/3" % done)
+sys.exit(0 if done == 3 else 1)
 VKDIAGMIRROR
   then
     key "vk: diag zrcadlena do stderr (nethersx2-core.log)"
