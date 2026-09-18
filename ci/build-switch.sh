@@ -292,6 +292,24 @@ if [ ! -d "$SRC/.git" ]; then
 fi
 key "upstream=$(git -C "$SRC" rev-parse --short HEAD)"
 
+# ------------------------------------------- 5b. vrstva: načítání + memory
+# Nevýkonové patche hostitelské „android-like" vrstvy (na základě logů z karty):
+#   * so_fastload.py  — velký stream buffer pro .so, BSS se nuluje jen v ocáscích
+#     PT_LOAD (ne celých 208 MB), so_flush_caches jede jen RX segmenty,
+#   * fh_buf.py       — velký buffer pro resource soubory (GameIndex.yaml).
+# Ani jeden nemění chování; při nesouladu anchoru jen varuj (vrstva se chová
+# jako upstream a build pokračuje).
+if python3 "$HERE/patches/so_fastload.py" "$SRC/source/so_util.c"; then
+  key "vrstva: so_util.c fastload (stream buffer + BSS-only zero + RX-only flush)"
+else
+  warn "vrstva: so_util.c fastload NEAPLIKOVÁN (upstream posunul kotvy)"
+fi
+if python3 "$HERE/patches/fh_buf.py" "$SRC/source/filehelper.c"; then
+  key "vrstva: filehelper.c resource stream buffer"
+else
+  warn "vrstva: filehelper.c buffer NEAPLIKOVÁN (upstream posunul kotvy)"
+fi
+
 # nepovinnej vstup: plochý vulkan/ SDK z ci/build-mesa-sdk.sh (artifact
 # 'mesa-sdk'). Bez něj se VK stage přeskočí — GL cesta to nepotřebuje.
 VKSDK="${VULKAN_SDK_DIR:-}"
@@ -1110,6 +1128,14 @@ VkResult_t vkEnumerateInstanceLayerProperties(uint32_t *pCount, void *pPropertie
 
 VKSHIM
   note "psán weak VK loader shim (instance version/layer/extension enumeration)"
+
+  # vrstva: rychlejší prezentace — CNTPCT místo clock_gettime() na každý present
+  # + source-rate klasifikace se měří jen při zapnutém LSFG (v logu lsfg=0).
+  if python3 "$HERE/patches/vk_fast_present.py" "$SRC/source/hooks/vk.c"; then
+    key "vk: fast present (cntpct bez SVC, klasifikace jen při LSFG)"
+  else
+    warn "vk: fast present NEAPLIKOVÁN (upstream posunul kotvy)"
+  fi
 
   # Patch je v ci/patches/vk_diag.py (dřív heredoc s Python řetězci, kde se
   # pletly zpětné lomítka — build 45 na tom spadl). Takty si patch bere
