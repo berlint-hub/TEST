@@ -1,213 +1,130 @@
 NetherSX2 Vulkan diagnostic 1.3.0
-[1789761158.088] host main entered renderer=14
-[1789761158.096] storage ready disc=/Roms/PS2/Gran Turismo 3 - A-Spec (Europe, Australia) (En,Fr,De,Es,It) (v2.00).iso
-[1789761158.100] configuration core=/switch/nethersx2/cores/libemucore_4248.so bios_boot=0 fastmem=hybrid lsfg=0
-[1789761158.115] syscalls, input data, and SMC initialized
-[1789761158.119] heap ready mb=2904 so_base=0xc52800000 so_limit=268435456 screen=1280x720
-[1789761158.314] core image loaded base=0xc52800000 size=208453632
-[1789761158.320] core imports relocated and resolved
-[1789761158.391] core constructors completed
-[1789761158.397] starting core VM sequence
-[1789761160.327] vkCreateInstance begin api=4198400 app=NetherSX2 engine=NetherSX2 extensions=2
-[1789761160.332] instance extension[0]=VK_KHR_surface
-[1789761160.340] instance extension[1]=VK_KHR_android_surface
-[1789761160.344] vkCreateInstance end result=0 instance=0xb9dabdec0 lsfg_prepared=0
-[1789761161.955] vkCreateViSurfaceNN window=0x435b941db8 result=0 surface=0xbc93dabc0
-[1789761161.962] vkCreateDevice begin physical=0xb9dac0560 queues=1 extensions=6 lsfg_pref=0
-[1789761161.970] vkCreateDevice end result=0 device=0xbc93fd040 lsfg_capable=0 family=4294967295
-[1789761161.975] vkGetDeviceQueue family=0 index=0 queue=0xb9dad50c0
-[1789761161.979] vkGetDeviceQueue family=0 index=0 queue=0xb9dad50c0
-[1789761161.994] vkGetDeviceQueue family=0 index=0 queue=0xb9dad50c0
-[1789761162.166] vkCreateSwapchainKHR begin old=0x0 extent=1280x720 format=37 usage=0x10 images=3 mode=0
-[1789761162.175] vkCreateSwapchainKHR end result=0 swapchain=0xbcecde6c0 compatible=0 actual_usage=0x10 actual_images=3 actual_mode=0
-[1789761162.179] vkGetSwapchainImagesKHR call=1 fill=0 result=0 count=3
-[1789761162.183] vkGetSwapchainImagesKHR call=2 fill=1 result=0 count=3
-[1789761162.324] core VM sequence returned vm_running=1
-[1789761164.722] vkAcquireNextImageKHR call=1 result=0 image=0 semaphore=0xbcfa90c20 fence=0x0
-[1789761164.727] vkQueueSubmit call=1 count=1 fence=0xbc9469600 result=0
-[1789761164.741] vkQueuePresentKHR enter call=1 waits=1 swaps=1 lsfg=0
-[1789761164.748] vkQueuePresentKHR call=1 swaps=1 result=0
-[1789761164.759] vkAcquireNextImageKHR call=2 result=0 image=1 semaphore=0xbcfa90da0 fence=0x0
-[1789761164.961] vkQueueSubmit call=2 count=1 fence=0xbc9469940 result=0
-[1789761164.966] vkQueuePresentKHR enter call=2 waits=1 swaps=1 lsfg=0
-[1789761164.975] vkQueuePresentKHR call=2 swaps=1 result=0
-[1789761164.984] vkAcquireNextImageKHR call=3 result=0 image=2 semaphore=0xbcfa90f20 fence=0x0
-[1789761164.988] vkQueueSubmit call=3 count=1 fence=0xbc9469c80 result=0
-[1789761164.999] vkQueuePresentKHR enter call=3 waits=1 swaps=1 lsfg=0
-[1789761165.010] vkQueuePresentKHR call=3 swaps=1 result=0
-[1789761165.018] vkAcquireNextImageKHR call=4 result=0 image=0 semaphore=0xbcfa90c20 fence=0x0
-[1789761165.029] vkQueuePresentKHR enter call=4 waits=1 swaps=1 lsfg=0
-[1789761165.040] vkQueuePresentKHR call=4 swaps=1 result=0
-[1789761165.762] FPS 40.6 | 24.65 ms/frame | min 2.42 max 225.85 ms | 41 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761166.763] FPS 34.6 | 28.90 ms/frame | min 0.28 max 209.94 ms | 35 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761167.782] FPS 45.1 | 22.15 ms/frame | min 8.37 max 70.65 ms | 46 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761168.799] FPS 50.2 | 19.94 ms/frame | min 17.59 max 22.41 ms | 51 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761169.819] FPS 50.0 | 20.00 ms/frame | min 19.98 max 20.03 ms | 51 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761170.819] FPS 50.0 | 20.00 ms/frame | min 19.95 max 20.05 ms | 50 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761171.822] FPS 34.9 | 28.66 ms/frame | min 18.14 max 215.87 ms | 35 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761172.824] FPS 45.9 | 21.78 ms/frame | min 1.87 max 77.33 ms | 46 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761173.844] FPS 50.0 | 20.00 ms/frame | min 18.29 max 21.71 ms | 51 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761174.864] FPS 50.0 | 20.00 ms/frame | min 17.37 max 22.63 ms | 51 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761175.864] FPS 50.0 | 20.00 ms/frame | min 10.18 max 41.13 ms | 50 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761176.884] FPS 50.0 | 20.00 ms/frame | min 19.54 max 20.43 ms | 51 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761177.904] FPS 50.0 | 20.00 ms/frame | min 19.99 max 20.02 ms | 51 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761178.904] FPS 50.0 | 20.00 ms/frame | min 9.68 max 35.32 ms | 50 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761179.921] FPS 48.1 | 20.77 ms/frame | min 10.36 max 37.59 ms | 49 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761180.932] FPS 42.5 | 23.51 ms/frame | min 1.21 max 77.47 ms | 43 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761181.937] FPS 45.8 | 21.84 ms/frame | min 11.33 max 39.89 ms | 46 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761182.953] FPS 38.4 | 26.05 ms/frame | min 11.20 max 43.97 ms | 39 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761183.954] FPS 39.0 | 25.66 ms/frame | min 11.59 max 46.24 ms | 39 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761184.954] FPS 37.0 | 27.04 ms/frame | min 11.69 max 41.56 ms | 37 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761185.967] FPS 37.5 | 26.66 ms/frame | min 10.75 max 41.99 ms | 38 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761187.000] FPS 36.8 | 27.18 ms/frame | min 14.53 max 41.72 ms | 38 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761188.029] FPS 38.9 | 25.73 ms/frame | min 11.92 max 42.86 ms | 40 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761189.039] FPS 35.6 | 28.06 ms/frame | min 11.70 max 44.21 ms | 36 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761190.061] FPS 37.2 | 26.90 ms/frame | min 12.02 max 44.09 ms | 38 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761191.079] FPS 37.3 | 26.79 ms/frame | min 11.17 max 46.52 ms | 38 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761192.088] FPS 36.7 | 27.27 ms/frame | min 12.00 max 40.93 ms | 37 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761193.097] FPS 37.7 | 26.55 ms/frame | min 12.13 max 41.87 ms | 38 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761194.142] FPS 35.4 | 28.25 ms/frame | min 12.62 max 47.46 ms | 37 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761195.151] FPS 37.6 | 26.56 ms/frame | min 10.50 max 45.39 ms | 38 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761196.161] FPS 40.6 | 24.64 ms/frame | min 11.90 max 37.89 ms | 41 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761197.191] FPS 44.7 | 22.37 ms/frame | min 19.98 max 74.63 ms | 46 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761198.201] FPS 52.4 | 19.07 ms/frame | min 11.43 max 24.20 ms | 53 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761199.221] FPS 50.0 | 20.00 ms/frame | min 18.98 max 21.02 ms | 51 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761200.221] FPS 50.0 | 20.00 ms/frame | min 19.59 max 20.43 ms | 50 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761201.238] FPS 49.2 | 20.33 ms/frame | min 17.88 max 34.61 ms | 50 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761202.271] FPS 39.7 | 25.21 ms/frame | min 10.41 max 47.32 ms | 41 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761203.285] FPS 37.5 | 26.69 ms/frame | min 11.67 max 42.91 ms | 38 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761204.293] FPS 39.7 | 25.18 ms/frame | min 11.73 max 42.97 ms | 40 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761205.309] FPS 37.4 | 26.75 ms/frame | min 12.31 max 45.11 ms | 38 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761206.311] FPS 37.9 | 26.37 ms/frame | min 10.34 max 44.88 ms | 38 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761207.318] FPS 37.7 | 26.50 ms/frame | min 11.66 max 44.78 ms | 38 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761208.342] FPS 39.1 | 25.60 ms/frame | min 11.88 max 41.33 ms | 40 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761209.367] FPS 37.1 | 26.97 ms/frame | min 12.89 max 41.83 ms | 38 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761210.381] FPS 50.3 | 19.89 ms/frame | min 10.44 max 38.75 ms | 51 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761211.401] FPS 50.0 | 20.00 ms/frame | min 19.97 max 20.03 ms | 51 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761212.401] FPS 50.0 | 20.00 ms/frame | min 19.77 max 20.23 ms | 50 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761213.401] FPS 50.0 | 20.00 ms/frame | min 19.78 max 20.25 ms | 50 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761214.421] FPS 50.0 | 20.00 ms/frame | min 19.86 max 20.03 ms | 51 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761215.441] FPS 50.0 | 20.00 ms/frame | min 19.99 max 20.01 ms | 51 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761216.441] FPS 50.0 | 20.00 ms/frame | min 18.58 max 21.42 ms | 50 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761217.461] FPS 50.0 | 20.00 ms/frame | min 19.98 max 20.01 ms | 51 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761218.481] FPS 50.0 | 20.00 ms/frame | min 12.55 max 30.90 ms | 51 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761219.501] FPS 50.0 | 20.00 ms/frame | min 19.01 max 20.99 ms | 51 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761220.553] FPS 27.6 | 36.27 ms/frame | min 19.99 max 478.05 ms | 29 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761222.077] FPS 1.3 | 762.06 ms/frame | min 602.35 max 602.35 ms | 2 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761223.618] FPS 1.3 | 770.50 ms/frame | min 551.71 max 551.71 ms | 2 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761225.134] FPS 1.3 | 757.96 ms/frame | min 552.58 max 552.58 ms | 2 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761226.685] FPS 1.3 | 775.50 ms/frame | min 570.17 max 570.17 ms | 2 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761228.252] FPS 1.3 | 783.07 ms/frame | min 580.83 max 580.83 ms | 2 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761229.767] FPS 1.3 | 757.71 ms/frame | min 542.12 max 542.12 ms | 2 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761231.202] FPS 1.4 | 717.41 ms/frame | min 484.72 max 484.72 ms | 2 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761232.736] FPS 1.3 | 767.19 ms/frame | min 559.07 max 559.07 ms | 2 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761234.298] FPS 1.3 | 780.79 ms/frame | min 577.63 max 577.63 ms | 2 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761235.725] FPS 1.4 | 713.55 ms/frame | min 552.02 max 552.02 ms | 2 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761237.243] FPS 1.3 | 759.09 ms/frame | min 549.75 max 549.75 ms | 2 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761238.245] FPS 28.9 | 34.55 ms/frame | min 10.28 max 37.19 ms | 29 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761239.261] FPS 50.2 | 19.93 ms/frame | min 14.51 max 25.49 ms | 51 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761240.281] FPS 50.0 | 20.00 ms/frame | min 16.37 max 23.64 ms | 51 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761241.281] FPS 50.0 | 20.00 ms/frame | min 18.14 max 21.86 ms | 50 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761242.310] FPS 35.0 | 28.56 ms/frame | min 15.80 max 328.19 ms | 36 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761243.318] FPS 25.8 | 38.78 ms/frame | min 10.63 max 420.00 ms | 26 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761244.319] FPS 50.9 | 19.63 ms/frame | min 14.53 max 58.28 ms | 51 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761245.322] FPS 38.9 | 25.71 ms/frame | min 15.88 max 65.36 ms | 39 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761246.322] FPS 50.0 | 20.00 ms/frame | min 2.06 max 49.66 ms | 50 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761247.335] FPS 40.5 | 24.71 ms/frame | min 13.49 max 147.61 ms | 41 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761248.356] FPS 47.0 | 21.28 ms/frame | min 17.50 max 33.89 ms | 48 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761249.368] FPS 40.5 | 24.67 ms/frame | min 16.95 max 34.11 ms | 41 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761250.588] FPS 41.0 | 24.41 ms/frame | min 17.33 max 255.17 ms | 50 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761251.589] FPS 45.0 | 22.23 ms/frame | min 19.84 max 24.50 ms | 45 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761252.591] FPS 44.9 | 22.27 ms/frame | min 20.00 max 24.08 ms | 45 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761253.600] FPS 33.7 | 29.67 ms/frame | min 20.84 max 40.15 ms | 34 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761254.632] FPS 28.1 | 35.58 ms/frame | min 34.05 max 36.92 ms | 29 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761255.664] FPS 28.1 | 35.62 ms/frame | min 34.72 max 36.61 ms | 29 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761256.695] FPS 22.3 | 44.80 ms/frame | min 35.57 max 220.90 ms | 23 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761257.727] FPS 28.1 | 35.60 ms/frame | min 33.44 max 38.46 ms | 29 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761258.754] FPS 26.3 | 38.02 ms/frame | min 34.43 max 64.08 ms | 27 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761259.767] FPS 25.7 | 38.96 ms/frame | min 35.82 max 75.73 ms | 26 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761260.791] FPS 26.4 | 37.94 ms/frame | min 36.75 max 38.79 ms | 27 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761261.798] FPS 26.8 | 37.30 ms/frame | min 36.15 max 38.81 ms | 27 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761262.805] FPS 26.8 | 37.27 ms/frame | min 36.02 max 38.56 ms | 27 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761263.838] FPS 28.1 | 35.63 ms/frame | min 33.82 max 38.22 ms | 29 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761264.865] FPS 28.2 | 35.43 ms/frame | min 34.01 max 37.32 ms | 29 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761265.881] FPS 47.2 | 21.17 ms/frame | min 15.53 max 35.34 ms | 48 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761266.882] FPS 50.0 | 20.00 ms/frame | min 13.08 max 37.71 ms | 50 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761267.900] FPS 50.1 | 19.98 ms/frame | min 17.73 max 22.27 ms | 51 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761268.922] FPS 49.9 | 20.02 ms/frame | min 18.00 max 22.26 ms | 51 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761269.942] FPS 50.0 | 20.01 ms/frame | min 17.81 max 22.23 ms | 51 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761270.960] FPS 50.1 | 19.96 ms/frame | min 17.95 max 22.42 ms | 51 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761271.968] FPS 49.6 | 20.16 ms/frame | min 18.16 max 24.48 ms | 50 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761272.972] FPS 27.9 | 35.85 ms/frame | min 34.43 max 38.22 ms | 28 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761273.982] FPS 46.6 | 21.47 ms/frame | min 16.39 max 37.44 ms | 47 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761275.017] FPS 41.5 | 24.08 ms/frame | min 18.33 max 37.53 ms | 43 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761276.041] FPS 27.3 | 36.57 ms/frame | min 34.88 max 38.23 ms | 28 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761277.052] FPS 27.7 | 36.09 ms/frame | min 34.62 max 39.30 ms | 28 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761278.058] FPS 27.8 | 35.96 ms/frame | min 34.52 max 37.35 ms | 28 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761279.078] FPS 27.5 | 36.42 ms/frame | min 35.13 max 38.91 ms | 28 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761280.094] FPS 27.5 | 36.30 ms/frame | min 34.79 max 37.89 ms | 28 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761281.121] FPS 28.3 | 35.39 ms/frame | min 34.35 max 37.92 ms | 29 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761282.124] FPS 27.9 | 35.84 ms/frame | min 34.75 max 37.64 ms | 28 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761283.132] FPS 27.8 | 35.98 ms/frame | min 34.42 max 37.68 ms | 28 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761284.150] FPS 28.5 | 35.12 ms/frame | min 33.80 max 36.46 ms | 29 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761285.153] FPS 27.9 | 35.81 ms/frame | min 34.29 max 36.80 ms | 28 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761286.186] FPS 28.1 | 35.62 ms/frame | min 33.07 max 38.17 ms | 29 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761287.207] FPS 28.4 | 35.18 ms/frame | min 33.36 max 37.25 ms | 29 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761288.224] FPS 29.5 | 33.93 ms/frame | min 32.07 max 37.14 ms | 30 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761289.243] FPS 29.4 | 33.97 ms/frame | min 32.24 max 46.60 ms | 30 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761290.271] FPS 29.2 | 34.26 ms/frame | min 32.43 max 35.89 ms | 30 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761291.288] FPS 29.5 | 33.89 ms/frame | min 32.24 max 35.52 ms | 30 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761292.311] FPS 30.3 | 33.00 ms/frame | min 31.38 max 35.92 ms | 31 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761293.319] FPS 27.8 | 36.02 ms/frame | min 33.56 max 65.74 ms | 28 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761294.335] FPS 29.5 | 33.85 ms/frame | min 32.30 max 35.14 ms | 30 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761295.337] FPS 34.9 | 28.64 ms/frame | min 18.20 max 36.84 ms | 35 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761296.342] FPS 51.8 | 19.32 ms/frame | min 17.81 max 21.90 ms | 52 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761297.346] FPS 49.8 | 20.09 ms/frame | min 18.46 max 22.35 ms | 50 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761298.348] FPS 49.9 | 20.03 ms/frame | min 18.87 max 22.07 ms | 50 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761299.361] FPS 50.3 | 19.88 ms/frame | min 16.96 max 21.89 ms | 51 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761300.362] FPS 50.0 | 20.01 ms/frame | min 18.06 max 21.95 ms | 50 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761301.382] FPS 50.0 | 20.00 ms/frame | min 17.31 max 22.33 ms | 51 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761302.386] FPS 40.8 | 24.50 ms/frame | min 17.30 max 35.61 ms | 41 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761303.387] FPS 30.0 | 33.37 ms/frame | min 31.30 max 35.48 ms | 30 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761304.400] FPS 51.3 | 19.48 ms/frame | min 15.90 max 23.98 ms | 52 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761305.400] FPS 50.0 | 20.00 ms/frame | min 17.69 max 22.38 ms | 50 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761306.402] FPS 49.9 | 20.03 ms/frame | min 17.53 max 22.43 ms | 50 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761307.402] FPS 50.0 | 20.01 ms/frame | min 17.54 max 22.51 ms | 50 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761308.420] FPS 50.1 | 19.96 ms/frame | min 17.58 max 22.43 ms | 51 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761309.422] FPS 49.9 | 20.04 ms/frame | min 18.00 max 21.99 ms | 50 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761310.442] FPS 50.0 | 20.00 ms/frame | min 17.80 max 22.21 ms | 51 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761311.462] FPS 50.0 | 20.00 ms/frame | min 17.56 max 22.43 ms | 51 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761312.482] FPS 50.0 | 19.99 ms/frame | min 17.54 max 22.44 ms | 51 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761313.502] FPS 44.1 | 22.67 ms/frame | min 17.61 max 34.84 ms | 45 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761314.502] FPS 40.0 | 25.00 ms/frame | min 15.81 max 39.01 ms | 40 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761315.522] FPS 50.0 | 19.99 ms/frame | min 19.06 max 21.42 ms | 51 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761316.522] FPS 50.0 | 20.01 ms/frame | min 19.17 max 20.83 ms | 50 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761317.544] FPS 42.1 | 23.78 ms/frame | min 17.37 max 35.60 ms | 43 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761318.552] FPS 28.8 | 34.75 ms/frame | min 33.16 max 37.25 ms | 29 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761319.583] FPS 29.1 | 34.35 ms/frame | min 32.86 max 35.40 ms | 30 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761320.610] FPS 29.2 | 34.25 ms/frame | min 33.24 max 35.72 ms | 30 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761321.642] FPS 30.0 | 33.30 ms/frame | min 32.30 max 34.58 ms | 31 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761322.652] FPS 30.7 | 32.57 ms/frame | min 31.48 max 34.34 ms | 31 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761323.680] FPS 30.1 | 33.17 ms/frame | min 31.97 max 34.40 ms | 31 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761324.701] FPS 30.4 | 32.93 ms/frame | min 31.98 max 34.92 ms | 31 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761325.731] FPS 30.1 | 33.23 ms/frame | min 32.23 max 34.48 ms | 31 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761326.761] FPS 30.1 | 33.22 ms/frame | min 32.13 max 35.33 ms | 31 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761327.772] FPS 29.7 | 33.71 ms/frame | min 32.23 max 34.84 ms | 30 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761328.803] FPS 30.1 | 33.27 ms/frame | min 31.92 max 36.15 ms | 31 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761329.821] FPS 30.5 | 32.82 ms/frame | min 31.72 max 33.59 ms | 31 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761330.833] FPS 29.6 | 33.75 ms/frame | min 32.77 max 35.79 ms | 30 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761331.846] FPS 29.6 | 33.77 ms/frame | min 32.63 max 37.87 ms | 30 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761332.855] FPS 28.8 | 34.77 ms/frame | min 33.69 max 38.19 ms | 29 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761333.879] FPS 30.3 | 33.04 ms/frame | min 31.67 max 34.63 ms | 31 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761334.884] FPS 35.8 | 27.93 ms/frame | min 16.43 max 36.55 ms | 36 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761335.901] FPS 51.1 | 19.56 ms/frame | min 17.49 max 22.27 ms | 52 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761336.922] FPS 50.0 | 20.01 ms/frame | min 17.21 max 27.45 ms | 51 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761337.922] FPS 50.0 | 20.00 ms/frame | min 9.91 max 45.16 ms | 50 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761338.942] FPS 50.0 | 19.99 ms/frame | min 17.43 max 22.61 ms | 51 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761339.942] FPS 50.0 | 20.01 ms/frame | min 17.65 max 22.42 ms | 50 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761340.962] FPS 50.0 | 20.00 ms/frame | min 17.39 max 22.58 ms | 51 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761341.982] FPS 50.0 | 19.99 ms/frame | min 17.21 max 47.43 ms | 51 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761343.001] FPS 50.0 | 20.00 ms/frame | min 15.63 max 22.11 ms | 51 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761344.022] FPS 50.0 | 20.02 ms/frame | min 18.47 max 22.25 ms | 51 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
-[1789761344.752] vkDestroySwapchainKHR swapchain=0xbcecde6c0
-[1789761344.841] vkDestroyDevice device=0xbc93fd040
+[1789764924.089] host main entered renderer=14
+[1789764924.097] storage ready disc=/Roms/PS2/Gran Turismo 3 - A-Spec (Europe, Australia) (En,Fr,De,Es,It) (v2.00).iso
+[1789764924.101] configuration core=/switch/nethersx2/cores/libemucore_4248.so bios_boot=0 fastmem=hybrid lsfg=0
+[1789764924.113] syscalls, input data, and SMC initialized
+[1789764924.117] heap ready mb=2904 so_base=0x1be800000 so_limit=268435456 screen=1280x720
+[1789764924.307] core image loaded base=0x1be800000 size=208453632
+[1789764924.313] core imports relocated and resolved
+[1789764924.327] core constructors completed
+[1789764924.332] starting core VM sequence
+[1789764926.331] vkCreateInstance begin api=4198400 app=NetherSX2 engine=NetherSX2 extensions=2
+[1789764926.336] instance extension[0]=VK_KHR_surface
+[1789764926.340] instance extension[1]=VK_KHR_android_surface
+[1789764926.345] vkCreateInstance end result=0 instance=0x109ac0cc0 lsfg_prepared=0
+[1789764928.064] vkCreateViSurfaceNN window=0x79033a0db8 result=0 surface=0x1333df420
+[1789764928.071] vkCreateDevice begin physical=0x109ae70a0 queues=1 extensions=6 lsfg_pref=0
+[1789764928.079] vkCreateDevice end result=0 device=0x135409040 lsfg_capable=0 family=4294967295
+[1789764928.083] vkGetDeviceQueue family=0 index=0 queue=0x109aee9c0
+[1789764928.087] vkGetDeviceQueue family=0 index=0 queue=0x109aee9c0
+[1789764928.106] vkGetDeviceQueue family=0 index=0 queue=0x109aee9c0
+[1789764928.286] vkCreateSwapchainKHR begin old=0x0 extent=1280x720 format=37 usage=0x10 images=3 mode=0
+[1789764928.295] vkCreateSwapchainKHR end result=0 swapchain=0x13ace46c0 compatible=0 actual_usage=0x10 actual_images=3 actual_mode=0
+[1789764928.299] vkGetSwapchainImagesKHR call=1 fill=0 result=0 count=3
+[1789764928.303] vkGetSwapchainImagesKHR call=2 fill=1 result=0 count=3
+[1789764928.458] core VM sequence returned vm_running=1
+[1789764930.857] vkAcquireNextImageKHR call=1 result=0 image=0 semaphore=0x13ba96e00 fence=0x0
+[1789764930.862] vkQueueSubmit call=1 count=1 fence=0x1333dfdc0 result=0
+[1789764930.872] vkQueuePresentKHR enter call=1 waits=1 swaps=1 lsfg=0
+[1789764930.884] vkQueuePresentKHR call=1 swaps=1 result=0
+[1789764930.896] vkAcquireNextImageKHR call=2 result=0 image=1 semaphore=0x1354810e0 fence=0x0
+[1789764931.100] vkQueueSubmit call=2 count=1 fence=0x109afc360 result=0
+[1789764931.107] vkQueuePresentKHR enter call=2 waits=1 swaps=1 lsfg=0
+[1789764931.115] vkQueuePresentKHR call=2 swaps=1 result=0
+[1789764931.125] vkAcquireNextImageKHR call=3 result=0 image=2 semaphore=0x135481400 fence=0x0
+[1789764931.129] vkQueueSubmit call=3 count=1 fence=0x109afc6a0 result=0
+[1789764931.148] vkQueuePresentKHR enter call=3 waits=1 swaps=1 lsfg=0
+[1789764931.160] vkQueuePresentKHR call=3 swaps=1 result=0
+[1789764931.165] vkAcquireNextImageKHR call=4 result=0 image=0 semaphore=0x13ba96e00 fence=0x0
+[1789764931.175] vkQueuePresentKHR enter call=4 waits=1 swaps=1 lsfg=0
+[1789764931.186] vkQueuePresentKHR call=4 swaps=1 result=0
+[1789764931.888] FPS 38.7 | 25.87 ms/frame | min 2.44 max 234.29 ms | 39 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
+[1789764932.896] FPS 34.5 | 29.00 ms/frame | min 2.25 max 210.30 ms | 35 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
+[1789764933.914] FPS 45.2 | 22.13 ms/frame | min 8.99 max 71.03 ms | 46 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
+[1789764934.914] FPS 50.0 | 20.00 ms/frame | min 17.30 max 22.73 ms | 50 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
+[1789764935.914] FPS 50.0 | 20.00 ms/frame | min 19.98 max 20.04 ms | 50 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
+[1789764936.914] FPS 50.0 | 20.00 ms/frame | min 19.97 max 20.03 ms | 50 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
+[1789764937.929] FPS 35.5 | 28.18 ms/frame | min 18.67 max 214.45 ms | 36 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
+[1789764938.940] FPS 45.5 | 21.97 ms/frame | min 6.76 max 76.57 ms | 46 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
+[1789764939.958] FPS 50.1 | 19.96 ms/frame | min 18.55 max 21.45 ms | 51 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
+[1789764940.978] FPS 50.0 | 20.00 ms/frame | min 16.84 max 23.16 ms | 51 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
+[1789764941.978] FPS 50.0 | 20.00 ms/frame | min 10.28 max 42.89 ms | 50 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
+[1789764942.998] FPS 50.0 | 20.00 ms/frame | min 18.61 max 21.39 ms | 51 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
+[1789764944.018] FPS 50.0 | 20.00 ms/frame | min 19.83 max 20.16 ms | 51 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
+[1789764945.038] FPS 50.0 | 20.00 ms/frame | min 9.00 max 35.81 ms | 51 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
+[1789764946.056] FPS 48.1 | 20.78 ms/frame | min 10.22 max 37.68 ms | 49 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
+[1789764947.063] FPS 42.7 | 23.41 ms/frame | min 1.21 max 79.27 ms | 43 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
+[1789764948.072] FPS 45.6 | 21.94 ms/frame | min 11.36 max 40.50 ms | 46 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
+[1789764949.092] FPS 38.3 | 26.14 ms/frame | min 11.37 max 44.69 ms | 39 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
+[1789764950.124] FPS 31.0 | 32.27 ms/frame | min 11.81 max 123.36 ms | 32 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
+[1789764951.140] FPS 36.4 | 27.46 ms/frame | min 11.80 max 47.46 ms | 37 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
+[1789764952.151] FPS 36.6 | 27.30 ms/frame | min 10.91 max 39.41 ms | 37 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
+[1789764953.156] FPS 49.7 | 20.11 ms/frame | min 10.99 max 36.29 ms | 50 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
+[1789764954.156] FPS 47.0 | 21.28 ms/frame | min 1.16 max 82.74 ms | 47 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
+[1789764955.176] FPS 50.0 | 20.00 ms/frame | min 19.99 max 20.01 ms | 51 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
+[1789764956.196] FPS 50.0 | 20.00 ms/frame | min 18.99 max 21.00 ms | 51 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
+[1789764957.196] FPS 50.0 | 20.00 ms/frame | min 19.99 max 20.01 ms | 50 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
+[1789764958.199] FPS 40.9 | 24.45 ms/frame | min 12.21 max 45.98 ms | 41 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
+[1789764959.449] FPS 8.0 | 125.03 ms/frame | min 12.99 max 574.84 ms | 10 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
+[1789764960.869] FPS 1.4 | 710.20 ms/frame | min 495.99 max 495.99 ms | 2 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
+[1789764962.443] FPS 1.3 | 786.98 ms/frame | min 598.67 max 598.67 ms | 2 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
+[1789764963.462] FPS 15.7 | 63.67 ms/frame | min 12.60 max 37.05 ms | 16 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
+[1789764964.476] FPS 37.5 | 26.69 ms/frame | min 11.66 max 43.98 ms | 38 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
+[1789764965.498] FPS 37.2 | 26.90 ms/frame | min 12.61 max 45.74 ms | 38 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
+[1789764966.502] FPS 38.9 | 25.74 ms/frame | min 12.61 max 40.62 ms | 39 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
+[1789764967.514] FPS 36.6 | 27.35 ms/frame | min 12.57 max 42.32 ms | 37 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
+[1789764968.542] FPS 36.9 | 27.06 ms/frame | min 12.42 max 44.59 ms | 38 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
+[1789764969.557] FPS 38.4 | 26.02 ms/frame | min 12.30 max 42.14 ms | 39 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
+[1789764970.571] FPS 38.5 | 25.99 ms/frame | min 12.40 max 40.23 ms | 39 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
+[1789764971.576] FPS 41.8 | 23.94 ms/frame | min 9.86 max 42.77 ms | 42 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
+[1789764972.576] FPS 50.0 | 20.00 ms/frame | min 19.39 max 20.61 ms | 50 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
+[1789764973.596] FPS 50.0 | 20.00 ms/frame | min 19.96 max 20.03 ms | 51 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
+[1789764974.596] FPS 50.0 | 20.00 ms/frame | min 19.79 max 20.24 ms | 50 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
+[1789764975.616] FPS 50.0 | 20.00 ms/frame | min 19.90 max 20.13 ms | 51 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
+[1789764976.616] FPS 50.0 | 20.00 ms/frame | min 19.97 max 20.03 ms | 50 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
+[1789764977.616] FPS 50.0 | 20.00 ms/frame | min 19.42 max 20.58 ms | 50 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
+[1789764978.636] FPS 50.0 | 20.00 ms/frame | min 19.98 max 20.02 ms | 51 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
+[1789764979.656] FPS 50.0 | 20.00 ms/frame | min 12.87 max 31.01 ms | 51 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
+[1789764980.676] FPS 50.0 | 20.00 ms/frame | min 19.98 max 20.02 ms | 51 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
+[1789764981.696] FPS 50.0 | 20.00 ms/frame | min 19.02 max 20.98 ms | 51 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
+[1789764982.696] FPS 50.0 | 20.00 ms/frame | min 9.17 max 50.33 ms | 50 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
+[1789764983.716] FPS 50.0 | 20.00 ms/frame | min 12.12 max 33.84 ms | 51 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
+[1789764984.736] FPS 50.0 | 20.00 ms/frame | min 16.83 max 23.16 ms | 51 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
+[1789764985.736] FPS 50.0 | 20.00 ms/frame | min 19.72 max 20.27 ms | 50 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
+[1789764986.756] FPS 50.0 | 20.00 ms/frame | min 10.44 max 31.48 ms | 51 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
+[1789764987.784] FPS 30.2 | 33.16 ms/frame | min 10.89 max 178.23 ms | 31 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
+[1789764988.799] FPS 32.5 | 30.76 ms/frame | min 14.15 max 21.00 ms | 33 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
+[1789764989.806] FPS 39.7 | 25.17 ms/frame | min 14.70 max 59.12 ms | 40 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
+[1789764990.818] FPS 38.5 | 25.96 ms/frame | min 10.60 max 148.45 ms | 39 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
+[1789764991.846] FPS 50.6 | 19.77 ms/frame | min 15.12 max 32.99 ms | 52 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
+[1789764992.860] FPS 35.5 | 28.16 ms/frame | min 17.38 max 35.02 ms | 36 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
+[1789764993.874] FPS 51.3 | 19.50 ms/frame | min 17.00 max 22.40 ms | 52 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
+[1789764994.889] FPS 34.5 | 28.99 ms/frame | min 19.00 max 257.50 ms | 35 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
+[1789764995.905] FPS 44.3 | 22.58 ms/frame | min 20.08 max 24.89 ms | 45 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
+[1789764996.917] FPS 36.6 | 27.35 ms/frame | min 20.41 max 46.33 ms | 37 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
+[1789764997.917] FPS 28.0 | 35.73 ms/frame | min 33.28 max 56.52 ms | 28 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
+[1789764998.926] FPS 27.8 | 36.03 ms/frame | min 34.14 max 38.38 ms | 28 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
+[1789764999.929] FPS 27.9 | 35.84 ms/frame | min 33.90 max 37.68 ms | 28 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
+[1789765000.940] FPS 27.7 | 36.10 ms/frame | min 33.68 max 37.60 ms | 28 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
+[1789765001.974] FPS 22.2 | 44.96 ms/frame | min 36.11 max 160.55 ms | 23 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
+[1789765002.999] FPS 25.4 | 39.40 ms/frame | min 36.79 max 75.22 ms | 26 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
+[1789765004.007] FPS 26.8 | 37.34 ms/frame | min 35.87 max 38.64 ms | 27 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
+[1789765005.025] FPS 26.5 | 37.71 ms/frame | min 36.25 max 39.09 ms | 27 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
+[1789765006.036] FPS 26.7 | 37.43 ms/frame | min 36.73 max 38.71 ms | 27 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
+[1789765007.060] FPS 27.3 | 36.58 ms/frame | min 34.87 max 38.11 ms | 28 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
+[1789765008.063] FPS 27.9 | 35.83 ms/frame | min 34.09 max 38.51 ms | 28 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
+[1789765009.076] FPS 35.5 | 28.15 ms/frame | min 15.93 max 38.67 ms | 36 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
+[1789765010.077] FPS 51.0 | 19.62 ms/frame | min 17.31 max 21.91 ms | 51 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
+[1789765011.090] FPS 49.4 | 20.26 ms/frame | min 18.25 max 32.52 ms | 50 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
+[1789765012.096] FPS 50.7 | 19.74 ms/frame | min 18.53 max 24.04 ms | 51 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
+[1789765013.097] FPS 50.0 | 20.01 ms/frame | min 16.39 max 46.95 ms | 50 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
+[1789765014.115] FPS 50.1 | 19.96 ms/frame | min 18.62 max 22.70 ms | 51 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
+[1789765015.115] FPS 50.0 | 20.01 ms/frame | min 18.63 max 22.53 ms | 50 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
+[1789765016.116] FPS 49.9 | 20.02 ms/frame | min 17.31 max 24.28 ms | 50 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
+[1789765017.137] FPS 50.0 | 20.01 ms/frame | min 17.58 max 22.31 ms | 51 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
+[1789765018.155] FPS 48.1 | 20.78 ms/frame | min 9.90 max 99.68 ms | 49 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
+[1789765019.162] FPS 48.6 | 20.56 ms/frame | min 16.14 max 41.95 ms | 49 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
+[1789765020.166] FPS 40.9 | 24.47 ms/frame | min 16.49 max 36.41 ms | 41 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
+[1789765021.175] FPS 50.5 | 19.79 ms/frame | min 16.21 max 21.86 ms | 51 framu | lsfg=0 | cpu=0 gpu=0 emc=0 MHz
+[1789765021.818] vkDestroySwapchainKHR swapchain=0x13ace46c0
+[1789765021.904] vkDestroyDevice device=0x135409040
