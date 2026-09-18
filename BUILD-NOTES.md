@@ -229,3 +229,19 @@ nedistribuuje.
 - Detektor VK v balíku už se nedělá z velikosti: stage 10 v `ci/build-switch.sh`
   grepne RomFS tabulku jmen přímo v `out/NetherSX2.nro` a hlásí
   `uvnitř .nro: NetherSX2_nx_vk.nro`, respektive `V .nRO CHYBÍ …`.
+
+## Build 41 — FPS měřidlo i pro GL (2026-09-18)
+
+`ci/build-switch.sh` (krok 7b2) vkládá do `source/hooks/egl.c` do
+`eglSwapBuffersHook` stejné 1s okno jako má VK větev, jen s prefixem `[GL]`:
+
+```
+[GL] FPS 60.4 | 16.56 ms/frame | min 16.77 max 16.95 ms | 61 framu
+```
+
+Čas se čte z `mrs cntpct_el0/cntfrq_el0` (žádná hlavička ani knihovna navíc;
+`lsfg_monotonic_ns()` je jen ve VK větvi). Blok je zamčený na
+`#if GS_RENDERER == 12`, takže je **jen v GL `.nro`** — ověřeno CI greppem
+markeru `[GL] FPS` (build 41 ho v `NetherSX2_nx_gl.nro` našel, velikost
+zůstala 7 105 411 B, protože segmenty se zarovnávají na stránky).
+VK část buildu 41 je shodná s buildem 40.
