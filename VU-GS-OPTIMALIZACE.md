@@ -5,6 +5,25 @@
 > Poslední build: **51** (`nro-latest`, `NetherSX2.nro`, 71 594 119 B,
 > sha256 `9c719e25cb27b374`).
 
+## 0. Kde je kód (přečti první — jinak začneš z prázdna)
+
+**Veškerá práce je ve větvi `arena/01a0b2a1-test`** v repu `berlint-hub/TEST`.
+Nová session má vlastní větev, takže si tuhle práci musí **načíst**:
+
+```bash
+git fetch origin arena/01a0b2a1-test:refs/remotes/origin/mine
+git checkout -B <vlastni-vetev> origin/mine      # a pokračuj z ní
+bash -n ci/build-switch.sh                       # rychlá kontrola, že je strom OK
+python3 ci/analyze-core-log.py <log z karty>     # nástroj na logy
+```
+
+Co tam je: `ci/build-switch.sh` (celý build + patche portu), `ci/patches/`
+(`ci_core_log.c` = log modul + čtení taktů, `vk_diag.py` = FPS řádka,
+`util_no_boost.py` = vypnutý CPU boost), `.github/workflows/mesa-vk.yml`
+(`VK_ONLY: 1`), `HANDOFF.md`, `BUILD-NOTES.md`, tenhle plán.
+Bez fetche té větve se `build-switch.sh` v hlavní větvi nezmění — starý stav
+neumí ani číst takty, ani nemá `ci/patches/`.
+
 ## 1. Co uživatel chce
 
 * „**gt3 má lepší nagaa**" → chce dostat Gran Turismo 3 nad ~50 FPS (teď se to
