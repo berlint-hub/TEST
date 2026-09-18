@@ -125,7 +125,7 @@ Zbývá: LSFG (frame generation) a výkon. Detaily níž.
 | branch session | `arena/01a0b2a1-test` (nikdy nepushovat jinam; stará `arena/01a0aad9-test` už na remote není) |
 | poslední pushnutý commit | `6530e4b` (název release podle obsahu), před ním `1128c73` (docs), `2fcf3f4` (VK-only + cache loaderu + LTO), `66ab58d` |
 | rolling release URL | `https://github.com/berlint-hub/TEST/releases/download/nro-latest/NetherSX2.nro` |
-| aktuální build | CI build 46, run `35330694259`, `NetherSX2.nro` = **71 590 023 B** (VK-only), `sha256` = viz anotace runu; 45 (`35329833538`) **SELHAL** a je poučením — viz §8 body 13–14. Novější obsahuje: log bez SD zápisu na frame, držený CPU boost, takty v FPS řádce, rozložení threadů na jádra |
+| aktuální build | CI build 51, run `35339363420`, `NetherSX2.nro` = **71 594 119 B** (VK-only), `sha256=9c719e25cb27b374`, release `nro-latest` „NetherSX2.nro (CI build 51, Vulkan)". Obsahuje: **CPU boost pryč** (util.c; takty řídí sysmodul), log bez SD zápisu na frame, čtení taktů + `ci-clk.conf`, rozložení threadů. Předchozí: 48/49 spadly na stažení jader (api.github.com) — opraveno přímou CDN URL |
 | v balíku | build 43: jen `NetherSX2_nx_vk.nro` **23 088 003 B** (LTO + cache v loaderu; build 42 měl 23 124 867 B). GL binárka se nestaví (`VK_ONLY=1`) — zpět ji vrátíš přepnutím `VK_ONLY: 0` v `mesa-vk.yml`; kód i GL FPS měřidlo zůstávají |
 | pozor na velikosti | buildy 34–37 maj **identickou** velikost (stránkový zarovnání segmentů) — rozlišuj podle `sha256` (35 = `b3a06739…`, 36 = `f6ea45cb…`, 37 = `c2d6aa7d…`). Build 38 povyrostl na 78 724 195 B, protože se konečně zkompilovala diagnostika |
 | generovaný loader | 766 forwarderů, `libnsxvkloader.a` = 554 390 B |
