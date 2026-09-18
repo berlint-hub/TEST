@@ -1,5 +1,9 @@
 # Poznámky k buildu (NetherSX2_nx · nxvk · devkitPro)
 
+> **Jsi nová session? Čti [`HANDOFF.md`](HANDOFF.md) napřed.** Tenhle soubor je
+> deník zjištění; HANDOFF je stav, čísla, mrtvý cesty a mechanika sandboxu.
+> Rozporuje-li se něco, platí HANDOFF.
+
 Zjištěno a **ověřeno běžením v GitHub Actions**, ne jen čtením README.
 
 ## Hlavní výsledek
@@ -17,11 +21,13 @@ Co to obnáší a co to dělá *jinak* než `build_all.sh`:
 | VK | builduje nejdřív VK a abortuje bez `vulkan/lib/libnvk.a` | VK přeskočí, GL jako jedinej render |
 | launcher | `make` napřímo | `make` + **vlastní `pkg-config` shim**, viz níže |
 
-**Zásadní omezení tohohle buildu:** chybí `NetherSX2_nx_vk.nro`, a default v
-`nethersx2.ini` je `EmuCore/GS/Renderer = 14` (Vulkan). První spuštění tedy
-musí v launcheru přepnout **Renderer na OpenGL**, jinak to narazí na
-neexistující soubor. Jakmile exists Mesa/NVK SDK (viz níže), doplní se VK
-jednoduše — skript na to má místo.
+**Aktuální stav (2026-09-18):** `NetherSX2_nx_vk.nro` už v balíku **je** —
+linkuje se přes nxvk Mesu (NVK) + námi generovaný Vulkan loader
+(`ci/gen-vk-loader.py`, 766 forwarderů na `vk_icdGetInstanceProcAddr`).
+Finální `.nro` má 78 716 003 B a obsahuje oba rendery, takže „přepni
+Renderer na OpenGL" už není podmínka — default `EmuCore/GS/Renderer = 14`
+(Vulkan) má co načíst a OpenGL je fallback v Settings. Co zatím na kartě
+neprošlo: inicializace GS (další postup a všechny detaily v HANDOFF.md).
 
 ## Stav: co ověřeno
 
