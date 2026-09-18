@@ -1,14 +1,14 @@
---- start hry 1789705722 ---
+--- start hry 1789708351 ---
   priznaky: core=1 emu=1 zdrojaky=1 config=1
   core zdroj    romfs:/cores/emucore_4248.so = 12162984 B
   core cil      sdmc:/switch/nethersx2/cores/libemucore_4248.so = 12162984 B
-  emu zdroj     romfs:/emu/NetherSX2_nx_vk.nro = 23116675 B
-  emu cil       sdmc:/switch/nethersx2/.emu/NetherSX2_nx_vk.nro = 23116675 B
+  emu zdroj     romfs:/emu/NetherSX2_nx_vk.nro = 23124867 B
+  emu cil       sdmc:/switch/nethersx2/.emu/NetherSX2_nx_vk.nro = 23124867 B
   cores dir     sdmc:/switch/nethersx2/cores = 2 polozek
   .emu dir      sdmc:/switch/nethersx2/.emu = 2 polozek
   volno na karte = 167618 MB
-  emu zdroj     prvnich 32 bajtu: 20 00 00 14 f0 00 00 00 48 4f 4d 45 42 52 45 57 4e 52 4f 30 00 00 00 00 00 30 60 01 00 00 00 00  ascii: .......HOMEBREWNRO0.....0`.....
-  emu cil       prvnich 32 bajtu: 20 00 00 14 f0 00 00 00 48 4f 4d 45 42 52 45 57 4e 52 4f 30 00 00 00 00 00 30 60 01 00 00 00 00  ascii: .......HOMEBREWNRO0.....0`.....
+  emu zdroj     prvnich 32 bajtu: 20 00 00 14 f0 00 00 00 48 4f 4d 45 42 52 45 57 4e 52 4f 30 00 00 00 00 00 50 60 01 00 00 00 00  ascii: .......HOMEBREWNRO0.....P`.....
+  emu cil       prvnich 32 bajtu: 20 00 00 14 f0 00 00 00 48 4f 4d 45 42 52 45 57 4e 52 4f 30 00 00 00 00 00 50 60 01 00 00 00 00  ascii: .......HOMEBREWNRO0.....P`.....
   sonda sdmc:/switch/nethersx2/cores:
     fopen wb    = ok
     fwrite      = 4096 / 4096
@@ -23,17 +23,17 @@
     stat tmp    = 0 size=4096
     rename      = 0
     stat dst    = 0 size=4096
---- start hry 1789705761 ---
+--- start hry 1789708429 ---
   priznaky: core=1 emu=1 zdrojaky=1 config=1
   core zdroj    romfs:/cores/emucore_4248.so = 12162984 B
   core cil      sdmc:/switch/nethersx2/cores/libemucore_4248.so = 12162984 B
-  emu zdroj     romfs:/emu/NetherSX2_nx_gl.nro = 7105411 B
-  emu cil       sdmc:/switch/nethersx2/.emu/NetherSX2_nx_gl.nro = 7105411 B
+  emu zdroj     romfs:/emu/NetherSX2_nx_vk.nro = 23124867 B
+  emu cil       sdmc:/switch/nethersx2/.emu/NetherSX2_nx_vk.nro = 23124867 B
   cores dir     sdmc:/switch/nethersx2/cores = 2 polozek
   .emu dir      sdmc:/switch/nethersx2/.emu = 2 polozek
-  volno na karte = 167618 MB
-  emu zdroj     prvnich 32 bajtu: 20 00 00 14 f0 00 00 00 48 4f 4d 45 42 52 45 57 4e 52 4f 30 00 00 00 00 00 e0 6b 00 00 00 00 00  ascii: .......HOMEBREWNRO0......k.....
-  emu cil       prvnich 32 bajtu: 20 00 00 14 f0 00 00 00 48 4f 4d 45 42 52 45 57 4e 52 4f 30 00 00 00 00 00 e0 6b 00 00 00 00 00  ascii: .......HOMEBREWNRO0......k.....
+  volno na karte = 167619 MB
+  emu zdroj     prvnich 32 bajtu: 20 00 00 14 f0 00 00 00 48 4f 4d 45 42 52 45 57 4e 52 4f 30 00 00 00 00 00 50 60 01 00 00 00 00  ascii: .......HOMEBREWNRO0.....P`.....
+  emu cil       prvnich 32 bajtu: 20 00 00 14 f0 00 00 00 48 4f 4d 45 42 52 45 57 4e 52 4f 30 00 00 00 00 00 50 60 01 00 00 00 00  ascii: .......HOMEBREWNRO0.....P`.....
   sonda sdmc:/switch/nethersx2/cores:
     fopen wb    = ok
     fwrite      = 4096 / 4096
