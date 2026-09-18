@@ -30,25 +30,29 @@ if len(sys.argv) < 2:
 
 MARK = "NSX_APM_LAUNCHER_DIAG"
 
-LAMBDA = """    /* NSX_APM_LAUNCHER_DIAG (build 58): cteni, ne zapis. Ktera tabulka
-     * taktu prave plati (0x92220007/08 = bezny stav, 0x92220009/0A/0B/0C =
-     * FastLoad = GPU na minimum podle libnx apm.h:21). */
-    auto nsxApmNow=[](const char *when){
-      u32 cfg=0;
-      const Result rc=appletGetCurrentPerformanceConfiguration(&cfg);
-      ApmPerformanceMode mode=ApmPerformanceMode_Invalid;
-      const Result rm=apmGetPerformanceMode(&mode);
-      printf("[LAUNCH] apm(%s): konfigurace=0x%x (rc=0x%x) rezim=%s (rc=0x%x)\\n",
-             when,(unsigned)cfg,(unsigned)rc,
-             R_SUCCEEDED(rm)?((int)mode==1?"Console":"Handheld"):"?",
-             (unsigned)rm);
-      fflush(stdout);
-    };
+# Statická funkce na úrovni souboru, NE lambda v main(): první pokus (run
+# 35373639821) měl lambdu v main() a volání v executePaste() →
+# „'nsxApmNow' was not declared in this scope“.
+FUNC_ANCHOR = "static bool executePaste(const std::string &folder) {\n"
+FUNC_DEF = r"""/* NSX_APM_LAUNCHER_DIAG (build 58): cteni, ne zapis. Ktera tabulka taktu
+ * prave plati (0x92220007/08 = bezny stav, 0x92220009/0A/0B/0C = FastLoad =
+ * GPU na minimum podle libnx apm.h:21). */
+static void nsxApmNow(const char *when){
+  u32 cfg=0;
+  const Result rc=appletGetCurrentPerformanceConfiguration(&cfg);
+  ApmPerformanceMode mode=ApmPerformanceMode_Invalid;
+  const Result rm=apmGetPerformanceMode(&mode);
+  printf("[LAUNCH] apm(%s): konfigurace=0x%x (rc=0x%x) rezim=%s (rc=0x%x)\n",
+         when,(unsigned)cfg,(unsigned)rc,
+         R_SUCCEEDED(rm)?((int)mode==1?"Console":"Handheld"):"?",
+         (unsigned)rm);
+  fflush(stdout);
+}
+
 """
 
-# Kotvy jsou dvouřádkové (komentovaný Normal + řádek za ním), protože
-# `// appletSetCpuBoostMode(ApmCpuBoostMode_Normal);` je v souboru třikrát.
 # main(): těsně před spuštěním hry — emulátor tuhle konfiguraci zdědí.
+# Kotva je dvouřádková, protože `// appletSetCpuBoostMode(…Normal);` je 3×.
 ANCHOR_MAIN = """    // appletSetCpuBoostMode(ApmCpuBoostMode_Normal);
     if(haveCore){
 """
@@ -83,12 +87,17 @@ def main():
         print("launcher apm diag: kotva main() není jednoznačná (%dx)"
               % text.count(ANCHOR_MAIN))
         return 1
+    if text.count(FUNC_ANCHOR) != 1:
+        print("launcher apm diag: kotva executePaste() definice neni jednoznacna (%dx)"
+              % text.count(FUNC_ANCHOR))
+        return 1
     if text.count(ANCHOR_PASTE) != 1:
         print("launcher apm diag: kotva executePaste() není jednoznačná (%dx)"
               % text.count(ANCHOR_PASTE))
         return 1
 
-    text = text.replace(ANCHOR_MAIN, LAMBDA + NEW_MAIN, 1)
+    text = text.replace(FUNC_ANCHOR, FUNC_DEF + FUNC_ANCHOR, 1)
+    text = text.replace(ANCHOR_MAIN, NEW_MAIN, 1)
     text = text.replace(ANCHOR_PASTE, NEW_PASTE, 1)
     open(path, "w", encoding="utf-8", errors="surrogateescape").write(text)
     print("launcher apm diag: ok (main + executePaste)")

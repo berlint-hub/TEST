@@ -249,12 +249,20 @@ domněnka, ne závěr.
 * `ci/patches/launcher_apm_diag.py` → launcher vypíše totéž těsně před
   spuštěním hry (to je konfigurace, kterou emulátor zdědí).
 
-**První pokus o build 58 spadl** (run `35371999430`) na dvou chybách, které
-lokální testy neodhalily, protože používaly ruční definice typů:
-`invalid use of undefined type 'struct so_module'` (vk.c) a `unknown type
-name 'ThreadExceptionDump'` (vk.h — ten `switch.h` nezahrnuje). Oprava:
-vk.c includuje `../so_util.h`, a `vk_diag_exception()` bere kontext jako
-`const void *` (vk.h si přetypuje až vk.c, který `switch.h` má).
+**Build 58 potřeboval tři opravy, než prošel** — všechny tři byly chyby, které
+lokální testy měly chytit a nechytly:
+
+| run | chyba | příčina |
+|---|---|---|
+| `35371999430` | `invalid use of undefined type 'struct so_module'` (vk.c), `unknown type name 'ThreadExceptionDump'` (vk.h) | `so_module` je **anonymní typedef** (`so_util.h:25`); `vk.h` nemá `switch.h`. Lokální test měl vlastní `struct so_module {…}`, takže prošel |
+| `35373076233` | `vk: v binárce chybí: [session start build=57]` | markerová brána měla číslo binárky **natvrdo**; `ci_core_log.c` už měl 58 |
+| `35373639821` | `main.cpp:3712: 'nsxApmNow' was not declared in this scope` | lambda byla v `main()`, volání v `executePaste()` — jiná funkce |
+
+Čtvrtá chyba vyšla najevo až při přepisování té třetí: `FUNC_DEF` v
+`launcher_apm_diag.py` neměl `r` prefix, takže `\n` v `printf` se stal
+**skutečným koncem řádku** a C string se roztrhl (přesně past buildu 45).
+Proto je v `build-switch.sh` teď stavový skener, který na každé řádce
+launcheru kontroluje, nezůstal-li otevřený string literal.
 
 **Proč „pořád klesají takty“ stále neumíme vysvětlit:** odstranění FastLoad
 nemohlo takty *zvednout* — FastLoad GPU naopak srážel na minimum. Bez boostu

@@ -1484,6 +1484,59 @@ PYEOF
   # zakomentované řádky. Čtení, ne zápis.
   if python3 "$HERE/patches/launcher_apm_diag.py" "$SRC/launcher/source/main.cpp"; then
     key "launcher: aktivni konfigurace taktu v diagu (pred spustenim hry)"
+    # Lex pojistka: v C/C++ nesmí string literal obsahovat skutečný konec
+    # řádku. Když patcher nemá `r` prefix, Python z \\n udělá opravdový konec
+    # řádku a string se roztrhne (past buildu 45; u launcheru to v prvním
+    # pokusu buildu 58 proklouzlo až do make). Tohle je stavový skener přes
+    # celý soubor, ne heuristika — na konci každé řádky nesmí zůstat otevřený
+    # string ani znakový literál.
+    if ! python3 - "$SRC/launcher/source/main.cpp" <<'LAUNCHLEX' ; then
+import pathlib, sys
+path = pathlib.Path(sys.argv[1])
+lines = path.read_text(errors="replace").splitlines()
+state, line_no = None, 1
+bad = []
+prev = ""
+for idx, line in enumerate(lines, 1):
+    line_no = idx
+    i, n = 0, len(line)
+    while i < n:
+        c = line[i]
+        two = line[i:i + 2]
+        if state is None:
+            if two == "//":
+                break
+            if two == "/*":
+                state = "block"; i += 2; continue
+            if c == '"':
+                state = "string"; i += 1; continue
+            if c == "'":
+                state = "char"; i += 1; continue
+        elif state == "block":
+            if two == "*/":
+                state = None; i += 2; continue
+        elif state == "string":
+            if c == "\\":
+                i += 2; continue
+            if c == '"':
+                state = None
+        elif state == "char":
+            if c == "\\":
+                i += 2; continue
+            if c == "'":
+                state = None
+        i += 1
+    if state in ("string", "char"):
+        bad.append((line_no, line.strip()[:90]))
+        state = None
+if bad:
+    for ln, txt in bad[:5]:
+        print("main.cpp:%d: neukonceny string literal: %s" % (ln, txt))
+    sys.exit(1)
+LAUNCHLEX
+      die "launcher main.cpp: neukonceny string literal (v patcheri chybi r-prefix)"
+    fi
+    key "launcher main.cpp: lex kontrola ok (zadny string pres konec radku)"
   else
     die "launcher_apm_diag.py neprosel"
   fi
