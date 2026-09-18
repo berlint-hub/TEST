@@ -1,4 +1,4 @@
---- start hry 1789758206 ---
+--- start hry 1789760788 ---
   priznaky: core=1 emu=1 zdrojaky=1 config=1
   renderer      [renderer-decision] EmuCore/GS/Renderer=14 (global=14) -> nro=vk, GLDriver=nvc0
   game profil   sdmc:/switch/nethersx2/gamecfg/Fallout_-_Brotherhood_of_Steel__USA_.ini = CHYBI (klic=ps2-ee80a5b0966856ca6b2e) -> plati globalni hodnota
@@ -8,7 +8,7 @@
   emu cil       sdmc:/switch/nethersx2/.emu/NetherSX2_nx_vk.nro = 23104387 B
   cores dir     sdmc:/switch/nethersx2/cores = 2 polozek
   .emu dir      sdmc:/switch/nethersx2/.emu = 2 polozek
-  volno na karte = 166111 MB
+  volno na karte = 166131 MB
   emu zdroj     prvnich 32 bajtu: 20 00 00 14 f0 00 00 00 48 4f 4d 45 42 52 45 57 4e 52 4f 30 00 00 00 00 00 00 60 01 00 00 00 00  ascii: .......HOMEBREWNRO0......`.....
   emu cil       prvnich 32 bajtu: 20 00 00 14 f0 00 00 00 48 4f 4d 45 42 52 45 57 4e 52 4f 30 00 00 00 00 00 00 60 01 00 00 00 00  ascii: .......HOMEBREWNRO0......`.....
   sonda sdmc:/switch/nethersx2/cores:
@@ -25,7 +25,7 @@
     stat tmp    = 0 size=4096
     rename      = 0
     stat dst    = 0 size=4096
---- start hry 1789758619 ---
+--- start hry 1789761157 ---
   priznaky: core=1 emu=1 zdrojaky=1 config=1
   renderer      [renderer-decision] EmuCore/GS/Renderer=14 (global=14) -> nro=vk, GLDriver=nvc0
   game profil   sdmc:/switch/nethersx2/gamecfg/Gran_Turismo_3_-_A-Spec__Europe__Australia___En_Fr_De_Es_It___v2_00_.ini = CHYBI (klic=ps2-5d048644b5e2529532fe) -> plati globalni hodnota
@@ -35,7 +35,7 @@
   emu cil       sdmc:/switch/nethersx2/.emu/NetherSX2_nx_vk.nro = 23104387 B
   cores dir     sdmc:/switch/nethersx2/cores = 2 polozek
   .emu dir      sdmc:/switch/nethersx2/.emu = 2 polozek
-  volno na karte = 166115 MB
+  volno na karte = 166130 MB
   emu zdroj     prvnich 32 bajtu: 20 00 00 14 f0 00 00 00 48 4f 4d 45 42 52 45 57 4e 52 4f 30 00 00 00 00 00 00 60 01 00 00 00 00  ascii: .......HOMEBREWNRO0......`.....
   emu cil       prvnich 32 bajtu: 20 00 00 14 f0 00 00 00 48 4f 4d 45 42 52 45 57 4e 52 4f 30 00 00 00 00 00 00 60 01 00 00 00 00  ascii: .......HOMEBREWNRO0......`.....
   sonda sdmc:/switch/nethersx2/cores:
