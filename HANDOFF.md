@@ -421,10 +421,14 @@ Co je kvůli tomu v buildu 46 nového (vše za běhu vypínatelné markerem na S
    `ci-rawlog.enabled` (úplně bez dedupu) nebo smazat `ci-logging.enabled`.
    **Pozor:** naše vlastní řádky (`[VK]`, `[GL]`, `[CI]`, `[nsx-vk]`) dedup
    obchází a flushe hned — nesmí zmizet FPS měřidlo.
-2. **`NSX_KEEP_BOOST` — drží CPU boost.** Port si po **60 framech** (≈2 s)
-   sám shodí `FastLoad` boost zpátky na `Normal` (`source/main.c` ~2053).
-   Teď ho držíme. Vypnutí: marker `ci-noboost.enabled`.
-   FPS řádka to hlásí jako `boost=0/1` — bez toho se „boost drží" nedá ověřit.
+2. **`NSX_KEEP_BOOST` — POZOR, default je teď „nedržet".** Port si po
+   **60 framech** (≈2 s) sám shodí `FastLoad` boost (`source/main.c` ~2053)
+   a to je dobře, protože podle libnx `ApmCpuBoostMode_FastLoad` znamená
+   „Boost CPU. **Additionally, throttle GPU to minimum**" — tedy CPU 1785
+   a GPU 76 MHz. Build 46 boost držel celou hru, uživatel na kartě videl
+   „GPU na minimu" a GT3 spadl z 31,6 na 29,1 FPS (medián). Držení je proto
+   opt-in: marker `ci-keepboost.enabled` (a NSX_CLK k tomu vrátí GPU na
+   normální takt). FPS řádka hlásí `boost=0/1`.
 3. **FPS řádka s takty** (build 46 má `clkrst` API, ověřeno compile probem
    v CI): `FPS 31.6 | 31.65 ms/frame | min … max … ms | N framu | lsfg=0
    boost=1 | cpu=1785 gpu=768 emc=1600 MHz`. Když se `cpu` nehýbe z 1020, boost
@@ -457,3 +461,21 @@ Co je kvůli tomu v buildu 46 nového (vše za běhu vypínatelné markerem na S
      přepnuté; vrátit na default a porovnat (může ubírat i přidávat).
   5. Teprve pak sáhnout do kódu (např. pin VU1 na vlastní jádro mimo work
      pool), protože bez měření to je hádání.
+
+## 11. Takty CPU/GPU/EMC — co jde a co (zatím) ne
+
+* **Čtení taktů: `clkrst` v buildu 46 vracelo nuly** (`cpu=0 gpu=0 emc=0`
+  v celé session), takže se „GPU na minimu" nedalo ověřit. Build 47 tiskne
+  Result kódy (`[CI] clk: clkrst init=0x… open cpu=0x… … pcv=…`) a zkouší
+  i starší službu `pcv` jako fallback. Podle těch kódů se pozná, jestli
+  čtečka potřebuje jiné vlákno/session, nebo jestli ji firmware zakazuje.
+* **Nastavení taktů: `ci-clk.conf`** — textový soubor na SD, např.
+  `cpu=1785 gpu=460 emc=1600` (MHz, co tam není se nechá být). Aplikuje se
+  jednou na startu emulace, každý zápis se loguje (před/po + Result).
+  Okno/handheld: GPU 460 je strop handheldu, 768 oficiální docked.
+* **Režim APM** se taky loguje (`[CI] apm: mode=… handheld=0x… docked=0x…`):
+  `0x9222000A` (handheld) / `0x92220009` (docked) = FastLoad, tj. CPU nahoru
+  a GPU na minimum. Když to v logu je, boost je aktivní.
+* **Známá past:** `appletSetCpuBoostMode(FastLoad)` NENÍ jen „CPU nahoru" —
+  sráží GPU. Chceš-li CPU 1785 *a* rozumnou GPU, drž FastLoad a přepiš GPU
+  přes `ci-clk.conf` (přesně to dělá `ci-keepboost.enabled` + NSX_CLK).

@@ -673,12 +673,15 @@ PKGLIBS
       #   NetherSX2 Vulkan diagnostic       = VK diagnostika je vůbec zapnutá
       #   diag soubor nethersx2-vulkan.log  = diag se zrcadlí i do core logu
       #   MESA_SHADER_CACHE_DIR             = cache u emulátoru, ne v rootu SD
+      #   [CI] clk:                         = čtení taktů (clkrst) je v binárce
+      #   ci-keepboost.enabled              = marker pro držení CPU boostu
       vkbin="$SRC/NetherSX2_nx_vk.nro"
       vkmiss=""
       for marker in "NVK_I_WANT_A_BROKEN_VULKAN_DRIVER" "nsx-vk" \
                     "NetherSX2 Vulkan diagnostic" "diag soubor nethersx2-vulkan.log" \
                     "MESA_SHADER_CACHE_DIR" "FPS %.1f" "boost=%d" \
-                    "[CI] cores:" "cpu boost DRZIM"; do
+                    "[CI] clk:" "ci-keepboost.enabled" "ci-clk.conf" \
+                    "[CI] cores:" "cpu boost"; do
         # -F: markery maj v sobě [ ] a v regexu by to byla znaková třída
         grep -qaF -- "$marker" "$vkbin" || vkmiss="$vkmiss [$marker]"
       done
@@ -757,206 +760,9 @@ fi
 # ale zapnutej je jen pokud na kartě existuje /switch/nethersx2/ci-logging.enabled
 # — bez toho souboru se build chová přesně jako upstream (žádnej fwrite navic).
 mkdir -p "$SRC/source/hooks"
-cat > "$SRC/source/hooks/ci_core_log.c" <<'CI_CORE_LOG_C'
-/* CI log capture — vygeneroval ho ci/build-switch.sh, není část upstreamu. */
-#include <stdarg.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/stat.h>
-
-#define CI_LOG_PATH  "/switch/nethersx2/nethersx2-core.log"
-#define CI_MARK_PATH "/switch/nethersx2/ci-logging.enabled"
-
-static int ci_enabled = -1;
-
-static int ci_on(void) {
-  if (ci_enabled < 0) {
-    struct stat st;
-    ci_enabled = (stat(CI_MARK_PATH, &st) == 0) ? 1 : 0;
-    if (ci_enabled) {
-      if (freopen(CI_LOG_PATH, "a", stdout))
-        setvbuf(stdout, NULL, _IOFBF, 64 * 1024);   /* NSX_LOG_QUIET */
-      /* Mesa (a tím i NVK) hlásí svoje chyby přes vk_errorf/mesa_log na
-       * stderr a ten dosud nikam neved — přesně tam je důvod, proč driver
-       * nevydá žádný zařízení. Zapisujeme do stejnýho souboru. */
-      int stderr_ok = freopen(CI_LOG_PATH, "a", stderr) != NULL;
-      if (stderr_ok)
-        setvbuf(stderr, NULL, _IOFBF, 64 * 1024);   /* NSX_LOG_QUIET */
-      /* Runtime důkaz, že patch z build-switch.sh (krok 7a) prošel až sem:
-       * bez "1" tady NVK nevydá žádný fyzický zařízení.
-       * Poznámka z karty: na Switchi se přesměrovanej stderr do souboru
-       * nepropsal, i když freopen hlásil úspěch (proto ten výpis) — všechny
-       * naše vlastní diagnostiky jdou proto na stdout. */
-      {
-        const char *nvk_env = getenv("NVK_I_WANT_A_BROKEN_VULKAN_DRIVER");
-        fprintf(stdout, "[CI] log capture ON, NVK_I_WANT_A_BROKEN_VULKAN_DRIVER=%s\n",
-                nvk_env ? nvk_env : "(nenastaveno)");
-        fprintf(stdout, "[CI] stderr smerovan do core logu: %s\n",
-                stderr_ok ? "ok" : "SELHAL");
-      }
-    }
-  }
-  return ci_enabled;
-}
-
-/* main.c se přes to ptá, jestě má bejt Logging/* z ini (marker na kartě) */
-int ci_logging_enabled(void) { return ci_on(); }
-
-/* ---- NSX_LOG_QUIET -------------------------------------------------------
- * Native core umí logovat klidně dva řádky NA FRAME: GT3 se každý frame ptá
- * na čas, což core loguje jako "Timezone=" + "SummerTime=" (v jedné session
- * z karty 7309x každý, tj. 14,6 tisíce řádků). S řádkovým bufferem to byl
- * jeden zápis na SD kartu na řádek (~60/s) — a to z emulačního procesu, kde
- * každá milisekunda na I/O chybí. Fallout tenhle spam neměl a jel 59,9 FPS;
- * GT3 s ním 31,6. Proto tři změny:
- *   * stdout/stderr je plně bufferovaný (64 KiB) místo řádkového po 1 KiB —
- *     SD se dotkneme jen když se buffer naplní,
- *   * stejné po sobě jdoucí řádky (čísla = '#') se počítají a vypíšou jednou,
- *   * naše vlastní [VK]/[GL]/[CI]/[nsx-vk] řádky jdou hned (fflush), takže
- *     FPS měření přežije i pád.
- * Marker /switch/nethersx2/ci-rawlog.enabled tohle potlačení vypne (surový
- * log, když jde o to vidět každý řádek). */
-static char ci_last_norm[256];
-static unsigned ci_repeat;
-
-static int ci_is_ours(const char *s) {
-  return !strncmp(s, "[VK] ", 5) || !strncmp(s, "[GL] ", 5) ||
-         !strncmp(s, "[CI] ", 5) || !strncmp(s, "[nsx-vk] ", 9);
-}
-
-static void ci_norm(const char *in, char *out, size_t cap) {
-  size_t o = 0;
-  int digit = 0;
-  for (; *in && o + 1 < cap; ++in) {
-    if (*in >= '0' && *in <= '9') {
-      if (!digit) { out[o++] = '#'; digit = 1; }
-    } else {
-      out[o++] = *in;
-      digit = 0;
-    }
-  }
-  out[o] = 0;
-}
-
-static int ci_raw_log(void) {
-  static int cached = -1;
-  if (cached < 0) {
-    struct stat st;
-    cached = (stat("/switch/nethersx2/ci-rawlog.enabled", &st) == 0) ? 1 : 0;
-  }
-  return cached;
-}
-
-static void ci_flush_repeat(void) {
-  if (ci_repeat > 1)
-    fprintf(stdout, "[CI] ... predchozi radka se opakovala %ux (potlaceno; "
-                    "ci-rawlog.enabled to vypne)\n", ci_repeat);
-  ci_repeat = 1;
-}
-
-static void ci_emit(const char *line) {
-  if (!line)
-    return;
-  if (ci_is_ours(line)) {           /* naše diagnostika: bez dedupu a hned */
-    ci_flush_repeat();
-    fputs(line, stdout);
-    fputc('\n', stdout);
-    fflush(stdout);
-    return;
-  }
-  if (ci_raw_log()) {
-    fputs(line, stdout);
-    fputc('\n', stdout);
-    return;
-  }
-  char norm[256];
-  ci_norm(line, norm, sizeof(norm));
-  if (ci_last_norm[0] && !strcmp(norm, ci_last_norm)) {
-    ++ci_repeat;
-    return;
-  }
-  ci_flush_repeat();
-  strncpy(ci_last_norm, norm, sizeof(ci_last_norm) - 1);
-  ci_last_norm[sizeof(ci_last_norm) - 1] = 0;
-  fputs(line, stdout);
-  fputc('\n', stdout);
-}
-
-/* ---- NSX_KEEP_BOOST ------------------------------------------------------
- * Port pouští CPU boost (ApmCpuBoostMode_FastLoad = vyší CPU takt) jen na
- * prvních 60 prezentovaných framů a pak ho shodí („Cover startup without
- * holding the CPU boost into gameplay"). Pro CPU-bound emulaci to je ztráta
- * ~40 % taktu hned po dvou sekundách hry — přesně to může být rozdíl mezi
- * 32 a 50 FPS v GT3. Defaultně proto boost držíme celou hru; marker
- * /switch/nethersx2/ci-noboost.enabled vrátí upstream chování (na kartě se
- * to tak dá vyzkoušet bez rebuildu). */
-int ci_keep_cpu_boost(void) {
-  static int cached = -1;
-  if (cached < 0) {
-    struct stat st;
-    cached = (stat("/switch/nethersx2/ci-noboost.enabled", &st) == 0) ? 0 : 1;
-  }
-  return cached;
-}
-
-static int ci_boost_state = 1;
-void ci_set_cpu_boost_state(int on) { ci_boost_state = on; }
-int  ci_get_cpu_boost_state(void) { return ci_boost_state; }
-
-/* Jednoznačná identifikace běžícího .nro. Volá se z main.c až v běhu
- * (po setenv z kroku 7a), takže na rozdíl od hlášky v ci_on() nemůže
- * ukazovat hodnotu z doby před main() — z karty se totiž jinak „GL vs VK"
- * odhaduje jen podle toho, jestli v logu jsou [VK] řádky, a to je slabý. */
-void ci_renderer_banner(void) {
-  if (!ci_on()) return;
-#ifdef USE_VULKAN
-  const char *nvk = getenv("NVK_I_WANT_A_BROKEN_VULKAN_DRIVER");
-# ifdef GS_RENDERER
-  fprintf(stdout, "[CI] emulator nro: VK build (GS_RENDERER=%d), "
-                  "NVK_I_WANT_A_BROKEN_VULKAN_DRIVER=%s\n",
-          GS_RENDERER, nvk ? nvk : "(nenastaveno)");
-# else
-  fprintf(stdout, "[CI] emulator nro: VK build, NVK_I_WANT_A_BROKEN_VULKAN_DRIVER=%s\n",
-          nvk ? nvk : "(nenastaveno)");
-# endif
-#else
-# ifdef GS_RENDERER
-  fprintf(stdout, "[CI] emulator nro: GL build (GS_RENDERER=%d) — Vulkan v tomhle .nro neni\n",
-          GS_RENDERER);
-# else
-  fprintf(stdout, "[CI] emulator nro: GL build — Vulkan v tomhle .nro neni\n");
-# endif
-#endif
-}
-
-int ci_android_log_write(int prio, const char *tag, const char *text) {
-  if (!ci_on()) return 0;
-  char line[640];
-  snprintf(line, sizeof(line), "[%d][%s] %s", prio, tag ? tag : "-", text ? text : "");
-  ci_emit(line);
-  return 0;
-}
-
-int ci_android_log_vprint(int prio, const char *tag, const char *fmt, va_list va) {
-  if (!ci_on()) return 0;
-  char buf[512], line[640];
-  vsnprintf(buf, sizeof(buf), fmt, va);
-  snprintf(line, sizeof(line), "[%d][%s] %s", prio, tag ? tag : "-", buf);
-  ci_emit(line);
-  return 0;
-}
-
-/* Silná verze: slabou definici v imports.c přebije i když ji upstream
- * nezjemnil, protože imports.c ji jen předává do import tabulky. */
-int __android_log_print(int prio, const char *tag, const char *fmt, ...) {
-  va_list va;
-  va_start(va, fmt);
-  int r = ci_android_log_vprint(prio, tag, fmt, va);
-  va_end(va);
-  return r;
-}
-CI_CORE_LOG_C
+  # Obsah je v ci/patches/ci_core_log.c (dřív tu byl jako heredoc; v Python
+  # řetězcích se pletly zpětné lomítka — build 45 kvůli tomu spadl).
+  cp "$HERE/patches/ci_core_log.c" "$SRC/source/hooks/ci_core_log.c" || die "kopie ci_core_log.c"
 
 # imports.c: původní __android_log_print MUSÍ být weak, jinak dvě silný
 # definice; a tabulka musí ukazovat na naše funkce (inak `static` →
@@ -1028,9 +834,12 @@ else:
 
 # ---- NSX_KEEP_BOOST -------------------------------------------------------
 # Port zapne CPU boost (FastLoad) na startu a po 60 prezentovaných framech ho
-# shodí. U CPU-bound emulace (GT3) to je po ~2 s hry ztráta ~40 % taktu.
-# Boost proto držíme (rozhoduje ci_keep_cpu_boost() v ci_core_log.c, marker
-# ci-noboost.enabled vrátí upstream chování) a stav hlásíme do FPS řádky.
+# shodí. Držet ho ale NENÍ zdarma: ApmCpuBoostMode_FastLoad podle libnx
+# znamená „boosti CPU, a k tomu srazí GPU na minimum" (CPU 1785 / GPU 76).
+# Build 46 ho držel celou hru a uživatel na kartě videl právě „GPU na minimu"
+# (a GT3 spadl z 31,6 na 29,1 FPS). Default je proto upstream; držení zapíná
+# marker ci-keepboost.enabled (a NSX_CLK k tomu vrátí GPU na normální takt).
+# Rozhoduje ci_keep_cpu_boost() v ci_core_log.c, stav jde do FPS řádky.
 boost_edits = [
     ("  cpu_boost(1);\n",
      "  cpu_boost(1);\n"
@@ -1049,13 +858,13 @@ boost_edits = [
      "        extern void ci_set_cpu_boost_state(int);\n"
      "        if (ci_keep_cpu_boost()) {\n"
      "          ci_set_cpu_boost_state(1);\n"
-     "          fprintf(stdout, \"[CI] cpu boost DRZIM (FastLoad) — marker \"\n"
-     "                          \"/switch/nethersx2/ci-noboost.enabled ho vypne\\n\");\n"
+     "          fprintf(stdout, \"[CI] cpu boost DRZIM (FastLoad) — GPU spadne na minimum; \"\n"
+     "                          \"NSX_CLK ji vraci (ci-keepboost.enabled)\\n\");\n"
      "          fflush(stdout);\n"
      "        } else {\n"
      "          cpu_boost(0);\n"
      "          ci_set_cpu_boost_state(0);\n"
-     "          fprintf(stdout, \"[CI] cpu boost shozen (upstream chovani)\\n\");\n"
+     "          fprintf(stdout, \"[CI] cpu boost shozen (upstream chovani; GPU zustava)\\n\");\n"
      "          fflush(stdout);\n"
      "        }\n"
      "        boosting = 0;\n"
@@ -1063,7 +872,9 @@ boost_edits = [
 ]
 bhit = 0
 for find, repl in boost_edits:
-    if repl in text:
+    # Pozor: kontrola idempotence nesmí záviset na přesném textu hlášky (ta se
+    # občas upraví) — hledá se proto stabilní jméno funkce.
+    if "ci_keep_cpu_boost" in text:
         bhit += 1          # už patchnuto
     elif find in text:
         text = text.replace(find, repl, 1)
@@ -1373,161 +1184,15 @@ VkResult_t vkEnumerateInstanceLayerProperties(uint32_t *pCount, void *pPropertie
 VKSHIM
   note "psán weak VK loader shim (instance version/layer/extension enumeration)"
 
-  # ------------------------------------------------- NSX_CLK: jde clkrst?
-  # Takty CPU/GPU/EMC v FPS řádce jsou u CPU-bound hry to nejcennější číslo
-  # (hlavně jestli drží CPU boost). API clkrst se ale mezi verzemi libnx mění
-  # (dřív clkrstGetClockRate(module, &hz), dnes ClkrstSession + openSession),
-  # a špatný odhad by shodil CELÝ VK build. Compile probe to rozhodne za dvě
-  # sekundy a patch podle toho vygeneruje buď čtení, nebo nuly.
-  NSX_CLK_API=0
-  cat > "$WORK/clkprobe.c" <<'CLKPROBE'
-#include <switch.h>
-int nsx_clkprobe(void) {
-  ClkrstSession s;
-  u32 hz = 0;
-  if (R_FAILED(clkrstInitialize())) return 0;
-  if (R_FAILED(clkrstOpenSession(&s, PcvModule_CpuBus, 3))) return 0;
-  if (R_FAILED(clkrstGetClockRate(&s, &hz))) return 0;
-  return (int)(hz / 1000000u);
-}
-CLKPROBE
-  if aarch64-none-elf-gcc -c -o /dev/null "$WORK/clkprobe.c" \
-       -D__SWITCH__ -I"$PORTLIBS/include" -I"$DEVKITPRO/libnx/include" 2>>"$WORK/logs/vk-shim.log"; then
-    NSX_CLK_API=1
-    key "diag: clkrst session API k dispozici -> takty v FPS radce"
+  # Patch je v ci/patches/vk_diag.py (dřív heredoc s Python řetězci, kde se
+  # pletly zpětné lomítka — build 45 na tom spadl). Takty si patch bere
+  # z ci_core_log.c přes slabé symboly, takže tu není žádný compile probe.
+  if python3 "$HERE/patches/vk_diag.py" "$SRC/source/hooks/vk.c"; then
+    key "vk: diag zrcadlena do stderr (nethersx2-core.log) + FPS/takty radka"
   else
-    note "diag: clkrst API v tomhle libnx nesedi (nebo chybi) -> takty budou 0"
+    warn "vk.c patch pro diag neprošel — zůstává jen nethersx2-vulkan.log"
   fi
 
-  # ---------------------------------------------------------------- 7d. diag->stderr
-  # Diagnostika portu píše do sdmc:/switch/nethersx2/nethersx2-vulkan.log, jenže
-  # z karty (build 37) ten soubor nikdo nedostal — a přitom právě v něm je
-  # „vkCreateViSurfaceNN window=… result=…". Zrcadlíme proto každý vk_diag_note
-  # i na stderr: ten si ci_core_log.c přesměruje do nethersx2-core.log, který
-  # z karty chodí spolehlivě. Navíc si vypíšeme, jestli se ten soubor vůbec
-  # podařilo otevřít — to je jediné, co o té záhadě rozhodne.
-  if NSX_CLK_API="$NSX_CLK_API" python3 - "$SRC/source/hooks/vk.c" <<'VKDIAGMIRROR'
-import os
-import sys
-
-path = sys.argv[1]
-text = open(path, encoding="utf-8", errors="surrogateescape").read()
-if "NSX_VK_DIAG_STDERR" in text:
-    print("vk.c: diag mirror už patchnuto")
-    sys.exit(0)
-
-done = 0
-
-note_anchor = "void\nvk_diag_note(const char *format, ...) {\n"
-note_patch = (note_anchor +
-    "  /* NSX_VK_DIAG_STDERR: stejnou zprávu i do core logu (nethersx2-core.log),\n"
-    "   * aby diag nezávisela na tom, jestli se povedlo otevřít\n"
-    "   * nethersx2-vulkan.log. Pozor: na kartě se ukázalo, že přesměrovanej\n"
-    "   * STDERR do toho souboru nic nezapsal (stdout ano), takže se posílá\n"
-    "   * stdout — viz ci_core_log.c a poznámka v HANDOFF. */\n"
-    "  { va_list nsx_mirror; va_start(nsx_mirror, format);\n"
-    "    fputs(\"[VK] \", stdout); vfprintf(stdout, format, nsx_mirror);\n"
-    "    fputc('\\n', stdout); va_end(nsx_mirror); }\n")
-if note_anchor in text:
-    text = text.replace(note_anchor, note_patch, 1)
-    done += 1
-
-reset_anchor = ('    fprintf(vk_diag_file, "NetherSX2 Vulkan diagnostic %s\\n", '
-                'NETHERSX2_VERSION);\n'
-                "    fflush(vk_diag_file);\n"
-                "    fsync(fileno(vk_diag_file));\n"
-                "  }\n")
-reset_patch = reset_anchor + (
-    "  fprintf(stdout, \"[VK] diag soubor nethersx2-vulkan.log: %s\\n\",\n"
-    "          vk_diag_file ? \"otevren\" : \"SE NEPOVEDLO OTEVRIT\");\n")
-if reset_anchor in text:
-    text = text.replace(reset_anchor, reset_patch, 1)
-    done += 1
-
-# FPS do logu: prezentace = vykreslenej frame, takže z tohohle čísla je vidět
-# jak emulační framerate, tak efekt LSFG (2x). Počítá se v okně ~1 s a píše
-# jednou za okno, ať core log nezaplavíme. Kotva je ++vk_present_count;
-# v celým vk.c je právě jednou (ověřeno greppem při psaní patche).
-fps_anchor = "  ++vk_present_count;\n"
-fps_patch = fps_anchor + (
-    "#ifdef NETHERSX2_VK_DIAGNOSTIC\n"
-    "  /* NSX_VK_FPS: měřidlo framerate pro ladění výkonu. */\n"
-    "  {\n"
-    "    static uint64_t nsx_fps_window_start;\n"
-    "    static uint64_t nsx_fps_window_last;\n"
-    "    static uint64_t nsx_fps_window_min;\n"
-    "    static uint64_t nsx_fps_window_max;\n"
-    "    static uint32_t nsx_fps_window_frames;\n"
-    "    const uint64_t nsx_now = lsfg_monotonic_ns();\n"
-    "    if (!nsx_fps_window_start) {\n"
-    "      nsx_fps_window_start = nsx_now;\n"
-    "      nsx_fps_window_min = 0;\n"
-    "      nsx_fps_window_max = 0;\n"
-    "    } else if (nsx_fps_window_frames) {\n"
-    "      /* mezera od předchozí prezentace = délka framu (stutter je vidět) */\n"
-    "      const uint64_t nsx_gap = nsx_now - nsx_fps_window_last;\n"
-    "      if (!nsx_fps_window_min || nsx_gap < nsx_fps_window_min) nsx_fps_window_min = nsx_gap;\n"
-    "      if (nsx_gap > nsx_fps_window_max) nsx_fps_window_max = nsx_gap;\n"
-    "    }\n"
-    "    nsx_fps_window_last = nsx_now;\n"
-    "    ++nsx_fps_window_frames;\n"
-    "    if (nsx_now > nsx_fps_window_start + UINT64_C(1000000000)) {\n"
-    "      const double nsx_secs = (double)(nsx_now - nsx_fps_window_start) / 1e9;\n"
-    "      /* NSX_CLK: takty CPU/GPU/EMC. U CPU-bound hry je CPU takt to\n"
-    "       * hlavní — hlavně jestli drží boost (port ho po 60 framech shazoval,\n"
-    "       * NSX_KEEP_BOOST to mění). Session se otevírají zvlášť, aby CPU takt\n"
-    "       * fungoval i když GPU/EMC session neprojde; když clkrst v tomhle libnx\n"
-    "       * není nebo službu nejde otevřít, zůstanou nuly. */\n"
-    "      static int nsx_clk_ok = -1, nsx_have_gpu = 0, nsx_have_emc = 0;\n"
-    "      static unsigned nsx_cpu = 0, nsx_gpu = 0, nsx_emc = 0;\n"
-    + (
-        "      static ClkrstSession nsx_s_cpu, nsx_s_gpu, nsx_s_emc;\n"
-        "      if (nsx_clk_ok < 0) {\n"
-        "        nsx_clk_ok = 0;\n"
-        "        if (R_SUCCEEDED(clkrstInitialize())) {\n"
-        "          if (R_SUCCEEDED(clkrstOpenSession(&nsx_s_cpu, PcvModule_CpuBus, 3))) nsx_clk_ok = 1;\n"
-        "          if (R_SUCCEEDED(clkrstOpenSession(&nsx_s_gpu, PcvModule_GPU, 3))) nsx_have_gpu = 1;\n"
-        "          if (R_SUCCEEDED(clkrstOpenSession(&nsx_s_emc, PcvModule_EMC, 3))) nsx_have_emc = 1;\n"
-        "        }\n"
-        "      }\n"
-        "      if (nsx_clk_ok == 1) {\n"
-        "        u32 nsx_hz = 0;\n"
-        "        if (R_SUCCEEDED(clkrstGetClockRate(&nsx_s_cpu, &nsx_hz))) nsx_cpu = nsx_hz / 1000000u;\n"
-        "        if (nsx_have_gpu && R_SUCCEEDED(clkrstGetClockRate(&nsx_s_gpu, &nsx_hz))) nsx_gpu = nsx_hz / 1000000u;\n"
-        "        if (nsx_have_emc && R_SUCCEEDED(clkrstGetClockRate(&nsx_s_emc, &nsx_hz))) nsx_emc = nsx_hz / 1000000u;\n"
-        "      }\n"
-        if os.environ.get("NSX_CLK_API") == "1" else
-        "      if (nsx_clk_ok < 0) nsx_clk_ok = 0;   /* clkrst API v tomhle libnx není */\n"
-    ) +
-    "      extern int ci_get_cpu_boost_state(void);\n"
-    "      vk_diag_note(\"FPS %.1f | %.2f ms/frame | min %.2f max %.2f ms | %u framu\"\n"
-    "                   \" | lsfg=%d boost=%d | cpu=%u gpu=%u emc=%u MHz\",\n"
-    "                   (double)nsx_fps_window_frames / nsx_secs,\n"
-    "                   nsx_secs * 1000.0 / (double)nsx_fps_window_frames,\n"
-    "                   nsx_fps_window_min / 1e6, nsx_fps_window_max / 1e6,\n"
-    "                   nsx_fps_window_frames, vk_lsfg_is_enabled(),\n"
-    "                   ci_get_cpu_boost_state(), nsx_cpu, nsx_gpu, nsx_emc);\n"
-    "      nsx_fps_window_start = nsx_now;\n"
-    "      nsx_fps_window_min = 0;\n"
-    "      nsx_fps_window_max = 0;\n"
-    "      nsx_fps_window_frames = 0;\n"
-    "    }\n"
-    "  }\n"
-    "#endif\n")
-if fps_anchor in text:
-    text = text.replace(fps_anchor, fps_patch, 1)
-    done += 1
-
-open(path, "w", encoding="utf-8", errors="surrogateescape").write(text)
-print("vk.c: diag patch %d/3" % done)
-sys.exit(0 if done == 3 else 1)
-VKDIAGMIRROR
-
-  then
-    key "vk: diag zrcadlena do stderr (nethersx2-core.log)"
-  else
-    warn "vk.c patch pro diag mirror neprošel — zůstává jen nethersx2-vulkan.log"
-  fi
   # Pojistka proti chybě v generátoru: patch je Python string, takže zapomenuté
   # zdvojení (\n místo \\n) propašuje do C doslovné \n a make spadne až za pár
   # minut ("stray '\' in program" — stalo se v buildu 45). Kontrolujeme proto,

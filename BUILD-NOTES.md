@@ -345,3 +345,35 @@ thread. Odpovídá na dotaz „4 jádra: EE, 2× VU, GS?" — viz HANDOFF §10.
 `stray '\' in program`. Přidána lex kontrola hned za patchem `vk.c`, která
 tuhle třídu chyb zastaví za sekundu.
 
+---
+
+## Build 47 — oprava „GPU na minimu" + čtení/zápis taktů
+
+Uživatel z karty: „**locknul jsi mi GPU takty na minimu** a CPU někdy kleslo
+na 1000 MHz, a nebylo to teplotou." Měl pravdu a byla to naše chyba:
+
+`ApmCpuBoostMode_FastLoad` (to, co port žádá na startu) podle libnx znamená
+*„Boost CPU. **Additionally, throttle GPU to minimum**."* — tedy CPU 1785 MHz
+a **GPU 76 MHz**. Build 46 ten boost držel celou hru, takže GPU bylo opravdu
+sražené; sedí to i na čísla (GT3 medián 29,1 FPS proti 31,6 bez držení).
+
+Co je v buildu 47:
+
+1. **Držení boostu je opt-in** (`ci-keepboost.enabled`); default = upstream
+   (boost se po 60 framech shodí, GPU zůstane normální). Marker
+   `ci-noboost.enabled` pořád existuje jako pojistka.
+2. **NSX_CLK** (`ci/patches/ci_core_log.c`): čtení taktů CPU/GPU/EMC
+   s Result kódy v logu (proč build 46 vracel nuly), fallback na starší
+   službu `pcv`, a `[CI] apm:` řádek s režimem/konfigurací (0x92220009/0A
+   = FastLoad = CPU nahoru + GPU na minimum).
+3. **`ci-clk.conf`** na SD: `cpu=1785 gpu=460 emc=1600` (MHz) — aplikuje se
+   jednou na startu, loguje před/po + Result. `ci-keepboost.enabled` drží
+   FastLoad a NSX_CLK k tomu vrátí GPU na 460 (handheld) / 768 (docked).
+4. **Dedup logu zvládá střídavé vzory.** GT3 střídá `Timezone=`/`SummerTime=`,
+   takže se nikdy neopakuje bezprostředně po sobě — tabulka 8 posledních
+   vzorů to řeší (120 řádků/s → 1–2 souhrny/s). FPS řádky dedup míjejí.
+
+Navíc: patchery `ci_core_log.c` a `vk.c` už nejsou heredocy v
+`build-switch.sh`, ale soubory v `ci/patches/` — v Python řetězcích se
+pletla zpětná lomítka a build 45 kvůli tomu spadl (`stray '\' in program`).
+
