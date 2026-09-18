@@ -860,3 +860,84 @@ liší (`8d44f3f4…` vs `a4af3b11…`) — změna je v launcheru uvnitř romfs,
 Co zbývá ověřit na kartě: jestli GPU po spuštění appky a hry zůstane na
 Ultrahand governoru (1400 MHz) místo na minimu, a jak to dopadne na FPS GT3
 (dosud 38,7–45,5 medianu podle oken).
+
+## Build 58 — build 57 na kartě padá při startu hry; logy konečně v repu (2026-09-18)
+
+Uživatel: *„Máš tam logy — když chci zapnout hru, tak po zkompilování jádra to
+spadne a pořád klesají takty."* Logy přišly v commitu `1a2a853`
+(`launcher-diag.log`, `nethersx2-core.log`, `nethersx2-exception.log`,
+`nethersx2-vulkan.log`).
+
+### Co logy říkají (ověřeno, ne odhad)
+
+Binárka je build 57 (`[CI] session start build=57 ts=1789749020`), hra
+**Fallout – Brotherhood of Steel (USA)**, `Renderer=14 -> nro=vk`,
+`core=4248`, `fastmem=hybrid`.
+
+| log | poslední řádek | co z toho plyne |
+|---|---|---|
+| `launcher-diag.log` | `sonda …/.emu: rename = 0, stat dst = 0 size=4096` | launcher **doběhl**; jádro i `.nro` zkopírované a ověřené |
+| `nethersx2-vulkan.log` | `starting core VM sequence` (1789749020.380) | pád **uvnitř `run_startup_sequence()`** — další `vk_diag_note` je až `core VM sequence returned` |
+| `nethersx2-core.log` | `[CI] session end (CRASH)` | běžel `__libnx_exception_handler` a došel až k `real_crash` |
+| `nethersx2-exception.log` | `pc=0x3fb8a5bc94 far=0 esr=0x92000045` | **čtení z NULL** |
+
+`esr=0x92000045` rozkódováno: EC `0x24` = data abort z nižší EL, IL=1,
+ISS `0x45` → WnR=0 (**čtení**), DFSC `0x05` = **translation fault, level 1**.
+`far=0x0` → adresa 0. `fp == sp` → žádný založený rámec. `lr` je 9 655 360 B
+pod `pc`.
+
+Kam `pc` míří, se z těch šesti čísel poznat nedalo, a to je celý problém:
+`heap ready mb=2904 so_base=0x366e600000 so_limit=268435456`,
+`core image loaded base=0x366e600000 size=208453632`. Heap je tedy
+`0x8000000`–`0xC1800000`, obraz jádra `0x366e600000`+198,8 MiB — a
+`pc=0x3fb8a5bc94` **není v ani jednom** (je ~20,3 GiB nad `so_base`). Jde o
+mapping, který si dělá jádro samo (`svcMapProcessCodeMemory` → JIT/RX kód
+nebo fastmem zrcadla). `sp=0x81bff0b90` v heapu je.
+
+Dva řádky, které v logu **chybí** proti buildu 49: `[CI] thread EE/VM ->
+core=0` a `Searching for a BIOS image`. EE thread ještě nebyl připnutý a jádro
+se nedostalo ani k hledání BIOSu.
+
+### Co build 58 mění (čistě čtení — žádné chování se nemění)
+
+1. **`ci/patches/crash_dump.py`** — `vk_diag_exception()` teď bere celý
+   `ThreadExceptionDump` a do `nethersx2-exception.log` napíše:
+   * 29 GPR (`x0`–`x28`) + `pstate`,
+   * `tid` + jméno threadu (`pthr_pin_self_name()`, slabý symbol),
+   * `svcQueryMemory` nad `pc`/`lr`/`far`/`sp` → typ a atributy stránky, tedy
+     odpověď na „je to JIT, jádro, nebo heap?",
+   * backtrace po `fp`, až 16 rámců. Stránka každého rámce se **před čtením**
+     ověří `svcQueryMemory` (JIT `fp` nezakládá; handler, který spadne
+     podruhé, uvízne v `for(;;) svcSleepThread()` a na kartě by nezůstal
+     žádný log).
+2. **`ci/patches/apm_diag.py`** — emulátor loguje
+   `appletGetCurrentPerformanceConfiguration()` (command 91 na
+   `ICommonStateGetter`) + `apmGetPerformanceMode()` + nakonfigurované
+   tabulky pro Normal/Boost. **Žádné `clkrst`/`pcv` session** — na jejich
+   souboji s governorem spadl build 50.
+3. **`ci/patches/launcher_apm_diag.py`** — launcher vypíše stejnou
+   konfiguraci těsně před spuštěním hry (tu emulátor zdědí) a po paste.
+
+### Proč „pořád klesají takty" zatím neumíme vysvětlit
+
+Odstranění FastLoad nemohlo takty **zvednout** — FastLoad GPU naopak srážel
+na minimum (`apm.h:21`: „Boost CPU. Additionally, throttle GPU to minimum").
+Bez boostu platí výchozí tabulka appletu a o tom, jaké takty to jsou, jsme
+dosud neměli **jediné číslo**. Build 58 ho vypíše: `0x92220007/08` = běžný
+stav, `0x92220009/0A/0B/0C` = tabulky FastLoad. Až bude v logu, dá se říct,
+jestli za klesající takty může APM tabulka, governor, nebo IDLE.
+
+### Ověřeno lokálně (bez devkitA64)
+
+* Všech 12 patcherů v pořadí CI na čisté kopii upstreamu `f084dc1` → OK,
+  druhý průchod idempotentní, aktivní `appletSetCpuBoostMode` = **0**.
+* Lex kontrola `vk.c` (jako v CI) → žádné `\n` mimo C string.
+* Nový kód zkompilovaný `gcc -fsyntax-only -Wall -Wextra
+  -Werror=implicit-function-declaration -Werror=enum-conversion` proti
+  **skutečným hlavičkám libnx** → 0 chyb, 0 varování. Právě takhle se přišlo
+  na to, že `MemoryInfo` má člena `addr`, ne `base_addr`.
+* `bash -n ci/build-switch.sh` a `yaml.safe_load` na `mesa-vk.yml` → čisté.
+
+Naše chyby při psaní tohohle buildu (zapsané v HANDOFF §8 jako pasti 18–20):
+`MemoryInfo.base_addr` (správně `addr`), backtrace bez ověření stránky, a
+jedna společná značka pro čtyři editace v patcheru.

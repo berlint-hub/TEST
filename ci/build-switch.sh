@@ -793,6 +793,12 @@ mkdir -p "$SRC/source/hooks"
   # Obsah je v ci/patches/ci_core_log.c (dřív tu byl jako heredoc; v Python
   # řetězcích se pletly zpětné lomítka — build 45 kvůli tomu spadl).
   cp "$HERE/patches/ci_core_log.c" "$SRC/source/hooks/ci_core_log.c" || die "kopie ci_core_log.c"
+  # Build 58: čtení aktivní performance konfigurace (APM) do logu. Uživatel
+  # hlásí klesající takty i bez CPU boostu; bez tohohle čísla (ID tabulky
+  # taktů) se o tom dá jen hádat. Čistě čtení — žádné clkrst/pcv session,
+  # na kterých spadl build 50.
+  python3 "$HERE/patches/apm_diag.py" "$SRC/source/hooks/ci_core_log.c" \
+    || die "apm_diag.py — bez čtení konfigurace taktů je „takty klesají“ neověřitelné"
   # Build 55: identita emulačních threadů + pinování work threadů na vlastní
   # jádra (viz sekce 7b4). Soubory musí ležet v source/hooks PŘED syntax
   # kontrolou níž, aby je zkontrolovala proti libnx hlavičkám — pthr_pin.c
@@ -953,6 +959,18 @@ if python3 "$HERE/patches/main_hacks_markers.py" "$SRC/source/main.c" \
   key "session end se pise na vseh trech koncich + speedhack markery na SD"
 else
   die "main.c/error.c/crash.c patch (session end + hack markery) neprosel"
+fi
+
+# Build 58: forenzní crash dump. Build 57 padá při startu hry a
+# nethersx2-exception.log má jen pc/far/esr/sp/fp/lr — z toho nejde poznat,
+# jestli pc míří do JIT kódu, do obrazu jádra, nebo do heapu, ani kdo to
+# volal. Přidáme registry, identitu threadu, svcQueryMemory nad pc/lr/far/sp
+# a backtrace po fp. Všechno čistě čtení, žádné chování se nemění.
+if python3 "$HERE/patches/crash_dump.py" "$SRC/source/hooks/vk.c" \
+     "$SRC/source/hooks/vk.h" "$SRC/source/crash.c"; then
+  key "crash dump: registry + thread + queryMemory + backtrace do exception logu"
+else
+  die "crash_dump.py neprosel — bez backtrace je pád na kartě nezjistitelny"
 fi
 
 # --------------------------------------------------------- 7b2. FPS měřidlo (GL)
@@ -1450,6 +1468,15 @@ PYEOF
     fi
   else
     die "launcher: patch bez CPU boostu neprosel (GPU by na karte jelo na minimu)"
+  fi
+
+  # Build 58: launcher vypíše aktivní tabulku taktů těsně před spuštěním hry
+  # (a po paste). Musí běžet AŽ po launcher_no_boost.py — kotvy jsou jeho
+  # zakomentované řádky. Čtení, ne zápis.
+  if python3 "$HERE/patches/launcher_apm_diag.py" "$SRC/launcher/source/main.cpp"; then
+    key "launcher: aktivni konfigurace taktu v diagu (pred spustenim hry)"
+  else
+    die "launcher_apm_diag.py neprosel"
   fi
 
   cat > "$SRC/launcher/source/ci_launch_diag.cpp" <<'LAUNCH_DIAG_CPP'

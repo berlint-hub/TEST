@@ -8,10 +8,10 @@ během**, ne domněnka; kde se pochybuje, je to napsané.
 > **`VU-GS-OPTIMALIZACE.md`** (zadání, změřené FPS podle taktů, rozložení
 > threadů, hypotézy v pořadí, jak měřit). Tenhle HANDOFF pak čti jako
 > referenci — hlavně §8 (pasti), §9–§11 (výkon a takty).
-> Poslední build: **57** (`nro-latest`, run `35367770625` zelený, sha256 `8d44f3f4e9106ef6`). Build 52 = pátrání po pádu při přehazování
-> threadů, §0c); build 55 = výkon (thready na vlastní jádra + identita
-> threadů, §0c); **build 56 = sledování taktů celé venku (§0b)**;
-> **build 57 = CPU boost pryč i z launcheru (§0b) — GPU už nikdo neshazuje**.
+> Poslední build: **58** (diagnostika pádu + čtení tabulky taktů, §0d).
+> Na kartě **build 57 padá při startu hry** — viz §0d, tam jsou logy a čísla.
+> Build 55 = výkon (thready na vlastní jádra); **build 56 = sledování taktů
+> venku (§0b)**; **build 57 = CPU boost pryč i z launcheru (§0b)**.
 
 Cíl uživatele: reproducible CI, který vyrobí `.nro` s funkčním Vulkan
 rendererem, plus zpětná vazba z logů na kartě. Historie: build 37/38 našel
@@ -191,6 +191,71 @@ Hra (GT3) běží. GL i VK větev jsou tím ověřené.
 
 Zbývá: LSFG (frame generation) a výkon. Detaily níž.
 
+## 0d. STAV: BUILD 57 NA KARTĚ PADÁ PŘI STARTU HRY (2026-09-18, logy v repu)
+
+Uživatel nahrál čtyři logy (commit `1a2a853`): `launcher-diag.log`,
+`nethersx2-core.log`, `nethersx2-exception.log`, `nethersx2-vulkan.log`.
+Binárka je opravdu build 57 (`[CI] session start build=57 ts=1789749020`),
+hra **Fallout – Brotherhood of Steel (USA)**, `Renderer=14 -> nro=vk`,
+`core=4248` (12 162 984 B), `fastmem=hybrid`, `lsfg=0`.
+
+**Co je jisté z logů:**
+
+* Launcher doběhl v pořádku — jádro i `.nro` zkopírované a ověřené
+  (`core cil … = 12162984 B`, `emu cíl … = 23104387 B`, sondy `rename=0`,
+  `stat dst=0`). **Padá emulátor, ne launcher.**
+* `nethersx2-vulkan.log` končí na `starting core VM sequence`
+  (1789749020.380, tedy ~360 ms po startu procesu). Další `vk_diag_note`
+  v `source/main.c` je `core VM sequence returned` — **pád je uvnitř
+  `run_startup_sequence()`**.
+* `nethersx2-core.log` končí `[CI] session end (CRASH)` → běžel
+  `__libnx_exception_handler` a prošel celou cestou až k `real_crash`.
+  `[CI] thread EE/VM -> core=0` (který v buildu 49 v logu byl) **chybí** a
+  `Searching for a BIOS image` taky — takže EE thread ještě nebyl připnutý
+  a jádro se nedostalo ani k hledání BIOSu.
+* `nethersx2-exception.log`:
+
+  ```
+  pc=0x0000003fb8a5bc94 far=0x0000000000000000 esr=0x92000045
+  sp=0x000000081bff0b90 fp=0x000000081bff0b90 lr=0x0000003fb80b6894
+  ```
+
+  `esr=0x92000045` → EC `0x24` (data abort z nižší EL), IL=1, ISS `0x45` =
+  WnR 0 (**čtení**) + DFSC `0x05` = **translation fault, level 1**.
+  `far=0` → **čtení z NULL**. `fp == sp` → žádný založený rámec.
+  `lr` je 9 655 360 B (≈ 9,2 MiB) pod `pc`.
+* Adresy: `heap ready mb=2904 so_base=0x366e600000 so_limit=268435456`,
+  `core image loaded base=0x366e600000 size=208453632`. Tedy heap =
+  `0x8000000`–`0xC1800000` (2 904 MiB), obraz jádra = `0x366e600000` +
+  198,8 MiB. **`pc` = 0x3fb8a5bc94 neleží v ani jednom** — je ~20,3 GiB nad
+  `so_base`, takže jde o mapping, který dělá jádro samo (`svcMapProcessCodeMemory`
+  → JIT/RX kód, nebo fastmem zrcadla). `sp = 0x81bff0b90` naopak **v heapu je**.
+  Bez backtrace a bez `svcQueryMemory` se ale nedá říct, který z nich to je —
+  proto build 58.
+
+**Co z toho NEPLYNE:** jestli pád způsobil build 57 (launcher bez FastLoad →
+jiná tabulka taktů), nebo jestli tam byl už v 55/56. **Logy z 55 a 56 nemáme**
+— uživatel je smazal. Tvrzení „build 57 to rozbil“ je tedy zatím neověřená
+domněnka, ne závěr.
+
+**Co build 58 přidává (čistě čtení, žádné chování se nemění):**
+
+* `ci/patches/crash_dump.py` → do `nethersx2-exception.log` přijde 29 GPR,
+  `tid` + jméno threadu, `svcQueryMemory` nad `pc`/`lr`/`far`/`sp` (typ +
+  atributy stránky) a backtrace po `fp` (16 rámců; stránka každého rámce se
+  před čtením ověří `svcQueryMemory`, aby handler nespadl podruhé).
+* `ci/patches/apm_diag.py` → emulátor loguje aktivní performance konfiguraci
+  (`appletGetCurrentPerformanceConfiguration`, command 91) + režim.
+* `ci/patches/launcher_apm_diag.py` → launcher vypíše totéž těsně před
+  spuštěním hry (to je konfigurace, kterou emulátor zdědí).
+
+**Proč „pořád klesají takty“ stále neumíme vysvětlit:** odstranění FastLoad
+nemohlo takty *zvednout* — FastLoad GPU naopak srážel na minimum. Bez boostu
+platí výchozí tabulka appletu a o tom, jaké takty to jsou, jsme dosud neměli
+jediné číslo. Build 58 to číslo vypíše (`0x92220007/08` = běžný stav,
+`0x92220009/0A/0B/0C` = FastLoad tabulky). Až bude v logu, dá se říct, jestli
+za klesající takty může APM tabulka, governor, nebo IDLE.
+
 ## 1. Okamžité další kroky
 
 **Priorita je teď výkon GT3 (CPU/VU/GS).** Zadání, změřená čísla a experimenty
@@ -229,7 +294,7 @@ Stručně, co je hotové a co ne:
 | branch session | `arena/01a0b2a1-test` (nikdy nepushovat jinam; stará `arena/01a0aad9-test` už na remote není) |
 | poslední pushnutý commit | 204d405 docs: build 51 v tabulce (boost pryc, takty jen ke cteni) (a starší: build 51, log-analyzer, VU-GS plán) |
 | rolling release URL | `https://github.com/berlint-hub/TEST/releases/download/nro-latest/NetherSX2.nro` |
-| aktuální build | **57** (binárka; `NSX_CI_BUILD=57` v `ci/patches/ci_core_log.c`). Poslední úspěšný run **`35367770625`** (commit `dabbb7f`, 2026-09-18 16:19–16:21 UTC): `NetherSX2.nro` = **71 598 215 B**, `sha256=8d44f3f4e9106ef6`, uvnitř `NetherSX2_nx_vk.nro` = 23 104 387 B (identická velikost jako v 56 — měnil se jen launcher v romfs), upstream `f084dc1`, Mesa SDK z runu (job `mesa` skipped → běh ~2 min). Release se jmenuje „**binarka build 57, run 60, Vulkan**“. Anotace jobu potvrzují `launcher: appletSetCpuBoostMode zakomentovano (GPU neshazuje FastLoad)`, `util.c: CPU boost vynechan`, `ci-build.txt=57`, `VERDICT: OK`, 0 error anotací (21 notice + 2 warning). Binárku na kartě poznáš podle `[CI] session start build=57`. Předchozí: 56 = 71 598 215 B (`sha256` `a4af3b111c685e28`, run `35365370155`; stejné B jako 54 i 57 — **rozlišuj podle `sha256`**), 55 = 71 602 311 B (`sha256` `48b2889875e2145f` a 3 další běhy — build není bitově deterministický), 51 = 71 594 119 B, `sha256=9c719e25cb27b374` |
+| aktuální build | **58** (binárka; `NSX_CI_BUILD=58` v `ci/patches/ci_core_log.c`) — **diagnostický**: forenzní crash dump (registry + thread + `svcQueryMemory` + backtrace) a čtení aktivní performance konfigurace (APM). Žádné chování se nemění, CPU boost zůstává pryč. Binárku na kartě poznáš podle `[CI] session start build=58`. Předchozí **57** (run `35367770625`, commit `dabbb7f`, success): 71 598 215 B, `sha256=8d44f3f4e9106ef6`, uvnitř `NetherSX2_nx_vk.nro` = 23 104 387 B, release „binarka build 57, run 60, Vulkan“, 0 error anotací — **ale na kartě padá při startu hry (§0d)**. 56 = 71 598 215 B (`sha256` `a4af3b111c685e28`), 55 = 71 602 311 B (`sha256` `48b2889875e2145f`), 51 = 71 594 119 B (`sha256` `9c719e25cb27b374`). Velikost se mezi buildy opakuje — **rozlišuj podle `sha256`** |
 | v balíku | build 43: jen `NetherSX2_nx_vk.nro` **23 088 003 B** (LTO + cache v loaderu; build 42 měl 23 124 867 B). GL binárka se nestaví (`VK_ONLY=1`) — zpět ji vrátíš přepnutím `VK_ONLY: 0` v `mesa-vk.yml`; kód i GL FPS měřidlo zůstávají |
 | pozor na velikosti | buildy 34–37 maj **identickou** velikost (stránkový zarovnání segmentů) — rozlišuj podle `sha256` (35 = `b3a06739…`, 36 = `f6ea45cb…`, 37 = `c2d6aa7d…`). Build 38 povyrostl na 78 724 195 B, protože se konečně zkompilovala diagnostika |
 | generovaný loader | 766 forwarderů, `libnsxvkloader.a` = 554 390 B |
@@ -540,6 +605,21 @@ jádra ani BIOS se v repozitáři nenachází a nesmí — stahujou se v CI z
     do `.nro`, které launcher spustí. A `FastLoad` = „Boost CPU.
     **Additionally, throttle GPU to minimum**“ (`apm.h:21`) — ne „jen CPU
     nahoru“.
+18. **Psát do `MemoryInfo.base_addr`.** Člen se jmenuje **`addr`**
+    (`nx/include/switch/kernel/svc.h:93`). Host `gcc -fsyntax-only` se
+    skutečnými hlavičkami libnx to odhalí za sekundu — devkitA64 na to není
+    potřeba (v sandboxu chybí newlib `sys/lock.h` a `arm_acle.h`, ale stačí
+    includovat jen `types.h`, `result.h`, `arm/thread_context.h` a
+    `kernel/svc.h`).
+19. **Dělat backtrace v exception handleru bez ověření stránky.** JIT kód
+    `fp` nezakládá, takže řetězec rámců ukazuje do nikam — a handler, který
+    spadne podruhé, uvízne v `for(;;) svcSleepThread()` (`crash.c`), takže by
+    na kartě nezůstal **žádný** log. Před každým čtením rámce
+    `svcQueryMemory` + kontrola, že `fp+16` leží uvnitř vrácené stránky.
+20. **Mít v patcheru jednu značku pro víc editací stejného souboru.**
+    `if MARK in text: return` přeskočí při druhém průchodu (a v CI se patche
+    pouštějí nad už patchnutým stromem) i ty editace, které ještě neproběhly.
+    Každá editace musí mít vlastní značku.
 
 ## 9. Ladění výkonu na kartě (build 51)
 

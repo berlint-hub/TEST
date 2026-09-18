@@ -1,5 +1,25 @@
 name: build / VK (nxvk Mesa -> NetherSX2_nx)
 
+# Build 58 (2026-09-18): DIAGNOSTIKA — pad pri startu hry + „takty klesaji“.
+# Logy z karty (build 57, Fallout): nethersx2-exception.log ma jen
+# pc=0x3fb8a5bc94 far=0 esr=0x92000045 (= data abort, translation fault L1
+# => CTENI Z NULL) sp=fp=0x81bff0b90 lr=0x3fb80b6894, a nethersx2-vulkan.log
+# konci na „starting core VM sequence“ — tedy pad uvnitr run_startup_sequence(),
+# jeste pred „Searching for a BIOS image“. Z tech sesti cisel nejde poznat,
+# jestli pc miri do JIT kodu, do obrazu jadra, nebo do heapu. Proto:
+#   * ci/patches/crash_dump.py — do exception logu prijde 29 GPR, tid + jmeno
+#     threadu, svcQueryMemory nad pc/lr/far/sp (typ a atributy stranky) a
+#     backtrace po fp (16 ramcu, stranka ramce se overuje svcQueryMemory, aby
+#     handler nespadl podruhe). Ciste cteni, zadne chovani se nemeni.
+#   * ci/patches/apm_diag.py — emulator loguje aktivni performance
+#     konfiguraci (command 91 na ICommonStateGetter) + apmGetPerformanceMode.
+#     „Takty klesaji“ se bez toho cisla neda overit. ZADNE clkrst/pcv session
+#     (na jejich souboji s governorem spadl build 50).
+#   * ci/patches/launcher_apm_diag.py — launcher vypise stejnou konfiguraci
+#     tesne pred spustenim hry (to je ta, kterou emulator zdědi).
+# CPU boost zustava PRYC (emulator od 48, launcher od 57) — nic se sem
+# nevraci, jen se čte.
+
 # Build 57 (2026-09-18): GPU NA MINIMU ZPUSOBIL LAUNCHER, NE EMULATOR.
 # launcher/source/main.cpp volal appletSetCpuBoostMode(FastLoad) 6x (hlavne
 # v main() pred extrakci jader z romfs). FastLoad podle libnx znamena Boost CPU

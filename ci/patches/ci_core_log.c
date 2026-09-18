@@ -91,7 +91,7 @@ static int ci_on(void) {
        * začátek session přežil i okamžitej pád.
        * NSX_CI_BUILD: ručně zvedat s každým buildem — jediná jistá známka,
        * která binárka na kartě běží (velikosti .nro se mezi buildy nemění). */
-      fprintf(stdout, "[CI] session start build=57 ts=%ld pid=%d%s\n",
+      fprintf(stdout, "[CI] session start build=58 ts=%ld pid=%d%s\n",
               (long)time(NULL), (int)getpid(),
               ci_raw_log() ? " rawlog=unbuffered" : "");
       fflush(stdout);
