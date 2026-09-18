@@ -264,3 +264,51 @@ VK binárky vede jen volba 14. Co v logu chybělo, bylo *rozhodnutí*:
   takže každý core log začíná větou, které `.nro` to je — dosud se to
   odhadovalo z absence `[VK]` řádků.
 * Stage 10 navíc greppem ověřuje marker `renderer-decision` v balíku.
+
+## Build 43 — VK-only balík, LTO jako upstream, cache v loaderu (2026-09-18)
+
+**1) OpenGL vyřazen z hlavního buildu.** `VK_ONLY: 1` v `mesa-vk.yml`
+(viz `ci/build-switch.sh`, krok 7b2 se v tom režimu přeskočí a launcher patch
+dostane dvě extra úpravy). Balík z 78 724 195 B spadl na **71 581 831 B**
+a každý run ušetří ~4 minuty runneru. V nastavení launcheru zůstala jediná
+volba `Vulkan (NVK)`, takže volba „OpenGL" nemůže poslat launcher po
+neexistujícím `NetherSX2_nx_gl.nro`. Zpět = `VK_ONLY: 0`.
+
+**2) Renderer je zamčený na vk i pro staré profily.** `renderer="vk"`,
+`EmuCore/GS/Renderer` se přepíše na `"14"`. Důvod je v datech z karty
+(upload 18. 9.): `launcher-diag.log` měl
+`[renderer-decision] EmuCore/GS/Renderer=12 (global=14) -> nro=gl` —
+uživatel tedy v globálním nastavení Vulkan měl, ale **profil hry** měl
+`"12"`, a ten se čte přednostně. Všechny tři session proto jely GL.
+
+**3) LTO zapnuto.** Upstream `build_all.sh` volá `make -j RENDERER=VK` bez
+`LTOFLAGS`, takže jeho `.nro` má `-flto=auto -fuse-linker-plugin`
+(`Makefile` default). My jsme LTO vypínali s odůvodněním „archivy jsou LTO IR
+z jinýho gcc" — to byl omyl: meson archivy jsou **thin** (drží jen cesty do
+build stromu) a „error op…" lezlo z toho. Po přebalení na plný archivy
+(build-mesa-sdk.sh) LTO projde; build 43 hlásí `vk: LTO=ano` a VK `.nro` je
+23 088 003 B (build 42: 23 124 867 B).
+
+**4) Loader cachuje entry pointy.** `ci/gen-vk-loader.py` generoval forwardery,
+které při KAŽDÉM volání dělaly `vk_icdGetInstanceProcAddr(instance, "vk…")`
+(porovnávání jmen v mesa runtime). Upstream tenhle problém nemá: core si
+pointery vytáhne jednou přes `vk_gipa_hook` (import tabulka v `source/imports.c`
+má jen **6** vk jmen) a pak volá napřímo. Forwardery teď mají
+`static nsx_pf_X nsx_cached_X` — úspěšný lookup se uloží, neúspěšný se
+zkouší dál (aby se funkce volaná před vznikem instance nezafikovala).
+Hostovský test s fake ICD: 10 000 volání `vkCmdDrawIndexed` = **1** lookup
+(dřív 10 000), chybějící symbol se necachuje. `libnsxvkloader.a`
+806 750 B (dřív 554 390 B).
+
+**5) Kontrola `NaGaa95/NetherSX2_nx` („jeho VK jede líp").** Prošel jsem
+commity, tagy, release notes, `Makefile`, `build_all.sh`, `configure-mesa.sh`,
+`imports.c`, `launcher/source/main.cpp`, `.gitignore`, `source/switch/*`:
+* `f084dc1` = tag `1.3.0` = HEAD; po něm žádný commit. Release notes 1.3.0:
+  ikona, NTFS USB, „Updated to Mesa 26.2.2 Horizon SDK" — žádná práce na výkonu.
+* `/vulkan/` je v `.gitignore`, takže autorův driver/SDK v repu **není** a jeho
+  `.nro` se z repa nedá reprodukovat (jeho release má 99 073 123 B = oba
+  renderery + oba cores).
+* Jediné build-flag rozdíly, které šly najít: **LTO** (bod 3, vyřešeno)
+  a **loader** (bod 4, vyřešeno). Zdrojáky i nxvk jsou identické.
+* Uživatelovo „jeho VK je lepší" se dosud srovnávalo s NAŠÍM GL (viz bod 2) —
+  naše VK ještě na kartě nezměřené nebylo.

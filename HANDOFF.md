@@ -52,6 +52,17 @@ Zbývá: LSFG (frame generation) a výkon. Detaily níž.
    se v `NetherSX2_nx_vk.nro` hledat nemá).
    Uživatel zatím naměřil (na GL): CPU 2700 MHz, GPU 1400 MHz; **GPU na
    150 MHz nezměnilo FPS** → GPU není bottleneck, GT3 je CPU-bound.
+   **Reálná čísla z karty (18. 9., GL/NVC0, GT3 Europe):** 3 session, medián
+   **~32 FPS** (strop 50 = PAL), ve všech třech `stutter>25 ms` skoro v každé
+   sekundě (84–137 z ~90–143 oken) a nejhorší mezera 0,7–1,07 s. Core sám
+   k GL hlásí `GL_ARB_texture_barrier is not supported` (blending nebude
+   přesný) a `GL_ARB_direct_state_access is not supported, this will reduce
+   performance` — přesně proto je VK-only rozumný default a GL nemá cenu
+   držet v každém buildu.
+   **LTO:** upstream `build_all.sh` volá `make -j RENDERER=VK` bez override,
+   takže jeho release má `-flto=auto -fuse-linker-plugin` (Makefile default);
+   my jsme ho měli vypnutý. Od buildu 43 jedeme s LTO taky (`LTO=ano`
+   v digestu) — dřívější „error op…" způsobil THIN archiv od mesonu, ne LTO.
    Emulační „speed %" core nikam neloguje (OnPerformanceMetrics v importech
    není), takže CPU/GPU bound se rozliší jedině přes OSD hry.
    Očekávání: NVK už jede optimální cestou (zero-copy WSI, perzistentní
@@ -71,8 +82,17 @@ Zbývá: LSFG (frame generation) a výkon. Detaily níž.
 5. **Dočistit integraci:** od buildu 39 se `MESA_SHADER_CACHE_DIR` přesměrovává
    na `/switch/nethersx2/cache`, takže `sdmc:/switch/mesa_shader_cache` už
    nevzniká — starou složku může uživatel smazat.
-7. **Volba rendereru se děje v launcheru, ne v `.nro`** (od buildu 42 to
-   navíc logujeme). `launcher/source/main.cpp`:
+6. **VK-only režim (od buildu 43).** `VK_ONLY=1` v `mesa-vk.yml` znamená, že
+   se GL `.nro` vůbec nestaví (‑4 min runneru, ‑7,1 MB balíku) a launcher se
+   patchem v `build-switch.sh` zamkne na Vulkan:
+   * v nastavení zůstane jen `{"Vulkan (NVK)","14"}` (jinak by si člověk vybral
+     OpenGL a launcher by hledal neexistující `NetherSX2_nx_gl.nro`),
+   * v launch cestě `renderer="vk"` a efektivní `EmuCore/GS/Renderer` se
+     přepíše na `"14"` — per-game profily na kartě mají klidně `"12"` z
+     dřívějška a ten se čte PŘED globálním nastavením (viz bod 8).
+   `VK_ONLY=0` = zpět GL+VK (jediná změna; kód i GL FPS měřidlo zůstávají).
+7. **Volba rendereru je v launcheru, ne v `.nro`** — od buildu 42 ji navíc
+   logujeme. `launcher/source/main.cpp`:
    `renderer = (EmuCore/GS/Renderer=="14") ? "vk" : "gl"` — takže
    **14 → `NetherSX2_nx_vk.nro`, 12 i 13 → `NetherSX2_nx_gl.nro`**. Trojka
    „OpenGL (Zink/NVK)" (13) tedy běží GL binárku a Zink se zapíná uvnitř ní
@@ -92,7 +112,7 @@ Zbývá: LSFG (frame generation) a výkon. Detaily níž.
    `[CI] emulator nro: VK build (GS_RENDERER=14), NVK_I_WANT_A_BROKEN_VULKAN_DRIVER=1`
    nebo `GL build (GS_RENDERER=12) — Vulkan v tomhle .nro neni`.
 
-6. **Diagnostika portu zrcadlená do core logu:** v buildech 37/38 se psala na
+8. **Diagnostika portu zrcadlená do core logu:** v buildech 37/38 se psala na
    `stderr`, jenže na kartě se přesměrovanej stderr do souboru **nepropsal**
    (stdout ano — všechny core logy chodí). Od buildu 39 jde mirror na stdout
    a `ci_core_log.c` navíc hlásí `[CI] stderr smerovan core logu: ok/SELHAL`.
@@ -103,10 +123,10 @@ Zbývá: LSFG (frame generation) a výkon. Detaily níž.
 | Věc | Hodnota |
 |---|---|
 | branch session | `arena/01a0b2a1-test` (nikdy nepushovat jinam; stará `arena/01a0aad9-test` už na remote není) |
-| poslední pushnutý commit | `3bfc409` (diag: rozhodnutí o rendereru + které .nro běží), před ním `1b9cf7f` (docs), `52e1a88` (FPS i pro GL), `e5b4629`, `181f4ed` |
+| poslední pushnutý commit | `2fcf3f4` (VK-only balík + cache v loaderu + LTO jako upstream), před ním `66ab58d`, `3bfc409`, `1b9cf7f`, `52e1a88` |
 | rolling release URL | `https://github.com/berlint-hub/TEST/releases/download/nro-latest/NetherSX2.nro` |
-| aktuální build | CI build 42, run `35318175938`, `NetherSX2.nro` = **78 724 195 B**, `sha256=87e79e84db10167d…` (41 = `417fc784fa4f1738…`, 40 = `12d60bbdd80448ad…`); CI greppem ověřuje `renderer-decision` v balíku |
-| v balíku | `NetherSX2_nx_vk.nro` 23 124 867 B, `NetherSX2_nx_gl.nro` 7 105 411 B — **v buildech 40 i 41 stejné**, liší se jen obsahem (GL měřidlo), což CI ověřuje greppem `[GL] FPS`; pořadí verdiktů je v anotaci jobu `NetherSX2.nro (GL + VK)` (`check-runs/<id>/annotations`) |
+| aktuální build | CI build 43, run `35323785467`, `NetherSX2.nro` = **71 581 831 B** (VK-only, OpenGL vyřazen), `sha256=996bf6783ae34e67…`; 42 = `87e79e84db10167d…` (78,7 MB, GL+VK), 41 = `417fc784fa4f1738…` |
+| v balíku | build 43: jen `NetherSX2_nx_vk.nro` **23 088 003 B** (LTO + cache v loaderu; build 42 měl 23 124 867 B). GL binárka se nestaví (`VK_ONLY=1`) — zpět ji vrátíš přepnutím `VK_ONLY: 0` v `mesa-vk.yml`; kód i GL FPS měřidlo zůstávají |
 | pozor na velikosti | buildy 34–37 maj **identickou** velikost (stránkový zarovnání segmentů) — rozlišuj podle `sha256` (35 = `b3a06739…`, 36 = `f6ea45cb…`, 37 = `c2d6aa7d…`). Build 38 povyrostl na 78 724 195 B, protože se konečně zkompilovala diagnostika |
 | generovaný loader | 766 forwarderů, `libnsxvkloader.a` = 554 390 B |
 | upstream refáček | `NaGaa95/NetherSX2_nx` @ `f084dc1`; `PalindromicBreadLoaf/nxvk` @ `switch` (`238e06f`) |
