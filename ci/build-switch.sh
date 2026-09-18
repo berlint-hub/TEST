@@ -1426,7 +1426,7 @@ note_patch = (note_anchor +
     "   * stdout — viz ci_core_log.c a poznámka v HANDOFF. */\n"
     "  { va_list nsx_mirror; va_start(nsx_mirror, format);\n"
     "    fputs(\"[VK] \", stdout); vfprintf(stdout, format, nsx_mirror);\n"
-    "    fputc('\\n', stdout); va_end(nsx_mirror); }\\n")
+    "    fputc('\\n', stdout); va_end(nsx_mirror); }\n")
 if note_anchor in text:
     text = text.replace(note_anchor, note_patch, 1)
     done += 1
@@ -1521,11 +1521,32 @@ open(path, "w", encoding="utf-8", errors="surrogateescape").write(text)
 print("vk.c: diag patch %d/3" % done)
 sys.exit(0 if done == 3 else 1)
 VKDIAGMIRROR
+
   then
     key "vk: diag zrcadlena do stderr (nethersx2-core.log)"
   else
     warn "vk.c patch pro diag mirror neprošel — zůstává jen nethersx2-vulkan.log"
   fi
+  # Pojistka proti chybě v generátoru: patch je Python string, takže zapomenuté
+  # zdvojení (\n místo \\n) propašuje do C doslovné \n a make spadne až za pár
+  # minut ("stray '\' in program" — stalo se v buildu 45). Kontrolujeme proto,
+  # že každé \n v patchnutém vk.c leží uvnitř C stringu.
+  if ! python3 - "$SRC/source/hooks/vk.c" <<'VKLEX' ; then
+import pathlib, re, sys
+bad = []
+for i, line in enumerate(pathlib.Path(sys.argv[1]).read_text(errors="replace").splitlines(), 1):
+    for m in re.finditer("\\\\n", line):
+        before = line[:m.start()]
+        if before.count('"') % 2 == 0 and before.count("'") % 2 == 0:
+            bad.append((i, line.strip()[:100]))
+if bad:
+    for i, l in bad[:5]:
+        print("vk.c:%d: \\n mimo C string: %s" % (i, l))
+    sys.exit(1)
+VKLEX
+    die "generovany vk.c ma \\n mimo string (chyba escapovani v patchi)"
+  fi
+  key "vk.c: lex kontrola ok (\\n jen uvnitr stringu)"
   # Unified větev Makefile linkuje -lvulkan -lEGL -lGLESv2 -lglapi + mesa util,
   # ALN z ní chybí -ldrm_nouveau / -lexpat / -lelf, který Mesa/NVK i switch-mesa
   # EGL implicitně čekaj. LIBS si přepsat netroufáme (je to := v Makefile a
