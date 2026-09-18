@@ -53,8 +53,12 @@ VK_BODY = r'''
  * nebo jeho fastmem zrcadla — obojí mapuje jádro samo přes
  * svcMapProcessCodeMemory, takže to náš port nezná. Právě proto se k tomu
  * ještě ptáme svcQueryMemory: typ stránky prozradí, o co jde. */
+#include "../so_util.h"   /* so_module je ANONYMNÍ typedef — `struct so_module`
+                           * jako typ neexistuje; bez include by to bylo
+                           * „invalid use of undefined type“ (build 58, run
+                           * 35371999430). */
 extern char *fake_heap_start, *fake_heap_end;
-extern struct so_module emu_mod;
+extern so_module emu_mod;
 
 static uintptr_t vk_diag_lo, vk_diag_hi;      /* newlib heap */
 static uintptr_t vk_diag_so_lo, vk_diag_so_hi;/* LOAD zóna libemucore.so */
@@ -203,11 +207,15 @@ VK_CALL = r'''
 '''
 
 # --------------------------------------------------------------------- vk.h
-VK_H_DECL = """/* NSX_CRASHDUMP_PROTO (build 58): pc je v tomto buildu adresa, ne ukazatel —
- * handler nám předává celý ThreadExceptionDump, aby šly vypsat registry. */
-void vk_diag_exception(const ThreadExceptionDump *ctx, uint64_t pc,
-                       uint64_t far, uint32_t esr, uint64_t sp,
-                       uint64_t frame_pointer, uint64_t link_register);
+VK_H_DECL = """#include <switch/arm/thread_context.h>   /* NSX_CRASHDUMP_PROTO */
+/* NSX_CRASHDUMP_PROTO (build 58): handler nám předává celý
+ * ThreadExceptionDump, aby šly vypsat registry. Tenhle header switch.h
+ * nezahrnuje, takže kontext jde jako const void * a vk.c si ho přetypuje
+ * (jinak „unknown type name 'ThreadExceptionDump'“ — build 58, run
+ * 35371999430). */
+void vk_diag_exception(const void *exc, uint64_t pc, uint64_t far,
+                       uint32_t esr, uint64_t sp, uint64_t frame_pointer,
+                       uint64_t link_register);
 """
 
 # ------------------------------------------------------------------- crash.c
@@ -247,9 +255,12 @@ old_sig = (
 )
 new_sig = VK_BODY + (
     "void\n"
-    "vk_diag_exception(const ThreadExceptionDump *ctx, uint64_t pc, uint64_t far,\n"
-    "                  uint32_t esr, uint64_t sp, uint64_t frame_pointer,\n"
+    "vk_diag_exception(const void *exc, uint64_t pc, uint64_t far, uint32_t esr,\n"
+    "                  uint64_t sp, uint64_t frame_pointer,\n"
     "                  uint64_t link_register) {\n"
+    "  /* vk.h nemá switch.h, takže kontext putuje jako const void *; tady ho\n"
+    "   * můžeme přetypovat, protože vk.c switch.h includuje. */\n"
+    "  const ThreadExceptionDump *ctx = (const ThreadExceptionDump *)exc;\n"
 )
 ok &= patch(vk, old_sig, new_sig, "vk.c signature", mark="NSX_CRASHDUMP_SIG")
 

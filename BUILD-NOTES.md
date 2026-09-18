@@ -941,3 +941,26 @@ jestli za klesající takty může APM tabulka, governor, nebo IDLE.
 Naše chyby při psaní tohohle buildu (zapsané v HANDOFF §8 jako pasti 18–20):
 `MemoryInfo.base_addr` (správně `addr`), backtrace bez ověření stránky, a
 jedna společná značka pro čtyři editace v patcheru.
+
+### První pokus spadl (run `35371999430`) — a proč to lokální testy nechytly
+
+`make[1]: *** [vk.o] Error 1`:
+
+```
+source/hooks/vk.c:128: error: invalid use of undefined type 'struct so_module'
+source/hooks/vk.h:44:  error: unknown type name 'ThreadExceptionDump'
+source/hooks/vk.c:172: error: conflicting types for 'vk_diag_exception'
+```
+
+* `so_module` je v portu **anonymní typedef** (`source/so_util.h:25`:
+  `typedef struct so_module { … } so_module;` — bez tagu), takže
+  `struct so_module` jako typ neexistuje. Lokální test měl vlastní
+  `struct so_module { void *load_base; size_t load_size; };`, takže prošel.
+  → vk.c teď includuje `../so_util.h` a test bere typ **ze skutečné
+  hlavičky portu**.
+* `source/hooks/vk.h` zahrnuje jen Vulkan hlavičky, **ne `switch.h`**, takže
+  `ThreadExceptionDump` tam nebyl vidět a `vk.h` se dál překládal jako
+  `void(const int *, …)` → conflicting types. → `vk_diag_exception()` bere
+  `const void *exc` a přetypuje si ho až vk.c (který `switch.h` má); do vk.h
+  jde jen `#include <switch/arm/thread_context.h>`, aby hlavička zůstala
+  samostatně přeložitelná.

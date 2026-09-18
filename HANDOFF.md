@@ -249,6 +249,13 @@ domněnka, ne závěr.
 * `ci/patches/launcher_apm_diag.py` → launcher vypíše totéž těsně před
   spuštěním hry (to je konfigurace, kterou emulátor zdědí).
 
+**První pokus o build 58 spadl** (run `35371999430`) na dvou chybách, které
+lokální testy neodhalily, protože používaly ruční definice typů:
+`invalid use of undefined type 'struct so_module'` (vk.c) a `unknown type
+name 'ThreadExceptionDump'` (vk.h — ten `switch.h` nezahrnuje). Oprava:
+vk.c includuje `../so_util.h`, a `vk_diag_exception()` bere kontext jako
+`const void *` (vk.h si přetypuje až vk.c, který `switch.h` má).
+
 **Proč „pořád klesají takty“ stále neumíme vysvětlit:** odstranění FastLoad
 nemohlo takty *zvednout* — FastLoad GPU naopak srážel na minimum. Bez boostu
 platí výchozí tabulka appletu a o tom, jaké takty to jsou, jsme dosud neměli
@@ -616,7 +623,14 @@ jádra ani BIOS se v repozitáři nenachází a nesmí — stahujou se v CI z
     spadne podruhé, uvízne v `for(;;) svcSleepThread()` (`crash.c`), takže by
     na kartě nezůstal **žádný** log. Před každým čtením rámce
     `svcQueryMemory` + kontrola, že `fp+16` leží uvnitř vrácené stránky.
-20. **Mít v patcheru jednu značku pro víc editací stejného souboru.**
+20. **Testovat patchnuté C proti ručně napsaným definicím typů.** Build 58
+    (run `35371999430`) spadl na `invalid use of undefined type 'struct
+    so_module'` — lokální test měl `struct so_module { void *load_base; … }`
+    napsaný v testovacím souboru, takže prošel, zatímco v portu je
+    `so_module` **anonymní typedef** (`source/so_util.h:25`), tedy
+    `struct so_module` jako typ neexistuje. Pravidlo: test bere typy
+    **ze skutečných hlaviček portu/libnx**, nikdy ne z vlastní definice.
+21. **Mít v patcheru jednu značku pro víc editací stejného souboru.**
     `if MARK in text: return` přeskočí při druhém průchodu (a v CI se patche
     pouštějí nad už patchnutým stromem) i ty editace, které ještě neproběhly.
     Každá editace musí mít vlastní značku.
