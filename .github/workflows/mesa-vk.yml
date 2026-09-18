@@ -1,6 +1,6 @@
 name: build / VK (nxvk Mesa -> NetherSX2_nx)
 
-# (CI trigger commit, arena/01a0b5b2-test — nic funkcniho, jen spusteni buildu)
+# (CI trigger commit, arena/01a0b5b2-test — [mesa] ať se přestaví SDK z čerstvého nxvk)
 
 # Build 54 (2026-09-18): FIX padu — crash reporty ukazaly fatal v pcv
 # sysmodulu (Result 2011-0102) + pad governoru hoc:clk. Emulator vychazi
