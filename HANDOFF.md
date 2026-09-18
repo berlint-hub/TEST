@@ -103,9 +103,9 @@ Zbývá: LSFG (frame generation) a výkon. Detaily níž.
 | Věc | Hodnota |
 |---|---|
 | branch session | `arena/01a0b2a1-test` (nikdy nepushovat jinam; stará `arena/01a0aad9-test` už na remote není) |
-| poslední pushnutý commit | `52e1a88` (FPS měřidlo i pro GL), před ním `e5b4629` (docs), `181f4ed` (FPS do VK), `4123853` (diag mirror + shader cache) |
+| poslední pushnutý commit | `3bfc409` (diag: rozhodnutí o rendereru + které .nro běží), před ním `1b9cf7f` (docs), `52e1a88` (FPS i pro GL), `e5b4629`, `181f4ed` |
 | rolling release URL | `https://github.com/berlint-hub/TEST/releases/download/nro-latest/NetherSX2.nro` |
-| aktuální build | CI build 41, run `35316758450`, `NetherSX2.nro` = **78 724 195 B**, `sha256=417fc784fa4f1738…` (build 40 = `12d60bbdd80448ad…`) |
+| aktuální build | CI build 42, run `35318175938`, `NetherSX2.nro` = **78 724 195 B**, `sha256=87e79e84db10167d…` (41 = `417fc784fa4f1738…`, 40 = `12d60bbdd80448ad…`); CI greppem ověřuje `renderer-decision` v balíku |
 | v balíku | `NetherSX2_nx_vk.nro` 23 124 867 B, `NetherSX2_nx_gl.nro` 7 105 411 B — **v buildech 40 i 41 stejné**, liší se jen obsahem (GL měřidlo), což CI ověřuje greppem `[GL] FPS`; pořadí verdiktů je v anotaci jobu `NetherSX2.nro (GL + VK)` (`check-runs/<id>/annotations`) |
 | pozor na velikosti | buildy 34–37 maj **identickou** velikost (stránkový zarovnání segmentů) — rozlišuj podle `sha256` (35 = `b3a06739…`, 36 = `f6ea45cb…`, 37 = `c2d6aa7d…`). Build 38 povyrostl na 78 724 195 B, protože se konečně zkompilovala diagnostika |
 | generovaný loader | 766 forwarderů, `libnsxvkloader.a` = 554 390 B |
