@@ -304,13 +304,16 @@ jobs:
           # datum neříší druhým uploadem ale jmenem release; historickej
           # soubor zustava v artifactu `nethersx2-nro-vk-bundle` 90 dne.
           gh release delete nro-latest -R "$GITHUB_REPOSITORY" --yes --cleanup-tag >/dev/null 2>&1
-          # POZOR: tohle číslo je GITHUB_RUN_NUMBER (pořadí runu v repu), NE
-          # NSX_CI_BUILD z ci/patches/ci_core_log.c. Od runu 35359982523 se
-          # neshodují (release říká „CI build 56", binárka je build 55).
-          # Která binárka běží na kartě, poznáš jen podle
-          # „[CI] session start build=NN" v nethersx2-core.log.
+          # Číslo binárky = NSX_CI_BUILD z ci/patches/ci_core_log.c, který
+          # build-switch.sh vystaví jako dist/ci-build.txt. Dřív tu bylo
+          # ${GITHUB_RUN_NUMBER} (pořadí runu v repu) a release tvrdila
+          # „CI build 56", zatímco binárka byla build 55 — poznat, co máš
+          # na kartě, šlo jen podle „[CI] session start build=NN" v logu.
+          # Run number v názvu zůstává jako druhé číslo (dohledatelnost runu).
+          binbuild=$(cat "$(find dist -name ci-build.txt | head -1)" 2>/dev/null | tr -d '[:space:]')
+          [ -n "$binbuild" ] || binbuild="?"
           gh release create nro-latest -R "$GITHUB_REPOSITORY" --prerelease \
-            -t "NetherSX2.nro (CI build ${GITHUB_RUN_NUMBER}, ${label})" \
+            -t "NetherSX2.nro (binarka build ${binbuild}, run ${GITHUB_RUN_NUMBER}, ${label})" \
             -n "$notes" >/dev/null 2>&1
           ok=0
           for p in 1 2 3; do

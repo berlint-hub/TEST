@@ -1624,6 +1624,8 @@ for n in emu/NetherSX2_nx_vk.nro emu/NetherSX2_nx_gl.nro cores/libemucore.so \
     note "  v .nro chybí NetherSX2_nx_gl.nro — v pořádku, VK_ONLY=1"
   else
     err "  V .nRO CHYBÍ $name — balík je nepoužitelný"
+    # `err` jen anotuje — bez die by nepoužitelný balík prošel jako zelený.
+    die "v out/NetherSX2.nro chybí $name"
   fi
 done
 # Launcher musí umět do launcher-diag.log zapsat, PROČ vzal gl/vk .nro
@@ -1635,6 +1637,17 @@ else
   warn "launcher: diag bez rozhodnuti o rendereru — patch main.cpp neprošel"
 fi
 key "sha256=$(sha256sum "$OUT/NetherSX2.nro" | cut -c1-16)"
+# Číslo binárky (NSX_CI_BUILD z ci_core_log.c) vystavíme jako soubor, aby ho
+# publish job dal do názvu release. Dřív tam bylo ${GITHUB_RUN_NUMBER}
+# (pořadí runu v repu), takže release tvrdila „CI build 56", zatímco binárka
+# byla build 55 — a poznat, co máš na kartě, šlo jen podle logu.
+ci_build=$(grep -o 'session start build=[0-9]*' "$HERE/patches/ci_core_log.c" | head -1 | sed 's/.*=//')
+if [ -n "$ci_build" ]; then
+  printf '%s\n' "$ci_build" > "$OUT/ci-build.txt"
+  key "ci-build.txt=$ci_build (NSX_CI_BUILD, jde do nazvu release)"
+else
+  warn "NSX_CI_BUILD se nepovedlo vypreparovat z ci_core_log.c — release bude bez cisla binarky"
+fi
 bash "$HERE/annotate.sh" "notice+" 40 < "$DIGEST"
 note "SD layout: sdmc:/switch/NetherSX2.nro + sdmc:/switch/nethersx2/ (BIOS si kladeš sám)"
 exit 0
