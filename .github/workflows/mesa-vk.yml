@@ -261,8 +261,10 @@ jobs:
           vk=ne; find dist -name 'NetherSX2_nx_vk.nro' | grep -q . && vk=ano
           gl=ne; find dist -name 'NetherSX2_nx_gl.nro' | grep -q . && gl=ano
           if [ "$gl" = "ano" ]; then
+            label="Vulkan + OpenGL"
             notes="Vulkan (nxvk Mesa NVK) + OpenGL fallback v balíku. vk=$vk gl=$gl velikost=$size run=${GITHUB_RUN_ID}"
           else
+            label="Vulkan"
             notes="Vulkan-only balík (OpenGL záměrně vyřazen, viz VK_ONLY v tomto workflow). vk=$vk gl=$gl velikost=$size run=${GITHUB_RUN_ID}"
           fi
           # GPL-2.0: driver i Mesu linkujeme staticky, takže distribuce .nra
@@ -279,7 +281,7 @@ jobs:
           # soubor zustava v artifactu `nethersx2-nro-vk-bundle` 90 dne.
           gh release delete nro-latest -R "$GITHUB_REPOSITORY" --yes --cleanup-tag >/dev/null 2>&1
           gh release create nro-latest -R "$GITHUB_REPOSITORY" --prerelease \
-            -t "NetherSX2.nro (CI build ${GITHUB_RUN_NUMBER}, Vulkan + OpenGL)" \
+            -t "NetherSX2.nro (CI build ${GITHUB_RUN_NUMBER}, ${label})" \
             -n "$notes" >/dev/null 2>&1
           ok=0
           for p in 1 2 3; do
