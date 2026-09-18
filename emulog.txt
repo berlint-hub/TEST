@@ -1,0 +1,105 @@
+[    1.4237] Searching for a BIOS image in '/switch/nethersx2/bios'...
+[    1.6696] Preparing for a 1280x720 window
+[    1.7836] Bios Found: USA     v02.30(20/02/2008)  Console 20080220-175343
+[    1.7896] Using BIOS '/switch/nethersx2/bios/SCPH-90001_BIOS_V18_USA_230.ROM0' (USA     v02.30(20/02/2008)  Console 20080220-175343 USA)
+[    1.7927] Opening CDVD...
+[    1.7997] isoFile open ok: /Roms/PS2/Gran Turismo 3 - A-Spec (Europe, Australia) (En,Fr,De,Es,It) (v2.00).iso
+[    1.8025] 	Image type  = DVD
+[    1.8053]  * CDVD Disk Open: DVD, Single layer or unknown:
+[    1.8080]  * * Track 1: Data (Mode 1) (1800304 sectors)
+[    1.8131] Opening GS...
+[    2.7102] No GPU requested, using first (NVIDIA Tegra X1 (NVK gm20b))
+[    2.7175] 1 vulkan queue families
+[    2.7408] VK_EXT_provoking_vertex is supported
+[    2.7435] VK_EXT_line_rasterization is supported
+[    2.7462] VK_EXT_calibrated_timestamps is supported
+[    2.7489] VK_ARM_rasterization_order_attachment_access is NOT supported
+[    2.9508] Read 398 entries from '/switch/nethersx2/cache/vulkan_shaders.idx'
+[    2.9867] Lazily allocating JNI environment for thread 0x36576c2da0
+[    3.2574] Opening SPU2...
+[    3.2625] Initializing SndBuffer at sample rate of 48000...
+[    3.2698] (AAudioMod) Creating stream...
+[    3.2777] (AAudioMod) Starting stream...
+[    3.2911] Opening PAD...
+[    3.2942] Opening DEV9...
+[    3.3234] Opening USB...
+[    3.3261] Opening FW...
+[    3.3332] McdSlot 0 [File]: /switch/nethersx2/memcards/Mcd001.ps2
+[    3.3415] McdSlot 1 [File]: /switch/nethersx2/memcards/Mcd002.ps2
+[    3.3492] EE/iR5900-ARM64 Recompiler Reset
+[    3.3760] Vsync is OFF
+[    3.4028] 	Searching for a BIOS image in '/switch/nethersx2/bios'...
+[    3.8880] 	Bios Found: USA     v02.30(20/02/2008)  Console 20080220-175343
+[    3.8906] 	Using BIOS '/switch/nethersx2/bios/SCPH-90001_BIOS_V18_USA_230.ROM0' (USA     v02.30(20/02/2008)  Console 20080220-175343 USA)
+[    3.9026] 	Bios Found: USA     v02.30(20/02/2008)  Console 20080220-175343
+[    4.0310] 	BIOS rom2 module not found, skipping...
+[    4.0561] VM subsystems initialized in 2634.28 ms
+[    5.3111] [GameDB] 12847 games on record (loaded in 1251.95ms)
+[    5.3142] [GameDB] Searching for '20080220-175343' in GameDB
+[    5.3206] [GameDB] Could not find '20080220-175343' in GameDB
+[    5.3235] Game Changed:
+[    5.3307]   Name: 
+[    5.3336]   Serial: 20080220-175343
+[    5.3407]   CRC: 00000000
+[    5.3469] Applying settings...
+[    5.3559] [Unsafe Settings] Hardware Download Mode is not set to Accurate, this may break rendering in some games.
+[    5.3612] OSD [unsafe_settings_warning]:  Hardware Download Mode is not set to Accurate, this may break rendering in some games.
+[    5.3683] [Unsafe Settings] GPU Palette Conversion is enabled, this may reduce performance.
+[    5.3711] OSD [performance_settings_warning]:  GPU Palette Conversion is enabled, this may reduce performance.
+[    5.3783] [GameDB] Searching for '20080220-175343' in GameDB
+[    5.3812] [GameDB] Could not find '20080220-175343' in GameDB
+[    5.3884] Failed to initialize cpuinfo
+[    5.3956] OSD [android_warning]: You are using AetherSX2, and it should not be sold, or distributed as part of any other app.
+[    5.3956] If you paid for this app, you should get your money back.
+# Initialize memory (rev:4.00, ctm:196Mhz, cpuclk:147Mhz detected)
+[    5.4837] Applying settings...
+[    5.4883] [Unsafe Settings] Hardware Download Mode is not set to Accurate, this may break rendering in some games.
+[    5.4920] OSD [unsafe_settings_warning]:  Hardware Download Mode is not set to Accurate, this may break rendering in some games.
+[    5.4992] [Unsafe Settings] GPU Palette Conversion is enabled, this may reduce performance.
+[    5.5016] OSD [performance_settings_warning]:  GPU Palette Conversion is enabled, this may reduce performance.
+[    5.5077] [GameDB] Searching for '20080220-175343' in GameDB
+[    5.5117] [GameDB] Could not find '20080220-175343' in GameDB
+
+PlayStation 2 ======== Hard reset boot
+ ROMGEN=2008-0220, IOP info (CPUID=1f, CACH_CONFIG=14000200, 2MB, IOP mode)
+ <20080220-175343,ROMconf,PS20230WC20080220.bin:11824>
+# Total accessable memory size: 32 MB (B:2:8:0) (400:2:7c30)
+# TLB spad=0 kernel=1:12 default=13:30 extended=31:38
+# Initialize Start.
+# Initialize GS ...
+# Initialize INTC ...
+# Initialize TIMER ...
+# Initialize DMAC ...
+# Initialize VU1 ...
+# Initialize VIF1 ...
+# Initialize GIF ...
+# Initialize VU0 ...
+# Initialize VIF0 ...
+# Initialize IPU ...
+# Initialize FPU ...
+# Initialize User Memory ...
+# Initialize Scratch Pad ...
+# Initialize Done.
+
+EE DECI2 Manager version 0.06 Sep  5 2006 12:57:08
+  CPUID=2e20, BoardID=0, ROMGEN=2008-0220, 32M
+
+[    5.8630] (SYSTEM.CNF) Detected PS2 Disc = cdrom0:\SCES_502.94;1
+[    5.8661] (SYSTEM.CNF) Software version = 2.00
+[    5.8758] (SYSTEM.CNF) Disc region type = PAL
+[    5.9083] ELF (cdrom0:\SCES_502.94;1) Game CRC = 0xB590CE04, EntryPoint = 0x01000008
+[    5.9143] (SYSTEM.CNF) Detected PS2 Disc = cdrom0:\SCES_502.94;1
+[    5.9173] (SYSTEM.CNF) Software version = 2.00
+[    5.9250] (SYSTEM.CNF) Disc region type = PAL
+
+IOP Realtime Kernel Ver.0.9.1
+    Copyright 1999 (C) Sony Computer Entertainment Inc. 
+Reboot service module.(99/11/10)
+cdvd driver module version 0.1.1 (C)SCEI
+Load File service.(99/11/05)
+Multi Threaded Fileio module.(99/11/15) 
+iop heap service (99/11/03)
+loadelf: fname cdrom0:¥SCES_502.94;1 secname all
+loadelf version 3.30
+Input ELF format filename = cdrom0:¥SCES_502.94;1
+0 01000000 000417eb ....
