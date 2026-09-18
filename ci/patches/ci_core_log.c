@@ -22,6 +22,13 @@
 #define CI_MARK_PATH "/switch/nethersx2/ci-logging.enabled"
 #define CI_RAWLOG_MARK   "/switch/nethersx2/ci-rawlog.enabled"
 #define CI_CLK_CONF  "/switch/nethersx2/ci-clk.conf"
+/* Build 52 (test pádu při přehazování her GT3<->Fallout): ci-noclk.enabled
+ * úplně vypne clkrst/pcv (i čtení). ci-nopin.enabled čte až patch pthr.c. */
+#define CI_NOCLK_MARK "/switch/nethersx2/ci-noclk.enabled"
+
+static int ci_raw_log(void);
+static void ci_flush_repeat(void);
+static void ci_atexit(void);
 
 /* libnx pojmenovává režimy takhle: ApmPerformanceMode_Invalid/Normal/Boost
  * (-1/0/1) a AppletOperationMode_Handheld/Console (0/1). Používáme proto
@@ -38,8 +45,18 @@ static int ci_on(void) {
     struct stat st;
     ci_enabled = (stat(CI_MARK_PATH, &st) == 0) ? 1 : 0;
     if (ci_enabled) {
+      /* NSX_LOG_QUIET vs. forenzní mód: default je 64 KiB buffer (na SD jen
+       * když se naplní). Marker ci-rawlog.enabled (= surový log bez dedupu)
+       * od buildu 52 navíc přepne stdout/stderr na NEBUFFEROVANÝ zápis —
+       * každý řádek hned na SD. Jde o pomalý mód čistě na pátrání po pádu:
+       * při tvrdým pádu se buffer do karty nedostane, takže defaultní log
+       * končí klidně o několik sekund dřív, než proces umřel (přesně to se
+       * stalo u pádu GT3<->Fallout: log se usekl hned po startu audio
+       * threadu a nebylo vidět, co přišlo potom). */
+      const int nsx_raw = ci_raw_log();
       if (freopen(CI_LOG_PATH, "a", stdout))
-        setvbuf(stdout, NULL, _IOFBF, 64 * 1024);   /* NSX_LOG_QUIET */
+        setvbuf(stdout, NULL, nsx_raw ? _IONBF : _IOFBF,
+                nsx_raw ? 0 : 64 * 1024);   /* NSX_LOG_QUIET */
       /* Mesa (a tím i NVK) hlásí svoje chyby přes vk_errorf/mesa_log na
        * stderr a ten dosud nikam neved. Zapisujeme do stejnýho souboru.
        * POZOR: `freopen` na stderr na kartě hlásil SELHAL (build 46), proto
@@ -51,7 +68,8 @@ static int ci_on(void) {
         if (fd >= 0) {
           if (dup2(fd, fileno(stderr)) >= 0) {
             stderr_ok = 1;
-            setvbuf(stderr, NULL, _IOFBF, 64 * 1024);   /* NSX_LOG_QUIET */
+            setvbuf(stderr, NULL, nsx_raw ? _IONBF : _IOFBF,
+                    nsx_raw ? 0 : 64 * 1024);   /* NSX_LOG_QUIET */
           } else {
             stderr_err = errno;
           }
@@ -74,8 +92,21 @@ static int ci_on(void) {
         fprintf(stdout, "[CI] boost: NEPOUZIVAME (appletSetCpuBoostMode je "
                         "vynechany ve util.c; takty ridi sysmodul/governor)\n");
         fprintf(stdout, "[CI] takty: jen cteni; zapis jedine kdyz na karte "
-                        "existuje ci-clk.conf\n");
+                        "existuje ci-clk.conf (ci-noclk.enabled vypne i cteni)\n");
       }
+      /* Build 52: identifikace session. Na hraně přehazování her se v logu
+       * střídaj dva procesy (starý flushne zbytek bufferu až poté, co nový
+       * začal psát — v logu z karty jsou proto řádky prokládaný/roztrhaný).
+       * ts+pid umožní session rozeznat a řadit. Hned flush + fsync, aby
+       * začátek session přežil i okamžitej pád.
+       * NSX_CI_BUILD: ručně zvedat s každým buildem — jediná jistá známka,
+       * která binárka na kartě běží (velikosti .nro se mezi buildy nemění). */
+      fprintf(stdout, "[CI] session start build=52 ts=%ld pid=%d%s\n",
+              (long)time(NULL), (int)getpid(),
+              ci_raw_log() ? " rawlog=unbuffered" : "");
+      fflush(stdout);
+      fsync(fileno(stdout));
+      atexit(ci_atexit);   /* korektní konec = "[CI] session end" v logu */
     }
   }
   return ci_enabled;
@@ -224,6 +255,20 @@ static void ci_emit(const char *line) {
   ci_maybe_flush();
 }
 
+/* ---- build 52: forenzní konec session -------------------------------------
+ * Korektní exit() tady nechá v logu "[CI] session end". Tvrdej pád (segv,
+ * abort, fatální chyba systému) atexit NESPUSTÍ — chybí-li v logu tenhle
+ * řádek, proces umřel tvrdě. Přesně takhle se pozná, jestli při přehazování
+ * her (GT3<->Fallout) umírá emulátor sám, nebo něco kolem něj. */
+static void ci_atexit(void) {
+  if (ci_enabled != 1)
+    return;
+  ci_flush_repeat();
+  fprintf(stdout, "[CI] session end (korektni exit)\n");
+  fflush(stdout);
+  fsync(fileno(stdout));
+}
+
 /* ---- NSX_NO_BOOST --------------------------------------------------------
  * Port zapínal CPU boost (appletSetCpuBoostMode(FastLoad)) na startu a po
  * 60 framech ho shazoval. FastLoad ale podle libnx znamená „Boost CPU.
@@ -311,6 +356,18 @@ static ClkrstSession ci_sess[3];          /* 0=cpu, 1=gpu, 2=emc */
 static int ci_sess_ok[3];
 static int ci_clk_probed;
 static int ci_pcv_ok = -1;
+/* Build 52: marker ci-noclk.enabled = úplně bez clkrst/pcv (i čtení).
+ * Pátrání po pádu při přehazování her: sessions na clkrst (PSC) běží celou
+ * session a s governorem (Ultrahand/sys-clk) na kartě je tu riziko kolize;
+ * tenhle marker to umí izolovaně vyřadit bez rebuildu. */
+static int ci_noclk(void) {
+  static int v = -1;
+  if (v < 0) {
+    struct stat st;
+    v = (stat(CI_NOCLK_MARK, &st) == 0) ? 1 : 0;
+  }
+  return v;
+}
 static Result ci_r_init;                  /* Resulty pro diagnostiku */
 static Result ci_r_open[3], ci_r_get[3], ci_r_set[3];
 /* POZOR, tady byl důvod nul v buildu 46: libnx má DVĚ různé sady jmen.
@@ -327,6 +384,12 @@ static void ci_clk_probe(void) {
   if (ci_clk_probed)
     return;
   ci_clk_probed = 1;
+  if (ci_noclk()) {
+    fprintf(stdout, "[CI] clk: vypnuto markerem ci-noclk.enabled (test "
+                    "stabilnosti; FPS radka bude mit nuly)\n");
+    fflush(stdout);
+    return;
+  }
   ci_r_init = clkrstInitialize();
   if (R_SUCCEEDED(ci_r_init)) {
     for (int i = 0; i < 3; ++i)

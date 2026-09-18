@@ -437,3 +437,76 @@ Analyzátor `ci/analyze-core-log.py` z něj vytáhl:
 Z toho plyne plán pro novou session: **`VU-GS-OPTIMALIZACE.md`** — VU1 +
 synchronizace threadů, MTGS/VU1 na vlastní jádra.
 
+---
+
+## Build 52 — pád systému při přehazování her (GT3 ↔ Fallout)
+
+Uživatel před buildem varoval: *„poslední build shazuje Horizon OS /
+Atmosphere — zapnu GT3 a pak chci Fallout a hodí mi to error, že musím
+vypnout Switch."* Následuje, co se dalo z logů v repu vyčíst a co build 52
+dělá. **Výkonové chování je beze změny** — žádná z věcí níž nesahá na thready,
+takty ani renderer za běhu.
+
+### Co ukázaly nahrané logy (`nethersx2-core.log`, `launcher-diag.log`)
+
+Čtyři starty her za ~17 minut (ts 1789731395 → 1789732414):
+GT3 → Fallout → Fallout → GT3, každý s vlastní emulační session.
+
+| session | hra | stopa v logu |
+|---|---|---|
+| 1 | GT3 | dlouhá, zdravá (FPS řádky, poslední 50,2 FPS na 2703/1497/2666) |
+| 2 | Fallout | boot do `(AAudioMod) Starting stream...` + `Opening PAD` → **konec, nula FPS řádků** |
+| 3 | Fallout | totéž |
+| 4 | GT3 | totéž (přitom GT3 v session 1 běželo!) |
+
+Interpretace: FPS řádky (i všechny `[VK]`/`[CI]` řádky) se flushují hned,
+takže jejich absence znamená, že **žádný frame nebyl prezentován**. Fallout
+i druhé GT3 tedy umřely během/záhy po startu VM — a GT3, které před chvílí
+běželo, umřelo taky. To nedělá chyba jedné hry; sedí **degradace stavu
+systému napříč procesy** (neco se po exitu starého procesu necistí: audout
+stream, vi layer, nvdrv channel, clkrst session) nebo **pád sysmodulu**
+(Atmosphere fatal == „vypni konzoli"). Konečný rozsudek bez Atmosphere crash
+reportu vypadnout nemůže — ten pojmenuje modul a Result kód.
+
+Log navíc diagnostiku aktivně ztěžoval:
+
+* 64 KiB plně bufferovaný stdout = při tvrdém pádu zmizí celý konec logu
+  (přesně proto session končí „vzduchem" za posledním flushnutým řádkem),
+* starý proces flushuje zbytek bufferu až **po** startu nového → na hraně
+  session je zápis prokládaný a roztrhaný (v logu vidět: řádek
+  „…vzor se opakoval 32x" se slepil s bannerem další session).
+
+### Co build 52 mění (vše jen v `ci/`)
+
+1. `ci/patches/ci_core_log.c`:
+   * `[CI] session start build=52 ts=<unix> pid=<pid>` hned po otevření logu,
+     flush + fsync (začátek session přežije cokoli); `build=` se ručně zvedá
+     s každým buildem (NSX_CI_BUILD) — na kartě tak poznáš konkrétní binárku.
+   * `atexit` handler → `[CI] session end (korektni exit)` + fsync. **Chybí-li
+     na konci session, proces umřel tvrdě** (segv/abort/fatal systému).
+     Takhle se z logu pozná, jestli padá emulátor sám, nebo systém kolem.
+   * `ci-rawlog.enabled` navíc přepne stdout i stderr na **nebufferovaný**
+     zápis (`_IONBF`) — každý řádek hned na SD. Pomalé (per-line I/O), jen
+     pro pátrání po pádu.
+   * marker `ci-noclk.enabled`: clkrst sessions ani pcv se vůbec neotevřou
+     (i čtení taktů vypne; FPS řádka bude mít nuly). Test kolize s governorem.
+2. `ci/patches/pthr_diag.py` (nový soubor, dřív heredoc v build-switch.sh):
+   * stávající NSX_CORE_DIAG (rozložení threadů) + **marker
+     `ci-nopin.enabled`**: vypne všechna `svcSetThreadCoreMask`; thready
+     dědí masku procesu. Audio thread tak nesedne na core 3 (jádro, kde
+     žijou sysmoduly). Test bez rebuildu.
+3. `.github/workflows/mesa-vk.yml`: jen aktivační komentář (spolehlivý
+   trigger je push sahající na tento soubor, viz §5).
+
+### Jak teď testovat (bez dalšího buildu)
+
+1. Stáhnout `nro-latest` (= build 52), nahrát místo starého `.nro`.
+2. Ověřit v logu `[CI] session start build=52 …`.
+3. Přehazovat hry jako dřív. Když padne:
+   * podívat se do `nethersx2-core.log`, jestli poslední session má
+     `[CI] session end` (korektní exit) nebo se usekla (tvrdý pád),
+   **zkontrolovat `sd:/atmosphere/crash_reports/` a
+   `sd:/atmosphere/fatal_errors/`** a poslat nejnovější soubor,
+   * případně přidat `ci-rawlog.enabled` (kompletní log i přes pád, za cenu
+     FPS) a / nebo `ci-nopin.enabled` / `ci-noclk.enabled` a zkoušet znovu —
+     podle toho, který marker pád zastaví, je známý viník.

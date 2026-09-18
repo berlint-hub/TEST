@@ -8,7 +8,9 @@ během**, ne domněnka; kde se pochybuje, je to napsané.
 > **`VU-GS-OPTIMALIZACE.md`** (zadání, změřené FPS podle taktů, rozložení
 > threadů, hypotézy v pořadí, jak měřit). Tenhle HANDOFF pak čti jako
 > referenci — hlavně §8 (pasti), §9–§11 (výkon a takty).
-> Poslední build: **51** (`nro-latest`, 71 594 119 B, sha256 `9c719e25cb27b374`).
+> Poslední build: **52** (`nro-latest`; build 51 = 71 594 119 B,
+> sha256 `9c719e25cb27b374`). Build 52 = pátrání po pádu při přehazování
+> her (níž §0b), výkonové chování beze změny.
 
 Cíl uživatele: reproducible CI, který vyrobí `.nro` s funkčním Vulkan
 rendererem, plus zpětná vazba z logů na kartě. Historie: build 37/38 našel
@@ -23,6 +25,47 @@ v launcheru zamčený na Vulkan i proti per-game profilu. **Emulátor do taktů
 vůbec nesahá** — `cpu_boost()` je prázdná funkce (`ci/patches/util_no_boost.py`),
 protože `FastLoad` srážel GPU na 76 MHz a bil se s governororem uživatele
 (Ultrahand). Takty se jen **čtou** do FPS řádky.
+
+## 0b. STAV: PÁD PŘI PŘEHAZOVÁNÍ HER (2026-09-18, build 52)
+
+Uživatel hlásí: **poslední build shazuje Horizon OS/Atmosphere, když zapne
+GT3 a pak chce spustit Fallout — objeví se chyba a musí Switch vypnout.**
+Nejnovější `nethersx2-core.log` + `launcher-diag.log` v repu (4 starty her:
+GT3 → Fallout → Fallout → GT3) ukazují:
+
+* Všechny 4 starty se dostaly až do emulátoru (4× `[CI] log capture ON`).
+* **Obě Fallout session skončily hned po `(AAudioMod) Starting stream...` /
+  `Opening PAD` — nula FPS řádků**, přestože mezi starty uběhly minuty
+  (Fallout normálně jede 59,9 FPS a FPS řádky se flushují okamžitě).
+* Po nich zemřela i druhá GT3 session na **stejném místě** (GT3 samotná
+  předtím běžela 50,2 FPS na max taktech). To není chyba jedné hry — vypadá
+  to na **degradaci stavu systému mezi procesy** (necistený zdroj po exitu
+  procesu: audio stream / vi layer / nvdrv channel / clkrst session) nebo na
+  pád sysmodulu (audout/vi/nvdrv), který dá Atmosphere fatal „vypni konzoli".
+* **Log diagnostiku ztěžoval**: 64 KiB buffer == při tvrdým pádu zmizí konec
+  logu; starý proces flushuje buffer až PO startu nového == prokládaný
+  a roztrhaný zápis na hraně session (v logu vidět).
+
+Co přináší build 52 (chování hry beze změny — žádná výkonnostní změna):
+
+1. **`[CI] session start build=52 ts=… pid=…`** hned po startu, flush+fsync.
+2. **`[CI] session end (korektni exit)`** — zapíše se JEN při korektním
+   `exit()`. Chybí-li na konci session, proces umřel tvrdě → víme, jestli
+   padá emulátor, nebo systém kolem.
+3. **`ci-rawlog.enabled` teď taky vypne buffering** (každý řádek hned na SD)
+   — forenzní mód, pomalé, jen na pátrání.
+4. **Marker `ci-nopin.enabled`** — vypne všechna `svcSetThreadCoreMask`
+   (pthr.c; thready dědí masku procesu). Test, jestli pinování (audio
+   thread na core 3, kde žijou sysmoduly) přispívá k nestabilitě.
+5. **Marker `ci-noclk.enabled`** — úplně bez clkrst/pcv (i čtení taktů).
+   Test, jestli clkrst session nekolidujou s Ultrahand governorem.
+6. PTHRDIAG patch přesunut z heredocu do `ci/patches/pthr_diag.py`
+   (konvence + testovatelnost).
+
+Jak pátrat (když to znovu padne): zkontrolovat `nethersx2-core.log`
+(session end vs. usek), a HLAVNĚ **`sd:/atmosphere/crash_reports/` a
+`sd:/atmosphere/fatal_errors/`** — Atmosphere tam ukládá report s modulem
+a Result kódem, který pojmenuje viníka (audout/vi/nvdrv/fs/náš proces).
 
 ### Původní stav (build 38): VULKAN NA KARTĚ FUNGUJE
 

@@ -890,95 +890,15 @@ else
 fi
 
 # ---------------------------------------- 7b3. rozložení threadů na jádra
-# Uživatelův dotaz „máme 4 jádra — jedno na EE, dvě na VU a čtvrtý na GS?" se
+# Uživatelův dotaz „máme 4 jádra — jedno na EE, dvě na VU a čtvrtý na GS?“ se
 # dá zodpovědět jen tehdy, když víme, kolik jader proces dostal a kam která
 # vlákna opravdu sedla. pthr.c to počítá (ee_core, work pool, bg core), ale
 # nikam to nehlásí. Přidáme výpis rozložení + řádek za každý vytvořený
-# emulační thread. Je to čistá diagnostika — nic se nepinuje jinak než dřív.
-if python3 - "$SRC/source/pthr.c" <<'PTHRDIAG'
-import sys
-
-path = sys.argv[1]
-text = open(path, encoding="utf-8", errors="surrogateescape").read()
-if "NSX_CORE_DIAG" in text:
-    print("pthr.c: core diag už patchnuto")
-    sys.exit(0)
-
-done = 0
-edits = [
-    ('#include "pthr.h"',
-     '/* NSX_CORE_DIAG: rozložení emulačních threadů do logu. */\n'
-     '#include <stdio.h>\n'
-     '#include "pthr.h"'),
-    ('  work_mask = (hot_count >= 2) ? (hot_mask & ~(1u << ee_core)) : hot_mask;',
-     '  work_mask = (hot_count >= 2) ? (hot_mask & ~(1u << ee_core)) : hot_mask;\n'
-     '\n'
-     '  /* NSX_CORE_DIAG: kolik jader proces dostal a jak se o ně thready podělí.\n'
-     '   * hbmenu dává 3 jádra (čtvrté si drží systém), zástupce v HOME menu 4. */\n'
-     '  fprintf(stdout, "[CI] cores: mask=0x%llx -> hot=0x%x ee=%d work=",\n'
-     '          (unsigned long long)mask, hot_mask, ee_core);\n'
-     '  for (int nsx_i = 0; nsx_i < work_count; nsx_i++)\n'
-     '    fprintf(stdout, "%d%s", work_list[nsx_i], (nsx_i + 1 < work_count) ? "," : "");\n'
-     '  fprintf(stdout, " bg=%d%s\\n", bg_core,\n'
-     '          (bg_core < 0) ? " (jen 3 jadra -> audio se vejde do work poolu)" : "");\n'
-     '  fflush(stdout);'),
-    ('static void assign_work_core(void) {',
-     'static int assign_work_core(void) {'),
-    ('  const int core = work_list[work_rr++ % (unsigned)work_count]; const unsigned m = work_mask;\n'
-     '  mutexUnlock(&core_lock);\n'
-     '  svcSetThreadCoreMask(CUR_THREAD_HANDLE, core, m);\n'
-     '}',
-     '  const int core = work_list[work_rr++ % (unsigned)work_count]; const unsigned m = work_mask;\n'
-     '  mutexUnlock(&core_lock);\n'
-     '  svcSetThreadCoreMask(CUR_THREAD_HANDLE, core, m);\n'
-     '  return core;\n'
-     '}'),
-    ('  // Keep emulator workers off the EE and audio cores.\n'
-     '  assign_work_core();',
-     '  // Keep emulator workers off the EE and audio cores.\n'
-     '  {\n'
-     '    /* NSX_CORE_DIAG: MTGS/VU1/worker thread — na kterém jádře skončil. */\n'
-     '    const int nsx_core = assign_work_core();\n'
-     '    static int nsx_seq = 0;\n'
-     '    fprintf(stdout, "[CI] thread #%d (work: MTGS/VU1/worker) -> core=%d\\n",\n'
-     '            ++nsx_seq, nsx_core);\n'
-     '    fflush(stdout);\n'
-     '  }'),
-    ('  const int core = ee_core; const unsigned m = 1u << ee_core;\n'
-     '  mutexUnlock(&core_lock);\n'
-     '  svcSetThreadCoreMask(CUR_THREAD_HANDLE, core, m);',
-     '  const int core = ee_core; const unsigned m = 1u << ee_core;\n'
-     '  mutexUnlock(&core_lock);\n'
-     '  svcSetThreadCoreMask(CUR_THREAD_HANDLE, core, m);\n'
-     '  /* NSX_CORE_DIAG */\n'
-     '  fprintf(stdout, "[CI] thread EE/VM -> core=%d (vyhrazene)\\n", core);\n'
-     '  fflush(stdout);'),
-    ('  if (bg_core >= 0) { core = bg_core; m = 1u << bg_core; }\n'
-     '  else { core = work_list[bg_rr++ % (unsigned)work_count]; m = work_mask; }\n'
-     '  mutexUnlock(&core_lock);\n'
-     '  svcSetThreadCoreMask(CUR_THREAD_HANDLE, core, m);',
-     '  if (bg_core >= 0) { core = bg_core; m = 1u << bg_core; }\n'
-     '  else { core = work_list[bg_rr++ % (unsigned)work_count]; m = work_mask; }\n'
-     '  mutexUnlock(&core_lock);\n'
-     '  svcSetThreadCoreMask(CUR_THREAD_HANDLE, core, m);\n'
-     '  /* NSX_CORE_DIAG (audio a spol.) */\n'
-     '  fprintf(stdout, "[CI] thread bg (audio/...) -> core=%d%s\\n", core,\n'
-     '          (bg_core < 0) ? " (sdileny work pool)" : "");\n'
-     '  fflush(stdout);'),
-]
-for find, repl in edits:
-    if repl in text:
-        done += 1          # uz patchnuto
-    elif find in text:
-        text = text.replace(find, repl, 1)
-        done += 1
-    else:
-        print("pthr.c: kotva nenalezena: %r" % find[:60])
-open(path, "w", encoding="utf-8", errors="surrogateescape").write(text)
-print("pthr.c: core diag %d/%d" % (done, len(edits)))
-sys.exit(0 if done == len(edits) else 1)
-PTHRDIAG
-then
+# emulační thread. Od buildu 52 navíc umí marker ci-nopin.enabled vypnout
+# všechna svcSetThreadCoreMask (test pádu při přehazování her).
+# Patch je v ci/patches/pthr_diag.py (dřív heredoc; stejný důvod jako
+# vk_diag.py — v Python řetězcích uvnitř shellu se pletou lomítka).
+if python3 "$HERE/patches/pthr_diag.py" "$SRC/source/pthr.c"; then
   key "diag: rozlozeni threadu na jadra je v logu (pthr.c)"
 else
   warn "pthr.c patch pro rozlozeni threadu neprosel — uvidime jen FPS radky"

@@ -1,5 +1,9 @@
 name: build / VK (nxvk Mesa -> NetherSX2_nx)
 
+# Build 52 (2026-09-18): pátrání po pádu systému při přehazování her
+# (GT3<->Fallout). Forenzní log (session start/end, unbuffered rawlog mód),
+# markery ci-nopin.enabled / ci-noclk.enabled. Chování defaultně NEZMĚNĚNO.
+
 # Dva kroky, který si nemůžeš dovolit dělat ručně pokaždý:
 #
 #   mesa   = postavit nxvk (Mesa NVK pro Switch) v Docker image a vyndat z

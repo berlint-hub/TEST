@@ -5,7 +5,8 @@ od buildu 43 vypnutý).
 
 **Kam začít:** [`VU-GS-OPTIMALIZACE.md`](VU-GS-OPTIMALIZACE.md) — zadání
 a plán pro optimalizaci CPU/VU/GS (změřená FPS podle taktů, rozložení threadů,
-hypotézy v pořadí, jak měřit). Aktuální build: **51**.
+hypotézy v pořadí, jak měřit). Aktuální build: **52** (pátrání po pádu při
+přehazování her — viz BUILD-NOTES.md „Build 52").
 
 - **[`VU-GS-OPTIMALIZACE.md`](VU-GS-OPTIMALIZACE.md)** — co optimalizovat
   a proč (GT3 je CPU-bound, GS ne), experimenty, metodika měření.
