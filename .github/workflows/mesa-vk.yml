@@ -145,19 +145,28 @@ jobs:
       # prubozkousany; dokud neni, je to nejlevnejsi zpusob, jak ziskat
       # vic nez jen „GS failed to open".
       VK_DIAG: 1
-      # 2026-09-18, build 35: VK se dostal až k fyzickejm zařízením, ale
-      # "(EnumerateGPUs) vkEnumeratePhysicalDevices (1) failed: (0: VK_SUCCESS)"
-      # = nula zařízení. Příčina je v nxvk: nvk_is_conformant() odmítá Tegru
-      # (type=SOC) a release build to dělá úplně bez hlášky, takže enumerate
-      # spadne do DRM větve a vrátí VK_SUCCESS s prázdným seznamem.
-      # build-switch.sh teď portu doplňuje setenv NVK_I_WANT_A_BROKEN_VULKAN_DRIVER=1
-      # (krok 7a) a do nethersx2-core.log navíc chytá i stderr, kam Mesa píše
-      # svoje chyby. Ověřit na kartě: Settings → Renderer → Vulkan.
+      # 2026-09-18, build 37 (karta): fyzické zařízení se už najde
+      # ("No GPU requested, using first (NVIDIA Tegra X1 (NVK gm20b))"), ale
+      # padá hned povrch:
+      #   (CreateVulkanSurface) vkCreateAndroidSurfaceKHR failed: (-3)
+      # -3 = VK_ERROR_INITIALIZATION_FAILED, což je fallback našeho loaderu pro
+      # funkci, kterou přes vk_icdGetInstanceProcAddr((VkInstance)0, …) nenašel.
+      # Mesa runtime totiž s NULL instancí vydá jen pět pre-instance entrypointů
+      # (`if (instance == NULL) return NULL;` ve vk_instance_get_proc_addr) a
+      # vkCreateViSurfaceNN mezi ně nepatří. Loader si proto od tohohle buildu
+      # instanci z vkCreateInstance pamatuje; test na hostiteli:
+      # před = -3, po = VK_SUCCESS (a vkGetDeviceProcAddr("vkCmdDraw") dřív NULL).
+      #
+      # Druhá záplata téhož večera: VK diagnostika se zapínala patchem Makefile,
+      # který se chytil na string v tom Makefile samotném (`ifneq ...
+      # $(NETHERSX2_VK_DIAGNOSTIC)`) a tiše nic nepřidal — proto se
+      # nethersx2-vulkan.log nikdy neobjevil. Teď se předává jako make
+      # proměnná (NETHERSX2_VK_DIAGNOSTIC=1) a CI greppem v binárce ověřuje,
+      # že v ní je i řetězec "NetherSX2 Vulkan diagnostic".
       #
       # Pozor na velikosti: .nro mezi buildy nerostou (segmenty se zarovnávaj
-      # na stránky), takže build 35 i 36 hlásí vk=23116675 B a nro=78716003 B.
-      # Rozlišuj podle sha256; že je patch opravdu v binárce, hlídá grep na
-      # řetězec NVK_I_WANT_A_BROKEN_VULKAN_DRIVER ve stagi 6 a runtime výpis
+      # na stránky), takže buildy 34–38 hlásí vk=23116675 B a nro=78716003 B.
+      # Rozlišuj podle sha256 + podle greppu markerů ve stagi 6 a runtime výpisu
       # v nethersx2-core.log ("[CI] log capture ON, ...=1").
 
     steps:

@@ -622,47 +622,46 @@ PKGLIBS
   # Volitelně zapnout upstream VK diagnostiku: source/hooks/vk.c si pod
   # NETHERSX2_VK_DIAGNOSTIC píše /switch/nethersx2/nethersx2-vulkan.log —
   # jaký extenze jádro skutečně žádalo, výsledek CreateViSurfaceNN,
-  # CreateDevice (queues/family/lsfg_capable). Bez toho máme z VK cesty jen
-  # ConsoleLog jádra, a přesně proto sme „Missing required extension
-  # VK_KHR_surface" museli dohadovat z jedný řádky.
+  # CreateDevice (queues/family/lsfg_capable) a jestli se ten soubor otevřel.
+  #
+  # POZOR, past která nás stála buildy 35 i 37: Makefile má na tuhle
+  # diagnostiku VLASTNÍ přepínač
+  #     ifneq ($(strip $(NETHERSX2_VK_DIAGNOSTIC)),)
+  #     DEFINES += -DNETHERSX2_VK_DIAGNOSTIC
+  #     endif
+  # Dřív tu byl patch, který do Makefile přidával -DNETHERSX2_VK_DIAGNOSTIC
+  # ručně — jenže jeho pojistka hledala v souboru string "NETHERSX2_VK_DIAGNOSTIC",
+  # který je v Makefile i bez našeho zásahu (v tom ifneq). Patch se tedy tvářil
+  # jako „už zapnutá", nic nepřidal, CI napsalo „DIAGNOSTIC zapnutej" a build
+  # běžel BEZ diagnostiky. Správná cesta je předat tu proměnnou makeu.
+  VKDIAG_MK=""
   if [ "${VK_DIAG:-0}" = "1" ]; then
-    if python3 - "$SRC/Makefile" <<'VKDIAG'
-import sys
-path = sys.argv[1]
-text = open(path, encoding="utf-8", errors="surrogateescape").read()
-if "NETHERSX2_VK_DIAGNOSTIC" in text:
-    print("Makefile: VK diagnostika už zapnutá")
-    sys.exit(0)
-needle = "DEFINES\t+=\t-DUSE_VULKAN"
-if needle not in text:
-    print("Makefile: kotva DEFINES pro VK větev nenalezena")
-    sys.exit(1)
-i = text.index(needle)
-j = text.index("\n", i)
-text = text[:j] + " -DNETHERSX2_VK_DIAGNOSTIC" + text[j:]
-open(path, "w", encoding="utf-8", errors="surrogateescape").write(text)
-print("Makefile: -DNETHERSX2_VK_DIAGNOSTIC přidáno na řádek VK DEFINES")
-VKDIAG
-    then
-      key "vk: DIAGNOSTIC zapnutej -> sdmc:/switch/nethersx2/nethersx2-vulkan.log"
-    else
-      warn "VK_DIAG=1 ale Makefile patch neprošel, jedeme bez diagnostiky"
-    fi
+    VKDIAG_MK="NETHERSX2_VK_DIAGNOSTIC=1"
+    key "vk: DIAGNOSTIC zapnutej (make NETHERSX2_VK_DIAGNOSTIC=1)"
   fi
 
   make -C "$SRC" clean >/dev/null 2>&1
-  if run_soft "make emulator VK (nxvk pkg + loader)" make -C "$SRC" -j"$JOBS" RENDERER=VK LTOFLAGS=; then
+  # shellcheck disable=SC2086
+  if run_soft "make emulator VK (nxvk pkg + loader)" make -C "$SRC" -j"$JOBS" RENDERER=VK LTOFLAGS= $VKDIAG_MK; then
     if [ -f "$SRC/NetherSX2_nx.nro" ]; then
       cp -f "$SRC/NetherSX2_nx.nro" "$SRC/NetherSX2_nx_vk.nro"
       key "vk=$(stat -c %s "$SRC/NetherSX2_nx_vk.nro") (nxvk pkg + loader)"
       # Velikost .nro se mezi buildy nehne (segmenty se zarovnávaj na stránky),
       # takže „stejná velikost" nic nedokazuje. Ověříme proto přímo v binárce,
-      # že v ní je ten povolovací řetězec pro NVK — bez něj by build vypadal
-      # zeleně a na kartě by zas vracel nula zařízení.
-      if grep -qa "NVK_I_WANT_A_BROKEN_VULKAN_DRIVER" "$SRC/NetherSX2_nx_vk.nro"; then
-        key "vk: env NVK_I_WANT_A_BROKEN_VULKAN_DRIVER je v binárce"
+      # že v ní jsou všechny tři věci, na kterých stojí VK běh — bez kterékoli
+      # z nich build vypadá zeleně a na kartě se nic nedozvíme:
+      #   NVK_I_WANT_A_BROKEN_VULKAN_DRIVER = povolení pro NVK (jinak nula zařízení)
+      #   nsx-vk                            = novej loader se zapamatovanou instancí
+      #   NetherSX2 Vulkan diagnostic       = VK diagnostika je vůbec zapnutá
+      vkbin="$SRC/NetherSX2_nx_vk.nro"
+      vkmiss=""
+      for marker in "NVK_I_WANT_A_BROKEN_VULKAN_DRIVER" "nsx-vk" "NetherSX2 Vulkan diagnostic"; do
+        grep -qa "$marker" "$vkbin" || vkmiss="$vkmiss [$marker]"
+      done
+      if [ -z "$vkmiss" ]; then
+        key "vk: env patch + nový loader + diagnostika jsou v binárce"
       else
-        err "vk: v binárce NENÍ NVK_I_WANT_A_BROKEN_VULKAN_DRIVER — main.c patch se do buildu nedostal"
+        err "vk: v binárce chybí:$vkmiss (build je zelenej, ale na kartě bude bez diagnostiky)"
       fi
       return 0
     fi
@@ -960,6 +959,58 @@ VkResult_t vkEnumerateInstanceLayerProperties(uint32_t *pCount, void *pPropertie
 
 VKSHIM
   note "psán weak VK loader shim (instance version/layer/extension enumeration)"
+
+  # ---------------------------------------------------------------- 7d. diag->stderr
+  # Diagnostika portu píše do sdmc:/switch/nethersx2/nethersx2-vulkan.log, jenže
+  # z karty (build 37) ten soubor nikdo nedostal — a přitom právě v něm je
+  # „vkCreateViSurfaceNN window=… result=…". Zrcadlíme proto každý vk_diag_note
+  # i na stderr: ten si ci_core_log.c přesměruje do nethersx2-core.log, který
+  # z karty chodí spolehlivě. Navíc si vypíšeme, jestli se ten soubor vůbec
+  # podařilo otevřít — to je jediné, co o té záhadě rozhodne.
+  if python3 - "$SRC/source/hooks/vk.c" <<'VKDIAGMIRROR'
+import sys
+
+path = sys.argv[1]
+text = open(path, encoding="utf-8", errors="surrogateescape").read()
+if "NSX_VK_DIAG_STDERR" in text:
+    print("vk.c: diag mirror už patchnuto")
+    sys.exit(0)
+
+done = 0
+
+note_anchor = "void\nvk_diag_note(const char *format, ...) {\n"
+note_patch = (note_anchor +
+    "  /* NSX_VK_DIAG_STDERR: stejnou zprávu i na stderr — log capture na\n"
+    "   * kartě ho bere do nethersx2-core.log, takže diag nezávisí na tom,\n"
+    "   * jestli se povedlo otevřít nethersx2-vulkan.log. */\n"
+    "  { va_list nsx_mirror; va_start(nsx_mirror, format);\n"
+    "    fputs(\"[VK] \", stderr); vfprintf(stderr, format, nsx_mirror);\n"
+    "    fputc('\\n', stderr); va_end(nsx_mirror); }\n")
+if note_anchor in text:
+    text = text.replace(note_anchor, note_patch, 1)
+    done += 1
+
+reset_anchor = ('    fprintf(vk_diag_file, "NetherSX2 Vulkan diagnostic %s\\n", '
+                'NETHERSX2_VERSION);\n'
+                "    fflush(vk_diag_file);\n"
+                "    fsync(fileno(vk_diag_file));\n"
+                "  }\n")
+reset_patch = reset_anchor + (
+    "  fprintf(stderr, \"[VK] diag soubor nethersx2-vulkan.log: %s\\n\",\n"
+    "          vk_diag_file ? \"otevren\" : \"SE NEPOVEDLO OTEVRIT\");\n")
+if reset_anchor in text:
+    text = text.replace(reset_anchor, reset_patch, 1)
+    done += 1
+
+open(path, "w", encoding="utf-8", errors="surrogateescape").write(text)
+print("vk.c: diag mirror patcheno %d/2" % done)
+sys.exit(0 if done == 2 else 1)
+VKDIAGMIRROR
+  then
+    key "vk: diag zrcadlena do stderr (nethersx2-core.log)"
+  else
+    warn "vk.c patch pro diag mirror neprošel — zůstává jen nethersx2-vulkan.log"
+  fi
   # Unified větev Makefile linkuje -lvulkan -lEGL -lGLESv2 -lglapi + mesa util,
   # ALN z ní chybí -ldrm_nouveau / -lexpat / -lelf, který Mesa/NVK i switch-mesa
   # EGL implicitně čekaj. LIBS si přepsat netroufáme (je to := v Makefile a
@@ -1032,12 +1083,12 @@ MULDEFS
     make -C "$SRC" clean >/dev/null 2>&1
     # LTOFLAGS= vypne -flto/-fuse-linker-plugin: archivy z Mesa SDK jsou LTO IR
     # z jinýho gcc, než je v imageu, a to produkuje „error op…“ bez textu.
-    if run_soft "make emulator VK (MESA_SDK_ROOT)" make -C "$SRC" -j"$JOBS" RENDERER=VK MESA_SDK_ROOT="$VKSDK" LTOFLAGS=; then
+    if run_soft "make emulator VK (MESA_SDK_ROOT)" make -C "$SRC" -j"$JOBS" RENDERER=VK MESA_SDK_ROOT="$VKSDK" LTOFLAGS= $VKDIAG_MK; then
       vk_ok=1
     else
       # bez cleanu by druhej pokus zdědil objekty s -DUSE_UNIFIED_MESA
       make -C "$SRC" clean >/dev/null 2>&1
-      if run_soft "make emulator VK (flat vulkan/)" make -C "$SRC" -j"$JOBS" RENDERER=VK LTOFLAGS=; then
+      if run_soft "make emulator VK (flat vulkan/)" make -C "$SRC" -j"$JOBS" RENDERER=VK LTOFLAGS= $VKDIAG_MK; then
         vk_ok=1
       fi
     fi

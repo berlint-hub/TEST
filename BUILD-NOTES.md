@@ -192,6 +192,19 @@ nedistribuuje.
   jsme měli stubem s nulou položek a GS na hardwaru pak spadlo na
   „Missing required extension VK_KHR_surface“ — upstream si přes ni nechává
   vypsat seznam extenzí, co smí vůbec povolit. Detail v HANDOFF.md §3.
+- **Loader si musí pamatovat instanci.** `vk_icdGetInstanceProcAddr` s NULL
+  instancí vydá jen pět pre-instance entrypointů; mesa runtime má
+  `if (instance == NULL) return NULL;` ve `vk_instance_get_proc_addr()`.
+  Každý náš forwarder, který se ptal `(VkInstance)0`, tedy na WSI/device
+  funkci vrátil fallback `VK_ERROR_INITIALIZATION_FAILED` (-3) — build 37 na
+  kartě: `(CreateVulkanSurface) vkCreateAndroidSurfaceKHR failed: (-3)`,
+  protože shim volá `vkCreateViSurfaceNN` přes forwarder. `ci/gen-vk-loader.py`
+  proto od buildu 38 instanci z `vkCreateInstance` ukládá a používá ji
+  v `nsx_sym()` i ve `vkGetDeviceProcAddr` (ten dřív vracel NULL na všechno).
+- **Diagnostika portu se zapíná make proměnnou.** `make NETHERSX2_VK_DIAGNOSTIC=1`
+  (Makefile má na to vlastní `ifneq`). Náš dřívější patch Makefile měl pojistku
+  na string, který je v Makefile i bez zásahu → tiše nic nepřidal a buildy
+  35/37 jely bez diagnostiky, proto se `nethersx2-vulkan.log` neobjevil.
 - **Conformant check v NVK.** `nvk_is_conformant()`
   (`src/nouveau/vulkan/nvk_physical_device.c:91`) vrací false pro cokoli jinýho
   než `NV_DEVICE_TYPE_DIS` a Switch se hlásí jako `NV_DEVICE_TYPE_SOC`.

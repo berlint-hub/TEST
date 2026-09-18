@@ -12,25 +12,33 @@ Vulkan rendererem (LSFG), plus zpětná vazba z logů na kartě.
 
 ## 1. Okamžité další kroky
 
-1. Poslat uživateli build 37 (release `nro-latest`, `sha256=c2d6aa7dad448cf7…`,
-   run `35306142087`) a nechat ho pustit Vulkan. Zpátky chceme tři soubory ze
-   `sdmc:/switch/nethersx2/`: `nethersx2-core.log` (teď v sobě má i **stderr**
-   a řádek `[CI] log capture ON, NVK_I_WANT_A_BROKEN_VULKAN_DRIVER=1`),
-   `nethersx2-vulkan.log` a `nethersx2-mesa.log` (druhý jmenovaný píše Mesa
-   přes `MESA_LOG_FILE`, který port nastavuje v diag buildu).
+1. Poslat uživateli build 38 a nechat ho pustit Vulkan. Zpátky stačí
+   `nethersx2-core.log` + `launcher-diag.log`: diagnostika portu se od buildu
+   38 zrcadlí na stderr (řádky `[VK] …`) a ten log capture bere do core logu,
+   takže `nethersx2-vulkan.log` už není podmínka. Zajímavé řádky:
+   `[VK] diag soubor …: otevren/SE NEPOVEDLO OTEVRIT`,
+   `[VK] vkCreateInstance begin/end`, `[VK] vkCreateViSurfaceNN … result=`,
+   a případné `[nsx-vk] symbol neni k dispozici: …`.
 2. Když v `nethersx2-core.log` chybí `[CI] log capture ON` nebo je za `=` něco
    jiného než `1`, proměnná se do binárky nedostala (to je bug buildu, ne
-   driveru) — CI to sice hlídá greppem, ale runtime výpis je poslední slovo.
-3. Bez té proměnný NVK na Tegře nevydá ani jedno fyzický zařízení (viz §3),
+   driveru). CI greppuje tři markery v `NetherSX2_nx_vk.nro`:
+   `NVK_I_WANT_A_BROKEN_VULKAN_DRIVER` (povolení pro NVK), `nsx-vk` (nový
+   loader) a `NetherSX2 Vulkan diagnostic` (diag je zapnutá).
+3. Bez toho env NVK na Tegře nevydá ani jedno fyzický zařízení (viz §3),
    takže „zase nula zařízení" = patch se nepropsal, ne „NVK je rozbitej".
-4. Další očekávané místo pádu je za enumerací: `vkCreateDevice`, swapchain a
-   hlavně `vkCreateViSurfaceNN` (WSI pro `VK_NN_vi_surface`). Diagnostika
-   (`VK_DIAG=1`) má v `nethersx2-vulkan.log` přesně ta data, aby se poznalo,
-   co z toho chybí.
-5. Až bude VK projí: `VK_DIAG: 1` v `.github/workflows/mesa-vk.yml` vypnout
-   (diagnostika píše soubor při každým startu) a rozumně přidat
-   `NetherSX2_nx.nro` pro LSFG test — port si pro LSFG povídá s
-   `file_readable(lsfg_dll_path())`, tj. potřebuje soubor navic; ten sme
+4. Stav po buildu 37: enumerace zařízení **funguje**, padá `vkCreateViSurfaceNN`
+   (přes `vkCreateAndroidSurfaceKHR`) s `-3`. To byl náš loader, ne driver —
+   `nsx_sym()` se ptal s `(VkInstance)0` a mesa runtime s NULL instancí vydá
+   jen pět pre-instance entrypointů, všechno ostatní je NULL → fallback
+   `VK_ERROR_INITIALIZATION_FAILED`. Od buildu 38 si loader instanci pamatuje.
+5. Další v řadě: `vkCreateDevice`, swapchain, prezentace. Všechny tyhle cesty
+   volá port přes `vkCreate*_shim`, a ty volaj globální `vk*` symboly → jdou
+   přes `nsx_sym()`, takže je pokrývá stejná oprava. Kdyby se objevilo
+   `[nsx-vk] symbol neni k dispozici: X`, znamená to, že X v dané fázi
+   (před instancí / po destroy) není k dispozici.
+6. Až bude VK projí: `VK_DIAG: 1` v `.github/workflows/mesa-vk.yml` vypnout
+   a rozumně přidat `NetherSX2_nx.nro` pro LSFG test — port si pro LSFG povídá
+   s `file_readable(lsfg_dll_path())`, tj. potřebuje soubor navic; ten sme
    zatím nikdy neověřovali.
 
 ## 2. Čísla a identifikátory, co se špatně dohledávají
@@ -53,6 +61,31 @@ Artefakty: `nethersx2-nro-vk-bundle` (90 dní), `mesa-sdk` (SDK s `lib/`,
 
 ## 3. Poznání, který bolí nejvíc (přečti si ho, než sáhneš na VK link)
 
+* **Náš generovanej loader si musí pamatovat instanci.** `vk_icdGetInstanceProcAddr`
+  s `instance == NULL` vydá jen pět pre-instance entrypointů
+  (`EnumerateInstance{,Extension,Layer}Properties`, `EnumerateInstanceVersion`,
+  `CreateInstance`, `GetInstanceProcAddr`) — v mesa runtime je na to tvrdý
+  `if (instance == NULL) return NULL;` ve `vk_instance_get_proc_addr()`
+  (`src/vulkan/runtime/vk_instance.c`), protože tabulky (`wsi_*`,
+  `vk_*_trampolines`, dispatch table) visí na instanci. Forwarder, kterej se
+  ptá s `(VkInstance)0`, tedy na **každou** WSI/device funkci dostane NULL a
+  vrátí fallback `VK_ERROR_INITIALIZATION_FAILED` (= `-3`). Přesně to byl
+  build 37: `(CreateVulkanSurface) vkCreateAndroidSurfaceKHR failed: (-3)`
+  (shim `vkCreateAndroidSurfaceKHR_shim` volá `vkCreateViSurfaceNN`, což je náš
+  forwarder) a zároveň `vkGetDeviceProcAddr` vracel NULL na všechno, protože
+  taky sahal na NULL instanci. Loader si proto instanci z `vkCreateInstance`
+  zapamatuje (`nsx_instance`) a `vkDestroyInstance` ji zapomene. Hostovskej
+  test (`/tmp/gentest`, fake ICD co se chová jako mesa): před = `-3`,
+  po = `VK_SUCCESS`; `vkGetDeviceProcAddr("vkCmdDraw")` před = NULL,
+  po = adresa.
+* **Diagnostiku `NETHERSX2_VK_DIAGNOSTIC` zapínej make proměnnou, ne patchem.**
+  Makefile má vlastní `ifneq ($(strip $(NETHERSX2_VK_DIAGNOSTIC)),)`. Náš patch
+  měl pojistku `if "NETHERSX2_VK_DIAGNOSTIC" in text: už zapnutá` — jenže ten
+  string je v Makefile i bez zásahu (v tom `ifneq`), takže patch tiše nic
+  nepřidal, CI napsalo „DIAGNOSTIC zapnutej" a buildy 35 i 37 jely **bez**
+  diagnostiky → `nethersx2-vulkan.log` nikdy nevznikl. Teď jde jako
+  `make NETHERSX2_VK_DIAGNOSTIC=1` a CI to ověřuje greppem stringu
+  `NetherSX2 Vulkan diagnostic` v hotovém .nro.
 * **„VK_SUCCESS a nula zařízení" = chybějící `NVK_I_WANT_A_BROKEN_VULKAN_DRIVER=1`.**
   nxvk odmítá Tegru: `nvk_is_conformant()`
   (`src/nouveau/vulkan/nvk_physical_device.c:91`) vrací false pro cokoli jinýho
@@ -251,3 +284,11 @@ jádra ani BIOS se v repozitáři nenachází a nesmí — stahujou se v CI z
    nvInitialize" — tenhle kód se ani nespustí, dokud ho conformant check
    nepustí dál.
 10. Usuzovat z velikosti `.nro`, že se něco změnilo (viz §5).
+11. Vymýšlet vlastní Vulkan driver / fork Mesy. Dva reálné problémy (env
+    proměnná, instance v loaderu) byly **naše** integrace, ne driver; nxkv
+    má pro Switch hotovou WSI (`src/vulkan/wsi/wsi_switch.c`,
+    `wsi_switch_surface_get_capabilities`, triple buffer, `kind=0xfe`) i
+    nvkmd backend nad libnx nv službami a vlastní smoke testy. Vlastní port
+    by znamenal měsíce práce s tím samým výsledkem.
+12. Věřit `key`/`::notice::` zápisu z CI o tom, že se něco zapnulo — u
+    diagnostiky se to musí ověřit v hotovém .nro (viz §3 a §5).
