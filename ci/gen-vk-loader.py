@@ -226,7 +226,20 @@ def main():
             continue
 
         L.append("VKAPI_ATTR %s VKAPI_CALL %s(%s) {" % (ret, name, decl))
-        L.append('  %s f = (%s)nsx_sym("%s");' % (typedef, typedef, name))
+        # NSX_VK_CACHE: adresu si pamatujem. Dřív se nsx_sym() (a tím
+        # vk_icdGetInstanceProcAddr s porovnáváním jmen) volal při KAŽDÉM
+        # volání entry pointu — u horkých cest (vkCmdBind*, vkCmdSet*,
+        # vkCmdDraw*, vkCmdCopy*) to je režie, kterou upstream nemá: jeho core
+        # si pointery vytáhne jednou přes vk_gipa_hook a pak volá napřímo.
+        # Cache je jen na úspěšný výsledek (NULL se necachuje, aby se funkce
+        # volaná před vznikem instance nezafikovala napořád); zápis stejné
+        # hodnoty ze dvou vláken je neškodný.
+        L.append("  static %s nsx_cached_%s;" % (typedef, name))
+        L.append("  %s f = nsx_cached_%s;" % (typedef, name))
+        L.append("  if (!f) {")
+        L.append('    f = (%s)nsx_sym("%s");' % (typedef, name))
+        L.append("    if (f) nsx_cached_%s = f;" % name)
+        L.append("  }")
         if ret == "void":
             L.append("  if (f) f(%s);" % call)
         else:

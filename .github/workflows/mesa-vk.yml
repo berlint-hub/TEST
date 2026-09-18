@@ -133,13 +133,19 @@ jobs:
       CORE_TAG: main
       APK_TAG: "2.2n"
       VULKAN_SDK_DIR: ${{ github.workspace }}/mesa-sdk
-      # VK_ONLY=1 bylo obdobic, kdy se VK vubec nelinkoval — donutilo nas to
-      # nedelat „zeleny, ale k nicemu" build. Teď VK prochází (23 MB .nro),
-      # takze GL zpátky do balíku: bez nej by byl balik nepouzitelny, kdyby
-      # NVK na hardware nekde spadl, a jediny zpusob, jak to overit, je mit
-      # v Settings → Renderer co prepnout. Stale plati, ze kdyz VK binárka
-      # nevznikne, verdict job rozběhne a nic se nepublikuje.
-      VK_ONLY: 0
+      # VK_ONLY=1 = v balíku je JEN Vulkan .nro (žádný OpenGL). Rozhodnutí
+      # uživatele (2026-09-18): „nejde ho odstranit a nechat jen vulkan a
+      # zaměřit se na něj?" — Switch GPU je NVN/Vulkan-native a GL větev
+      # v mesa/NVC0 nemá ani texture_barrier, ani DSA (core to sám hlásí:
+      # „this will reduce performance"), takže fallback nemá cenu držet
+      # v každém buildu.
+      # Co to přinese: ~4 min runner minut a 7 MB balíku navíc ušetřeno
+      # a v Settings → Renderer zmizí dvě volby, které dnes vedly k tomu, že
+      # člověk omylem jel GL (per-game profil s „12" přebíjí globální
+      # nastavení). Launcher se v tomhle režimu patchem v build-switch.sh
+      # zamkne na Vulkan i kdyby profil hry tvrdil opak.
+      # Návrat GL = VK_ONLY: 0 (kód i FPS měřidlo pro GL zůstávají).
+      VK_ONLY: 1
       # VK build si sem tahá vlastní diagnostiku do souboru na kartě
       # (viz nsx_vk_pkg v build-switch.sh). Vypneme, až bude Vulkan
       # prubozkousany; dokud neni, je to nejlevnejsi zpusob, jak ziskat
@@ -254,7 +260,11 @@ jobs:
           size=$(stat -c %s "$nro")
           vk=ne; find dist -name 'NetherSX2_nx_vk.nro' | grep -q . && vk=ano
           gl=ne; find dist -name 'NetherSX2_nx_gl.nro' | grep -q . && gl=ano
-          notes="Vulkan (nxvk Mesa NVK) + OpenGL fallback v balíku. vk=$vk gl=$gl velikost=$size run=${GITHUB_RUN_ID}"
+          if [ "$gl" = "ano" ]; then
+            notes="Vulkan (nxvk Mesa NVK) + OpenGL fallback v balíku. vk=$vk gl=$gl velikost=$size run=${GITHUB_RUN_ID}"
+          else
+            notes="Vulkan-only balík (OpenGL záměrně vyřazen, viz VK_ONLY v tomto workflow). vk=$vk gl=$gl velikost=$size run=${GITHUB_RUN_ID}"
+          fi
           # GPL-2.0: driver i Mesu linkujeme staticky, takže distribuce .nra
           # nese povinnost doložit zdrojáče. Odkaz na repáček + workflow je
           # levnější než přikládat 500 MB tarbaru; artifact `mesa-sdk` má

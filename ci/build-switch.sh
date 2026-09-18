@@ -300,6 +300,7 @@ VK_ONLY="${VK_ONLY:-0}"
 # forwardery na vk_icdGetInstanceProcAddr, který naopak exportuje.
 nsx_vk_pkg() {
   local PKG="$VKSDK/pkg" GEN="$WORK/vk-shim"
+  local VK_LTO=""
   if [ ! -f "$PKG/libnvk.a" ] || [ ! -f "$PKG/libnvk_support.a" ]; then
     key "VK: $PKG/libnvk*.a nejsou — nxvk package se nepostavil"
     return 1
@@ -641,8 +642,25 @@ PKGLIBS
   fi
 
   make -C "$SRC" clean >/dev/null 2>&1
+  # LTO: upstream `build_all.sh` volá `make -j RENDERER=VK` bez override, takže
+  # jeho release má -flto=auto -fuse-linker-plugin (Makefile default) na svým
+  # source/. My to dřív vypínali kvůli „error op…“ bez textu — jenže tenkrát
+  # šlo o THIN archivy od mesonu (odkazy do build stromu), které v imageu ještě
+  # nebyly přebalené. Teď jsou plný, takže to zkusíme jako upstream a když
+  # link neprojde, spadneme zpátky na LTOFLAGS= (build zůstane zelenej a z
+  # digestu je vidět, která cesta se použila).
   # shellcheck disable=SC2086
-  if run_soft "make emulator VK (nxvk pkg + loader)" make -C "$SRC" -j"$JOBS" RENDERER=VK LTOFLAGS= $VKDIAG_MK; then
+  if run_soft "make emulator VK (nxvk pkg + loader, LTO jako upstream)" make -C "$SRC" -j"$JOBS" RENDERER=VK $VKDIAG_MK; then
+    VK_LTO="ano"
+  else
+    make -C "$SRC" clean >/dev/null 2>&1
+    # shellcheck disable=SC2086
+    if run_soft "make emulator VK (nxvk pkg + loader, LTO vypnuto)" make -C "$SRC" -j"$JOBS" RENDERER=VK LTOFLAGS= $VKDIAG_MK; then
+      VK_LTO="ne"
+    fi
+  fi
+  if [ -n "$VK_LTO" ]; then
+    key "vk: LTO=$VK_LTO (upstream build_all.sh jede s default LTOFLAGS)"
     if [ -f "$SRC/NetherSX2_nx.nro" ]; then
       cp -f "$SRC/NetherSX2_nx.nro" "$SRC/NetherSX2_nx_vk.nro"
       key "vk=$(stat -c %s "$SRC/NetherSX2_nx_vk.nro") (nxvk pkg + loader)"
@@ -917,7 +935,9 @@ fi
 # Čas se čte přímo z architektonického čítače (mrs cntpct_el0/cntfrq_el0) —
 # stejná hodnota, jakou vrací libnx armGetSystemTick, ale bez jakékoli
 # hlavičky/knihovny navíc (lsfg_monotonic_ns je jen ve VK větvi).
-if python3 - "$SRC/source/hooks/egl.c" <<'GLFPS'
+if [ "$VK_ONLY" = "1" ]; then
+  note "gl: FPS měřidlo přeskočeno (VK_ONLY=1 — GL .nro se vůbec nestaví)"
+elif python3 - "$SRC/source/hooks/egl.c" <<'GLFPS'
 import sys
 
 path = sys.argv[1]
@@ -1347,7 +1367,8 @@ note "=== stage 8b: patch launcher ==="
 LM="$SRC/launcher/source/main.cpp"
 
 if [ -f "$LM" ]; then
-  python3 - "$LM" <<'PYEOF'
+  VK_ONLY="$VK_ONLY" python3 - "$LM" <<'PYEOF'
+import os
 import sys
 path = sys.argv[1]
 text = open(path, encoding="utf-8", errors="surrogateescape").read()
@@ -1399,6 +1420,30 @@ edits = [
      "                   launchKey.c_str(), ciProfile.c_str(),\n"
      "                   haveCore,haveEmulator,haveResources,configSaved); }"),
 ]
+
+# ---------------------------------------------------------------- VK_ONLY
+# Balík bez OpenGL: v romfs je jen `NetherSX2_nx_vk.nro`, takže volba
+# "OpenGL (NVC0)" (12) i "OpenGL (Zink/NVK)" (13) by poslala launcher po
+# neexistujícím souboru a skončilo by to na "Could not extract emulator
+# files". Dvě věci:
+#   * v nastavení necháme jen Vulkan (jinak si to člověk vybere a nic nejede),
+#   * renderer v launch cestě zamkneme na vk a efektivní hodnotu přepíšeme na
+#     "14" — per-game profily na kartě mají klidně "12" z dřívějška a ten se
+#     čte přednostně před globálním nastavením (build 42 to ukázal v diagu).
+if os.environ.get("VK_ONLY") == "1":
+    edits += [
+        ('static const Choice C_backend[]  = { {"Vulkan (NVK)","14"}, {"OpenGL (NVC0)","12"},\n'
+         '                                     {"OpenGL (Zink/NVK)","13"} };',
+         '/* NSX_VK_ONLY: balík obsahuje jen Vulkan .nro. */\n'
+         'static const Choice C_backend[]  = { {"Vulkan (NVK)","14"} };'),
+        ('    const std::string backend=storeGet(effective,"EmuCore/GS/Renderer","14");\n'
+         '    const std::string renderer=backend=="14"?"vk":"gl";\n',
+         '    const std::string backend=storeGet(effective,"EmuCore/GS/Renderer","14");\n'
+         '    /* NSX_VK_ONLY: OpenGL .nro v balíku není — i kdyby profil hry\n'
+         '       (nebo starý nethersx2.ini) říkal 12/13, jdeme Vulkanem. */\n'
+         '    if(backend!="14") storeSet(effective,"EmuCore/GS/Renderer","14");\n'
+         '    const std::string renderer="vk";\n'),
+    ]
 done = 0
 # Upgrade ze starších buildu: kdyby strom už měl starý (8-arg) ciLaunchDiag,
 # ten blok smaž a níž se vloží nový. Bez toho by v opakovaném běhu zůstal
