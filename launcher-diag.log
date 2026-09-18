@@ -1,5 +1,7 @@
---- start hry 1789711560 ---
+--- start hry 1789717748 ---
   priznaky: core=1 emu=1 zdrojaky=1 config=1
+  renderer      [renderer-decision] EmuCore/GS/Renderer=12 (global=14) -> nro=gl, GLDriver=nvc0
+  game profil   sdmc:/switch/nethersx2/gamecfg/ps2-5d048644b5e2529532fe.ini = 162 B (klic=ps2-5d048644b5e2529532fe)
   core zdroj    romfs:/cores/emucore_4248.so = 12162984 B
   core cil      sdmc:/switch/nethersx2/cores/libemucore_4248.so = 12162984 B
   emu zdroj     romfs:/emu/NetherSX2_nx_gl.nro = 7105411 B
@@ -23,8 +25,10 @@
     stat tmp    = 0 size=4096
     rename      = 0
     stat dst    = 0 size=4096
---- start hry 1789711703 ---
+--- start hry 1789717883 ---
   priznaky: core=1 emu=1 zdrojaky=1 config=1
+  renderer      [renderer-decision] EmuCore/GS/Renderer=12 (global=12) -> nro=gl, GLDriver=nvc0
+  game profil   sdmc:/switch/nethersx2/gamecfg/ps2-5d048644b5e2529532fe.ini = 162 B (klic=ps2-5d048644b5e2529532fe)
   core zdroj    romfs:/cores/emucore_4248.so = 12162984 B
   core cil      sdmc:/switch/nethersx2/cores/libemucore_4248.so = 12162984 B
   emu zdroj     romfs:/emu/NetherSX2_nx_gl.nro = 7105411 B
@@ -48,8 +52,10 @@
     stat tmp    = 0 size=4096
     rename      = 0
     stat dst    = 0 size=4096
---- start hry 1789711982 ---
+--- start hry 1789718016 ---
   priznaky: core=1 emu=1 zdrojaky=1 config=1
+  renderer      [renderer-decision] EmuCore/GS/Renderer=12 (global=13) -> nro=gl, GLDriver=nvc0
+  game profil   sdmc:/switch/nethersx2/gamecfg/ps2-5d048644b5e2529532fe.ini = 162 B (klic=ps2-5d048644b5e2529532fe)
   core zdroj    romfs:/cores/emucore_4248.so = 12162984 B
   core cil      sdmc:/switch/nethersx2/cores/libemucore_4248.so = 12162984 B
   emu zdroj     romfs:/emu/NetherSX2_nx_gl.nro = 7105411 B
