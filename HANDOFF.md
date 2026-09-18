@@ -38,10 +38,20 @@ Zbývá: LSFG (frame generation) a výkon. Detaily níž.
    V logu se to pozná podle `lsfg_prepared=1` (`vkCreateInstance`) a
    `lsfg_capable=1 family=<čísl>` (`vkCreateDevice`); pokud tam bude pořád 0,
    znamená to, že se nenašel soubor nebo je vypnutý přepínač.
-2. **Výkon — měření je v buildu 40.** `vk_diag_note` píše jednou za sekundu
-   řádku `FPS %.1f | %.2f ms/frame | min %.2f max %.2f ms | %u framu | lsfg=%d`
+2. **Výkon — měření je v buildu 40 (VK) a 41 (i GL).** `vk_diag_note` píše
+   jednou za sekundu řádku
+   `FPS %.1f | %.2f ms/frame | min %.2f max %.2f ms | %u framu | lsfg=%d`
    (patch v `build-switch.sh`, kotva `++vk_present_count;`). Je to **rate
    prezentací** = emulační framerate, s LSFG dvojnásobný; `max` ukáže stutter.
+   Od buildu 41 má stejné okno i **GL větev**: patch 7b2 v `build-switch.sh`
+   vkládá do `source/hooks/egl.c` (kotva `++egl_swap_count;` v
+   `eglSwapBuffersHook`) blok, který píše do core logu
+   `[GL] FPS … | %u framu`; čas čte přímo z `mrs cntpct_el0/cntfrq_el0`, protože
+   `lsfg_monotonic_ns()` je jen ve VK větvi. Blok je zamčený na
+   `#if GS_RENDERER == 12`, takže ve VK `.nro` **není** (marker `[GL] FPS`
+   se v `NetherSX2_nx_vk.nro` hledat nemá).
+   Uživatel zatím naměřil (na GL): CPU 2700 MHz, GPU 1400 MHz; **GPU na
+   150 MHz nezměnilo FPS** → GPU není bottleneck, GT3 je CPU-bound.
    Emulační „speed %" core nikam neloguje (OnPerformanceMetrics v importech
    není), takže CPU/GPU bound se rozliší jedině přes OSD hry.
    Očekávání: NVK už jede optimální cestou (zero-copy WSI, perzistentní

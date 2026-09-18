@@ -881,12 +881,108 @@ else
   warn "log capture NEAPLIKOVÁN (imports.c vypadá jinak) — .nro se chová jako upstream"
 fi
 
+# --------------------------------------------------------- 7b2. FPS měřidlo (GL)
+# VK větev má FPS řádky ve vk.c (viz 7d), jenže GL větev přes vk.c vůbec
+# neprezentuje — swapy jdou přes eglSwapBuffersHook v source/hooks/egl.c, kde
+# už upstream počítá `egl_swap_count`. Přidáme tam stejné 1s okno jako ve VK,
+# takže i hráč na GL vidí v nethersx2-core.log, kolik framů reálně dává.
+# Čas se čte přímo z architektonického čítače (mrs cntpct_el0/cntfrq_el0) —
+# stejná hodnota, jakou vrací libnx armGetSystemTick, ale bez jakékoli
+# hlavičky/knihovny navíc (lsfg_monotonic_ns je jen ve VK větvi).
+if python3 - "$SRC/source/hooks/egl.c" <<'GLFPS'
+import sys
+
+path = sys.argv[1]
+text = open(path, encoding="utf-8", errors="surrogateescape").read()
+if "NSX_GL_FPS" in text:
+    print("egl.c: FPS měřidlo už patchnuto")
+    sys.exit(0)
+
+done = 0
+
+hook_anchor = "EGLBoolean eglSwapBuffersHook(EGLDisplay dpy, EGLSurface surface) {\n"
+hook_patch = (
+    "#if defined(GS_RENDERER) && GS_RENDERER == 12\n"
+    "/* NSX_GL_FPS: monotónní čas z architektonického čítače (bez hlaviček). */\n"
+    "static uint64_t nsx_gl_now_ns(void) {\n"
+    "  uint64_t nsx_ticks, nsx_freq;\n"
+    "  __asm__ __volatile__(\"mrs %0, cntpct_el0\" : \"=r\"(nsx_ticks));\n"
+    "  __asm__ __volatile__(\"mrs %0, cntfrq_el0\" : \"=r\"(nsx_freq));\n"
+    "  if (!nsx_freq)\n"
+    "    return 0;\n"
+    "  return (nsx_ticks / nsx_freq) * UINT64_C(1000000000) +\n"
+    "         (nsx_ticks % nsx_freq) * UINT64_C(1000000000) / nsx_freq;\n"
+    "}\n"
+    "#endif\n\n" + hook_anchor)
+if hook_anchor in text:
+    text = text.replace(hook_anchor, hook_patch, 1)
+    done += 1
+
+swap_anchor = "EGLBoolean eglSwapBuffersHook(EGLDisplay dpy, EGLSurface surface) {\n  ++egl_swap_count;\n"
+swap_patch = swap_anchor + (
+    "#if defined(GS_RENDERER) && GS_RENDERER == 12\n"
+    "  /* NSX_GL_FPS: měřidlo framerate (1s okno) pro GL větev. */\n"
+    "  {\n"
+    "    static uint64_t nsx_gl_fps_start;\n"
+    "    static uint64_t nsx_gl_fps_last;\n"
+    "    static uint64_t nsx_gl_fps_min;\n"
+    "    static uint64_t nsx_gl_fps_max;\n"
+    "    static uint32_t nsx_gl_fps_frames;\n"
+    "    const uint64_t nsx_gl_now = nsx_gl_now_ns();\n"
+    "    if (!nsx_gl_fps_start) {\n"
+    "      nsx_gl_fps_start = nsx_gl_now;\n"
+    "      nsx_gl_fps_min = 0;\n"
+    "      nsx_gl_fps_max = 0;\n"
+    "    } else if (nsx_gl_fps_frames) {\n"
+    "      /* mezera od předchozího swapu = délka framu (stutter je vidět) */\n"
+    "      const uint64_t nsx_gl_gap = nsx_gl_now - nsx_gl_fps_last;\n"
+    "      if (!nsx_gl_fps_min || nsx_gl_gap < nsx_gl_fps_min) nsx_gl_fps_min = nsx_gl_gap;\n"
+    "      if (nsx_gl_gap > nsx_gl_fps_max) nsx_gl_fps_max = nsx_gl_gap;\n"
+    "    }\n"
+    "    nsx_gl_fps_last = nsx_gl_now;\n"
+    "    ++nsx_gl_fps_frames;\n"
+    "    if (nsx_gl_now > nsx_gl_fps_start + UINT64_C(1000000000)) {\n"
+    "      const double nsx_gl_secs = (double)(nsx_gl_now - nsx_gl_fps_start) / 1e9;\n"
+    "      printf(\"[GL] FPS %.1f | %.2f ms/frame | min %.2f max %.2f ms | %u framu\\n\",\n"
+    "             (double)nsx_gl_fps_frames / nsx_gl_secs,\n"
+    "             nsx_gl_secs * 1000.0 / (double)nsx_gl_fps_frames,\n"
+    "             (double)nsx_gl_fps_min / 1e6, (double)nsx_gl_fps_max / 1e6,\n"
+    "             (unsigned)nsx_gl_fps_frames);\n"
+    "      fflush(stdout);\n"
+    "      nsx_gl_fps_start = nsx_gl_now;\n"
+    "      nsx_gl_fps_min = 0;\n"
+    "      nsx_gl_fps_max = 0;\n"
+    "      nsx_gl_fps_frames = 0;\n"
+    "    }\n"
+    "  }\n"
+    "#endif\n")
+if swap_anchor in text:
+    text = text.replace(swap_anchor, swap_patch, 1)
+    done += 1
+
+open(path, "w", encoding="utf-8", errors="surrogateescape").write(text)
+print("egl.c: FPS měřidlo patch %d/2" % done)
+sys.exit(0 if done == 2 else 1)
+GLFPS
+then
+  key "gl: FPS měřidlo v eglSwapBuffersHook"
+else
+  warn "egl.c patch pro FPS měřidlo neprošel — GL log zůstane bez FPS"
+fi
+
 if [ "$VK_ONLY" = 1 ]; then
   key "GL build přeskočen (VK_ONLY=1) — ušetřeno ~4 min"
 else
   run "make emulator GL" make -C "$SRC" -j"$JOBS" RENDERER=GL
   cp -f "$SRC/NetherSX2_nx.nro" "$SRC/NetherSX2_nx_gl.nro"
   key "gl=$(stat -c %s "$SRC/NetherSX2_nx_gl.nro")"
+  # Stejná kontrola jako u VK: měřidlo musí být v binárce, jinak je zelený
+  # build bez dat. (VK .nro ho mít nesmí — je zamčené na GS_RENDERER==12.)
+  if grep -qa "\[GL\] FPS" "$SRC/NetherSX2_nx_gl.nro"; then
+    key "gl: FPS měřidlo je v binárce"
+  else
+    warn "gl: v binárce chybí FPS měřidlo — log bude bez FPS řádků"
+  fi
 fi
 
 if [ -n "$VKSDK" ]; then
