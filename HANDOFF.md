@@ -25,28 +25,43 @@ Zbývá: LSFG (frame generation) a výkon. Detaily níž.
 
 ## 1. Okamžité další kroky
 
-1. **LSFG.** V `nethersx2-vulkan.log` z karty je `lsfg_prepared=0` a
-   `lsfg_capable=0 family=4294967295 (VK_QUEUE_FAMILY_IGNORED)`. Kód portu
-   (`source/hooks/vk.c`) pustí LSFG jen když platí
-   `prefs_get_bool("Wrapper/LSFGEnabled") && file_readable(DATA_ROOT "/lsfg/Lossless.dll")`,
-   tj. `/switch/nethersx2/lsfg/Lossless.dll`. **Ten soubor od Lossless Scaling
-   tam uživatel nemá** (a ani nemusí chtít řešit licenci), takže LSFG je
-   zatím jen netestovaná cesta — není to regrese. Než se do toho půjde,
-   je fér uživateli říct, že bez toho DLL to nepůjde a že je to proprietární
-   soubor z Lossless Scaling.
-2. **Výkon.** `EmuCore/GS` má v ini `Cycle rate/skip` mimo default (core to sám
-   hlásí jako „Unsafe Settings"), `Hardware Download Mode` není Accurate a je
-   zapnutá `GPU Palette Conversion`. Uživatel by měl zkusit defaulty; na
-   Switchi se hodí i `Wrapper/FastmemMode=hybrid` (už je).
-3. **`[Logging]` marker z karty smazat, až nebude potřeba.** `ci-logging.enabled`
+1. **LSFG — uživatel DLL MÁ** (build 40 čeká na test). Postup, který mu byl
+   poslán: `Lossless.dll` do `sdmc:/switch/nethersx2/lsfg/Lossless.dll`
+   (přesně ten název, `lsfg_dll_path()` v `source/hooks/vk.c:192` i
+   `LSFG_DLL_FILE` v launcheru jsou case-sensitive), v launcheru zapnout
+   **"LSFG 2x (Vulkan only)"** (`Wrapper/LSFGEnabled`), volitelně
+   `Flow resolution` (`Wrapper/LSFGFlowScale`, default 0.25) a
+   `Performance mode` (`Wrapper/LSFGPerformance`, default true), spustit
+   hru s Vulkanem a frame generation zapnout až **v quick menu (L+R+Plus)**.
+   Port záměrně nechává u zdrojů 50/60 FPS normální cestu (aby se emulace
+   nepůlila) — LSFG se chytá u 25/30 FPS zdrojů.
+   V logu se to pozná podle `lsfg_prepared=1` (`vkCreateInstance`) a
+   `lsfg_capable=1 family=<čísl>` (`vkCreateDevice`); pokud tam bude pořád 0,
+   znamená to, že se nenašel soubor nebo je vypnutý přepínač.
+2. **Výkon — měření je v buildu 40.** `vk_diag_note` píše jednou za sekundu
+   řádku `FPS %.1f | %.2f ms/frame | min %.2f max %.2f ms | %u framu | lsfg=%d`
+   (patch v `build-switch.sh`, kotva `++vk_present_count;`). Je to **rate
+   prezentací** = emulační framerate, s LSFG dvojnásobný; `max` ukáže stutter.
+   Emulační „speed %" core nikam neloguje (OnPerformanceMetrics v importech
+   není), takže CPU/GPU bound se rozliší jedině přes OSD hry.
+   Očekávání: NVK už jede optimální cestou (zero-copy WSI, perzistentní
+   shader cache 182 položek), takže další zisky jsou hlavně v nastavení
+   emulátoru a v taktech (sys-clk), ne v driveru.
+3. **Nastavení pro výkon, které se má zkusit:** vypnout
+   `GPU Palette Conversion` (core sám hlásí „reduce performance"),
+   `Cycle rate/skip` zpět na default (core hlásí „Unsafe Settings"),
+   zvážit `Hardware Download Mode`, v OSD zapnout FPS, a **při měření
+   smazat `ci-logging.enabled`** (zapíná i EE/IOP console logging, což je
+   per-frame formátování stringů).
+4. **`[Logging]` marker z karty smazat, až nebude potřeba.** `ci-logging.enabled`
    v `/switch/nethersx2/` zapíná kromě našeho capture i `Logging/EnableEEConsole`
    a `EnableIOPConsole` v jádře, což je podle upstreamu „formats a lot of
    strings per frame" — na výkon to jde. Pro měření FPS tedy marker pryč
    (logy pak nebudou, ale to je při ladění výkonu jedno).
-4. **Dočistit integraci:** od buildu 39 se `MESA_SHADER_CACHE_DIR` přesměrovává
+5. **Dočistit integraci:** od buildu 39 se `MESA_SHADER_CACHE_DIR` přesměrovává
    na `/switch/nethersx2/cache`, takže `sdmc:/switch/mesa_shader_cache` už
    nevzniká — starou složku může uživatel smazat.
-5. **Diagnostika portu zrcadlená do core logu:** v buildech 37/38 se psala na
+6. **Diagnostika portu zrcadlená do core logu:** v buildech 37/38 se psala na
    `stderr`, jenže na kartě se přesměrovanej stderr do souboru **nepropsal**
    (stdout ano — všechny core logy chodí). Od buildu 39 jde mirror na stdout
    a `ci_core_log.c` navíc hlásí `[CI] stderr smerovan core logu: ok/SELHAL`.
@@ -57,9 +72,9 @@ Zbývá: LSFG (frame generation) a výkon. Detaily níž.
 | Věc | Hodnota |
 |---|---|
 | branch session | `arena/01a0b2a1-test` (nikdy nepushovat jinam; stará `arena/01a0aad9-test` už na remote není) |
-| poslední pushnutý commit | `8b52978` (loader si pamatuje instanci) + `9cda71d` (docs), před nimi `cac2660`/`57bd8d9` (NVK env patch) |
+| poslední pushnutý commit | `181f4ed` (FPS do logu), před ním `4123853` (diag mirror + shader cache) |
 | rolling release URL | `https://github.com/berlint-hub/TEST/releases/download/nro-latest/NetherSX2.nro` |
-| aktuální build | CI build 38, run `35308243500`, `NetherSX2.nro` = **78 724 195 B**, `sha256=3b1ab1f4d92d39f2…` |
+| aktuální build | CI build 40, run `35311845129`, `NetherSX2.nro` = **78 724 195 B**, `sha256=12d60bbdd80448ad…` |
 | v balíku | `NetherSX2_nx_vk.nro` 23 124 867 B, `NetherSX2_nx_gl.nro` 7 105 411 B |
 | pozor na velikosti | buildy 34–37 maj **identickou** velikost (stránkový zarovnání segmentů) — rozlišuj podle `sha256` (35 = `b3a06739…`, 36 = `f6ea45cb…`, 37 = `c2d6aa7d…`). Build 38 povyrostl na 78 724 195 B, protože se konečně zkompilovala diagnostika |
 | generovaný loader | 766 forwarderů, `libnsxvkloader.a` = 554 390 B |
