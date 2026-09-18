@@ -764,6 +764,25 @@ mkdir -p "$SRC/source/hooks"
   # řetězcích se pletly zpětné lomítka — build 45 kvůli tomu spadl).
   cp "$HERE/patches/ci_core_log.c" "$SRC/source/hooks/ci_core_log.c" || die "kopie ci_core_log.c"
 
+  # Rychlá compile kontrola našich C souborů PŘED make: build 47 spadl až po
+  # pár minutách na názvu enumu, který se mezi verzemi libnx liší
+  # (ApmPerformanceMode_Handheld vs _Normal). -fsyntax-only je otázka sekund.
+  for cfile in "$HERE"/patches/*.c; do
+    [ -e "$cfile" ] || continue
+    # -Werror u dvou věcí, které se na Switchi projeví až za běhu: přetypování
+    # mezi různými enumy (build 46 kvůli tomu čítal takty jako nuly —
+    # PcvModule_CpuBus=0 vs PcvModuleId_CpuBus=0x40000001) a volání
+    # neexistující funkce (implicitní deklarace).
+    if ! aarch64-none-elf-gcc -fsyntax-only -Wall \
+         -Werror=enum-conversion -Werror=implicit-function-declaration \
+         -D__SWITCH__ -I"$PORTLIBS/include" -I"$DEVKITPRO/libnx/include" "$cfile" \
+         > "$WORK/logs/patches-syntax.log" 2>&1; then
+      tail -12 "$WORK/logs/patches-syntax.log" | bash "$HERE/annotate.sh" error 12
+      die "syntaxe $(basename "$cfile") proti libnx"
+    fi
+  done
+  key "ci/patches: syntaxe proti libnx ok"
+
 # imports.c: původní __android_log_print MUSÍ být weak, jinak dvě silný
 # definice; a tabulka musí ukazovat na naše funkce (inak `static` →
 # nedá se je přebit z cizího objektu).

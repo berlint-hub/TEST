@@ -25,6 +25,14 @@
 #define CI_NOBOOST_MARK   "/switch/nethersx2/ci-noboost.enabled"
 #define CI_CLK_CONF  "/switch/nethersx2/ci-clk.conf"
 
+/* libnx pojmenovává režimy takhle: ApmPerformanceMode_Invalid/Normal/Boost
+ * (-1/0/1) a AppletOperationMode_Handheld/Console (0/1). Používáme proto
+ * hodnoty s přetypováním: build 47 spadl přesně na tom, že jsem napsal
+ * „Handheld/Docked", což v žádné verzi libnx není (viz HANDOFF §8). */
+#define CI_APM_HANDHELD  ((ApmPerformanceMode)0)
+#define CI_APM_DOCKED    ((ApmPerformanceMode)1)
+#define CI_OPMODE_DOCKED ((AppletOperationMode)1)
+
 /* definováno níž (NSX_KEEP_BOOST); ci_on() se na to ptá hned na startu */
 int ci_keep_cpu_boost(void);
 
@@ -325,8 +333,12 @@ static int ci_clk_probed;
 static int ci_pcv_ok = -1;
 static Result ci_r_init;                  /* Resulty pro diagnostiku */
 static Result ci_r_open[3], ci_r_get[3], ci_r_set[3];
-static const PcvModuleId ci_mod_id[3] = { PcvModule_CpuBus, PcvModule_GPU, PcvModule_EMC };
-static const PcvModule   ci_mod[3]    = { PcvModule_CpuBus, PcvModule_GPU, PcvModule_EMC };
+/* POZOR, tady byl důvod nul v buildu 46: libnx má DVĚ různé sady jmen.
+ * PcvModule_CpuBus = 0 (stará služba pcv), ale clkrstOpenSession chce
+ * PcvModuleId_CpuBus = 0x40000001 — s nulou session vznikne, ale čtení
+ * vrací chybu (proto „cpu=0 gpu=0 emc=0" v celé session). */
+static const PcvModuleId ci_mod_id[3] = { PcvModuleId_CpuBus, PcvModuleId_GPU,
+                                          PcvModuleId_EMC };
 static const char *ci_clk_name(int i) {
   return i == 0 ? "cpu" : (i == 1 ? "gpu" : "emc");
 }
@@ -400,8 +412,8 @@ void ci_clk_diag(void) {
     ApmPerformanceMode mode = ApmPerformanceMode_Invalid;
     u32 ch = 0, cd = 0;
     Result rm = apmGetPerformanceMode(&mode);
-    Result rh = apmGetPerformanceConfiguration(ApmPerformanceMode_Handheld, &ch);
-    Result rd = apmGetPerformanceConfiguration(ApmPerformanceMode_Docked, &cd);
+    Result rh = apmGetPerformanceConfiguration(CI_APM_HANDHELD, &ch);
+    Result rd = apmGetPerformanceConfiguration(CI_APM_DOCKED, &cd);
     /* Režim 1 = boost. Konfigurace 0x9222000A (handheld) / 0x92220009 (docked)
      * = CPU nahoru + GPU na minimum, tj. FastLoad. */
     fprintf(stdout, "[CI] apm: mode=%d handheld=0x%x docked=0x%x "
@@ -441,7 +453,7 @@ static void ci_clk_set_mhz(int which, unsigned mhz, const char *why) {
 static void ci_clk_restore_gpu(void) {
 #if CI_SWITCH
   unsigned gpu = 460;                      /* max handheld (bez nabíječky) */
-  if (appletGetOperationMode() == AppletOperationMode_Docked)
+  if (appletGetOperationMode() == CI_OPMODE_DOCKED)
     gpu = 768;                             /* oficiální docked takt */
   ci_clk_set_mhz(1, gpu, "GPU zpet z boost modu (FastLoad ji srazi na 76 MHz)");
 #endif
