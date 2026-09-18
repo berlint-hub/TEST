@@ -36,9 +36,13 @@ neumí ani číst takty, ani nemá `ci/patches/`.
 * Snížení zátěže EE na 50 % **nic nezměnilo** → bottleneck není v hrubém výkonu
   EE, ale ve **VU1 / GS / synchronizaci mezi thready**.
 * **Nesahat na takty!** Uživatel má **Ultrahand s governorem taktů na max**
-  (naměřeno cpu 2703 MHz, emc 2666 MHz, gpu 1497 MHz) a jakýkoli zásah
-  emulátoru do taktů mu shazoval systém. Čtení taktů je OK, zápis ne
-  (`ci-clk.conf` je jen opt-in a **nemá se používat**).
+  (pevně cpu 2700 / gpu 1400 / ram 2666 MHz). Emulátor je od buildu 56 vůbec
+  nečte ani nezapisuje (HANDOFF §0b).
+  **Past, která nás stála několik buildů:** `appletSetCpuBoostMode(FastLoad)`
+  podle libnx znamená „Boost CPU. **Additionally, throttle GPU to minimum**“.
+  Volal ho **launcher** (6×, hlavně před extrakcí jader z romfs) a přes applet
+  je ta konfigurace globální, takže GPU zůstalo na 76 MHz i v emulátoru.
+  Od buildu 57 je zakomentovaný (`ci/patches/launcher_no_boost.py`).
 
 ## 2. Změřeno (build 49, log `e1b92bd`, GT3, 172 FPS oken)
 

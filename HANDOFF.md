@@ -22,10 +22,18 @@ build 51 odstranil zápisy do taktů. Teď jde o **výkon GT3** (CPU/VU/GS).
 ## 0. STAV: VK-ONLY + ŽÁDNÝ BOOST TAKTŮ (2026-09-18, build 51)
 
 OpenGL je z balíku odstraněný (`VK_ONLY: 1` v `mesa-vk.yml`), renderer je
-v launcheru zamčený na Vulkan i proti per-game profilu. **Emulátor do taktů
-vůbec nesahá** — `cpu_boost()` je prázdná funkce (`ci/patches/util_no_boost.py`),
-protože `FastLoad` srážel GPU na 76 MHz a bil se s governororem uživatele
-(Ultrahand). Takty se jen **čtou** do FPS řádky.
+v launcheru zamčený na Vulkan i proti per-game profilu. **Ani emulátor, ani
+launcher do taktů nesahají**:
+
+* `cpu_boost()` v `source/util.c` je prázdná (`ci/patches/util_no_boost.py`,
+  build 48),
+* **`launcher/source/main.cpp` měl `appletSetCpuBoostMode(FastLoad)` šestkrát**
+  a od buildu 57 je zakomentovaný (`ci/patches/launcher_no_boost.py`).
+  Tohle byl skutečný důvod „GPU na minimu“: `FastLoad` podle libnx znamená
+  „Boost CPU. **Additionally, throttle GPU to minimum**“ a volá se na applet
+  (command 66), takže konfigurace přetrvá i do emulátoru. Do buildu 47 ji
+  shazoval emulátor; build 48 ten reset zrušil a GPU zůstávalo na 76 MHz.
+* od buildu 56 emulátor takty ani **nečte** (§0b).
 
 ## 0b. STAV: KOLIZE V SYSTÉMU TAKTŮ — A PROČ JE SLEDOVÁNÍ TAKTŮ OD BUILDU 56 VENKU
 
@@ -191,9 +199,13 @@ v pořadí jsou v **`VU-GS-OPTIMALIZACE.md`** — tam začni.
 Stručně, co je hotové a co ne:
 
 1. **VK-only** — hotovo (build 43/44, `VK_ONLY: 1`).
-2. **Zápisy do taktů z emulátoru** — hotovo (build 51): `cpu_boost()` je
-   prázdná, `FastLoad` (CPU 1785 + **GPU 76**) se už nevolá. Uživatel má
-   vlastní governor (Ultrahand) a jakýkoli zásah mu shazoval systém.
+2. **Zápisy do taktů** — hotovo, ale ve **dvou** krocích: `cpu_boost()`
+   v emulátoru je prázdná (build 48/51) a `appletSetCpuBoostMode(FastLoad)`
+   **v launcheru** je zakomentované (build 57). Dřívější tvrzení, že `cpu_boost()`
+   v `util.c` je jediné místo v portu, kde se takty nastavují, byla **chyba** —
+   code search se díval jen na `source/`, ne na `launcher/source/`. Proto GPU
+   jezdilo na minimu i v buildech 48–56. Uživatel má vlastní governor
+   (Ultrahand) a jakýkoli zásah mu shazoval systém.
 3. **Log bez SD zápisu na frame** — hotovo (build 46–49): dedup + 64 KiB
    buffer; v jedné GT3 session potlačeno 11 493 řádků.
 4. **Čtení taktů / rozložení threadů** — hotovo (build 47/49): funguje
@@ -515,6 +527,19 @@ jádra ani BIOS se v repozitáři nenachází a nesmí — stahujou se v CI z
     projde kompilací a na kartě se projeví jako nuly (přesně to byl build 46).
     Od buildu 47 to hlídá syntax kontrola v CI (`-Werror=enum-conversion`,
     `-Werror=implicit-function-declaration`).
+
+16. **Hledat „kdo sahá na takty“ jen v `source/`.** Port má **dvě** binárky:
+    emulátor (`source/`) a **launcher** (`launcher/source/`, SDL2). Audit
+    „`CpuBoostMode` je jen v `util.c`, takže `cpu_boost()` je jediné místo,
+    kde se takty nastavují“ prošel, a přitom launcher volal
+    `appletSetCpuBoostMode(FastLoad)` šestkrát — včetně `main()` těsně před
+    spuštěním hry. Proto GPU jezdilo na minimu v buildech 48–56. Kdykoli se
+    hledá volání sysmodulu, grep musí jít přes **oba** stromy.
+17. **`appletSetCpuBoostMode` je globální, ne per-proces.** Posílá command 66
+    na `ICommonStateGetter` (libnx `applet.c:1031`), takže konfigurace přetrvá
+    do `.nro`, které launcher spustí. A `FastLoad` = „Boost CPU.
+    **Additionally, throttle GPU to minimum**“ (`apm.h:21`) — ne „jen CPU
+    nahoru“.
 
 ## 9. Ladění výkonu na kartě (build 51)
 

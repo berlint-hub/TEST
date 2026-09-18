@@ -697,7 +697,7 @@ PKGLIBS
                     "NetherSX2 Vulkan diagnostic" "diag soubor nethersx2-vulkan.log" \
                     "MESA_SHADER_CACHE_DIR" "FPS %.1f" \
                     "[CI] boost:" "[CI] cores:" \
-                    "session start build=56" "[CI] pin:" "PR_SET_NAME" \
+                    "session start build=57" "[CI] pin:" "PR_SET_NAME" \
                     "ci-pin.conf" "[CI] hack:" "ci-mtvu" "[CI] session end"; do
         # -F: markery maj v sobě [ ] a v regexu by to byla znaková třída
         grep -qaF -- "$marker" "$vkbin" || vkmiss="$vkmiss [$marker]"
@@ -1427,6 +1427,29 @@ PYEOF
     key "launcher: ensureEmu uvolněn, seek 0x0, fsync/abort/commit opravy, diagnostika"
   else
     warn "launcher patch NEAPLIKOVÁN — upstream posunul řádky, .nro se chová jako upstream"
+  fi
+
+  # ------------------------------------------------- 7c2. launcher bez CPU boostu
+  # TOHLE byl důvod „GPU na minimu", ne emulátor. Launcher volá
+  # appletSetCpuBoostMode(ApmCpuBoostMode_FastLoad) šestkrát (3× FastLoad +
+  # 3× Normal: executePaste, runBusyTask a hlavně main() před extrakcí jader
+  # z romfs). FastLoad podle libnx (apm.h:21) znamená „Boost CPU. Additionally,
+  # throttle GPU to minimum" a appletSetCpuBoostMode posílá command 66 na
+  # applet (applet.c:1031) — konfigurace je GLOBÁLNÍ a přetrvá do .nro, které
+  # launcher vzápětí spustí. Do buildu 47 ji shazoval emulátor (cpu_boost(0)
+  # po 60 framech); build 48 cpu_boost() vyprázdnil, takže reset zmizel a GPU
+  # zůstávalo na 76 MHz. Dřívější audit „CpuBoostMode je jen v util.c" se díval
+  # jen na emulátor, ne na launcher — proto to uniklo.
+  #
+  # die (ne warn): bez tohohle patche by build vypadal zeleně a na kartě by
+  # zase jelo GPU na minimu.
+  if python3 "$HERE/patches/launcher_no_boost.py" "$SRC/launcher/source/main.cpp"; then
+    key "launcher: appletSetCpuBoostMode zakomentovano (GPU neshazuje FastLoad)"
+    if grep -qE '^[[:space:]]*appletSetCpuBoostMode' "$SRC/launcher/source/main.cpp"; then
+      die "launcher: po patchi tam pořád je aktivni appletSetCpuBoostMode"
+    fi
+  else
+    die "launcher: patch bez CPU boostu neprosel (GPU by na karte jelo na minimu)"
   fi
 
   cat > "$SRC/launcher/source/ci_launch_diag.cpp" <<'LAUNCH_DIAG_CPP'

@@ -767,3 +767,68 @@ Takty v logu chybět budou **záměrně**. Uživatel má Ultrahand governor na
 nepotřebuje takty v datech — stačí, že se profil během měření nemění. Kdyby
 bylo potřeba takty přesto vidět, patří do Ultrahand overlaye nebo sys-clk
 logu, ne do emulátoru.
+
+---
+
+## Build 57 — GPU na minimu způsobil LAUNCHER, ne emulátor (2026-09-18)
+
+Uživatel: *„Pořád to stejný — když zapnu appku a hru, tak mi jede GPU na
+minimum. Dej CPU boost pryč."*
+
+### Příčina
+
+`appletSetCpuBoostMode(ApmCpuBoostMode_FastLoad)` volá **launcher**, ne
+emulátor — šestkrát v `launcher/source/main.cpp`:
+
+| řádek (upstream `f084dc1`) | funkce | co to dělá |
+|---|---|---|
+| 3681 / 3699 | `executePaste()` | FastLoad → Normal při kopírování souborů v UI |
+| 3714 / 3743 | `runBusyTask()` | FastLoad → Normal při „Working…" úlohách (SMB mount, …) |
+| **7826 / 7853** | `main()` | **FastLoad → Normal kolem extrakce jader z romfs, těsně před spuštěním hry** |
+
+`ApmCpuBoostMode_FastLoad` podle libnx (`nx/include/switch/services/apm.h:21`):
+
+```c
+ApmCpuBoostMode_FastLoad = 1,  ///< Boost CPU. Additionally, throttle GPU to minimum.
+                               ///  Use performance configurations 0x92220009 (Docked)
+                               ///  and 0x9222000A (Handheld), or 0x9222000B and 0x9222000C.
+```
+
+`appletSetCpuBoostMode` posílá command 66 na `ICommonStateGetter`
+(`nx/source/services/applet.c:1031`) — tedy **appletu**, ne procesu.
+Konfigurace taktů je globální a **přetrvá do `.nro`, které launcher vzápětí
+spustí**.
+
+**Proč to prasklo až teď:** do buildu 47 emulátor po 60 framech zavolal
+`cpu_boost(0)`, čímž FastLoad shodil zpátky na `Normal`. Build 48 `cpu_boost()`
+vyprázdnil (správně — FastLoad srážel GPU i jemu), ale **tím zmizel i ten
+reset**. Od buildu 48 tedy launcher GPU zamkl na minimum a nikdo ho nepustil
+zpátky. Buildy 48–56 to všechny mají.
+
+**Proč jsme to nenašli:** dřívější audit tvrdil „`cpu_boost()` v `source/util.c`
+je **jediné** místo v portu, kde se takty nastavují (ověřeno code searchem:
+`CpuBoostMode` je jen v `util.c`)". Ten search se díval na `source/`, ne na
+`launcher/source/`. Chyba je zapsaná v HANDOFF §8 jako past.
+
+### Co build 57 mění
+
+`ci/patches/launcher_no_boost.py` zakomentuje **všech šest** volání (3× FastLoad
++ 3× Normal). Počet je v patcheru **assert** (čeká přesně 6) a v
+`ci/build-switch.sh` je za ním `die`, ne `warn`:
+
+* patcher selže → build spadne,
+* a po patchi se ještě greppuje `^\s*appletSetCpuBoostMode` — kdyby tam aktivní
+  volání zbylo, build spadne taky.
+
+Bez CPU boostu může být extrakce jader z romfs o něco pomalejší (FastLoad zvedá
+CPU), ale GPU pak neskončí na 76 MHz — což je přesně ten obchod, který
+uživatel chce. Takty řídí výhradně Ultrahand governor.
+
+### Co z toho plyne
+
+* Emulátor: `cpu_boost()` prázdná (build 48), takty se nečtou (build 56).
+* Launcher: `appletSetCpuBoostMode` nikde (build 57).
+* **V celém balíku tedy nezůstalo jediné volání, které by sahlo na takty.**
+  Ověřeno greppem přes celý upstream port (`source/` i `launcher/source/`):
+  `CpuBoostMode` se vyskytuje jen na těch šesti řádcích, které tenhle patch
+  zakomentuje.

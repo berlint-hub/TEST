@@ -1,5 +1,14 @@
 name: build / VK (nxvk Mesa -> NetherSX2_nx)
 
+# Build 57 (2026-09-18): GPU NA MINIMU ZPUSOBIL LAUNCHER, NE EMULATOR.
+# launcher/source/main.cpp volal appletSetCpuBoostMode(FastLoad) 6x (hlavne
+# v main() pred extrakci jader z romfs). FastLoad podle libnx znamena Boost CPU
+# a ZAROVEN throttle GPU to minimum; vola se na applet (command 66), takze
+# konfigurace pretrva i do emulacniho .nro. Do buildu 47 ji shazoval emulator
+# (cpu_boost(0)); build 48 cpu_boost() vyprazdnil, takze reset zmizel a GPU
+# zustavalo na 76 MHz. Od buildu 57 je vsech 6 volani zakomentovanych
+# (ci/patches/launcher_no_boost.py, v build-switch.sh s die).
+
 # Build 56 (2026-09-18): SLEDOVANI TAKTU JE CELE PRYC. Zadani uzivatele:
 # "automaticky mam pres Ultrahand max takty ... odstran vsechno co hleda
 # takty, je to zbytecny". Venku: clkrst session (cpu/gpu/emc), fallback na
