@@ -451,6 +451,12 @@ Co je kvůli tomu v buildu 46 nového (vše za běhu vypínatelné markerem na S
 
 * **hbmenu dá 3 jádra** (4. jádro drží systém). **4 jádra jen přes zástupce na
   HOME** — to je upstream chování (`f33e41e`), nic jsme na tom neměnili.
+* **Naměřeno z karty (build 46, GT3 i Fallout stejně)**: `mask=0xf -> ee=0
+  work=1,2 bg=3`, thready `#1→1`, `EE/VM→0`, `#2→2`, `#3→1`, `bg→3`. Tedy:
+  jádro 0 = EE (+VU0), jádra 1–2 = MTGS (GS/Vulkan) + VU1 (MTVU) + worker
+  round-robin, jádro 3 = audio. **VU1 a GS se dělí o stejná dvě jádra** — to je
+  kandidát na bottleneck GT3 (a důvod, proč přidání EE headroomu nic nepřinese).
+  Test do buildu 48: píchnout MTGS a VU1 na vlastní jádra místo round-robinu.
 * Rozdělení **není** „1× EE, 2× VU, 1× GS". Reálně (`source/pthr.c`):
   `EE + VM(VU0)` = **jeden** thread, hard-pinned na `ee_core` (první jádro
   masky); `GS` = vlastní thread (MTGS); `VU1` = vlastní thread **jen když je
