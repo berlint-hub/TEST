@@ -123,9 +123,9 @@ Zbývá: LSFG (frame generation) a výkon. Detaily níž.
 | Věc | Hodnota |
 |---|---|
 | branch session | `arena/01a0b2a1-test` (nikdy nepushovat jinam; stará `arena/01a0aad9-test` už na remote není) |
-| poslední pushnutý commit | `2fcf3f4` (VK-only balík + cache v loaderu + LTO jako upstream), před ním `66ab58d`, `3bfc409`, `1b9cf7f`, `52e1a88` |
+| poslední pushnutý commit | `6530e4b` (název release podle obsahu), před ním `1128c73` (docs), `2fcf3f4` (VK-only + cache loaderu + LTO), `66ab58d` |
 | rolling release URL | `https://github.com/berlint-hub/TEST/releases/download/nro-latest/NetherSX2.nro` |
-| aktuální build | CI build 43, run `35323785467`, `NetherSX2.nro` = **71 581 831 B** (VK-only, OpenGL vyřazen), `sha256=996bf6783ae34e67…`; 42 = `87e79e84db10167d…` (78,7 MB, GL+VK), 41 = `417fc784fa4f1738…` |
+| aktuální build | CI build 44, run `35324161666`, `NetherSX2.nro` = **71 581 831 B** (VK-only, OpenGL vyřazen), `sha256=f10725781856a07f…`; 43 (`996bf6783ae34e67…`) je týž binárně-velký build, jen se špatným názvem release; 42 = `87e79e84db10167d…` (78,7 MB, GL+VK). Pozor: i při stejné velikosti se `sha256` mezi runy liší (launcher embeduje čas/verzi) — na rozlišení buildů je to tak správně |
 | v balíku | build 43: jen `NetherSX2_nx_vk.nro` **23 088 003 B** (LTO + cache v loaderu; build 42 měl 23 124 867 B). GL binárka se nestaví (`VK_ONLY=1`) — zpět ji vrátíš přepnutím `VK_ONLY: 0` v `mesa-vk.yml`; kód i GL FPS měřidlo zůstávají |
 | pozor na velikosti | buildy 34–37 maj **identickou** velikost (stránkový zarovnání segmentů) — rozlišuj podle `sha256` (35 = `b3a06739…`, 36 = `f6ea45cb…`, 37 = `c2d6aa7d…`). Build 38 povyrostl na 78 724 195 B, protože se konečně zkompilovala diagnostika |
 | generovaný loader | 766 forwarderů, `libnsxvkloader.a` = 554 390 B |
