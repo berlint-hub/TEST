@@ -79,6 +79,13 @@ smazané).
 `cpu_boost()` v `source/util.c` — jediné místo v portu, kde se takty
 nastavovaly). Emulátor se podsystemu taktů **nedotýká vůbec**.
 
+> **Stav souborů (2026-09-18):** uživatel smazal z větve crash reporty **i všech
+> pět logů z karty** (`nethersx2-core.log`, `nethersx2-vulkan.log`,
+> `launcher-diag.log`, `nethersx2-mesa.log`, `emulog.txt`; commity `7946d05`…
+> `3f8c2f6`). Čísla, která z nich vzešla, zůstávají v tomhle dokumentu a
+> v BUILD-NOTES.md — surová data v repu už nejsou. V `archiv/logy/` zůstává
+> jen `nethersx2-core.build49.log`.
+
 ## 0c. STAV: PÁD — CO ŘÍKAJÍ LOGY BUILDU 54 (2026-09-18, ověřeno z dat v repu)
 
 **Logy buildu 54 jsou v repu** (`nethersx2-core.log`, `nethersx2-vulkan.log`,
