@@ -4,13 +4,27 @@ Nečti tohle jako tutorial. Je to seznam rozhodnutí a čísel, která bys jinak
 objevoval znovu po 20 minutách drahých runner minut. Stav níže je **ověřený
 během**, ne domněnka; kde se pochybuje, je to napsané.
 
-Stav k 2026-09-18 (build 37): **Vulkan na kartě padal na nula fyzických
-zařízeních — příčina nalezena a opravena** (chybějící
-`NVK_I_WANT_A_BROKEN_VULKAN_DRIVER=1`, viz §3). Teď čeká na test z karty.
-Cíl uživatele: reproducible CI, který vyrobí šiřitelné `.nro` s funkčním
-Vulkan rendererem (LSFG), plus zpětná vazba z logů na kartě.
+> **Nová session se zaměřením na CPU/VU/GS optimalizaci:** začni v
+> **`VU-GS-OPTIMALIZACE.md`** (zadání, změřené FPS podle taktů, rozložení
+> threadů, hypotézy v pořadí, jak měřit). Tenhle HANDOFF pak čti jako
+> referenci — hlavně §8 (pasti), §9–§11 (výkon a takty).
+> Poslední build: **51** (`nro-latest`, 71 594 119 B, sha256 `9c719e25cb27b374`).
 
-## 0. STAV: VULKAN NA KARTĚ FUNGUJE (2026-09-18, build 38)
+Cíl uživatele: reproducible CI, který vyrobí `.nro` s funkčním Vulkan
+rendererem, plus zpětná vazba z logů na kartě. Historie: build 37/38 našel
+a opravil „Vulkan vidí nula fyzických zařízení" (chybějící
+`NVK_I_WANT_A_BROKEN_VULKAN_DRIVER=1`, viz §3), build 43/44 odstranil OpenGL,
+build 51 odstranil zápisy do taktů. Teď jde o **výkon GT3** (CPU/VU/GS).
+
+## 0. STAV: VK-ONLY + ŽÁDNÝ BOOST TAKTŮ (2026-09-18, build 51)
+
+OpenGL je z balíku odstraněný (`VK_ONLY: 1` v `mesa-vk.yml`), renderer je
+v launcheru zamčený na Vulkan i proti per-game profilu. **Emulátor do taktů
+vůbec nesahá** — `cpu_boost()` je prázdná funkce (`ci/patches/util_no_boost.py`),
+protože `FastLoad` srážel GPU na 76 MHz a bil se s governororem uživatele
+(Ultrahand). Takty se jen **čtou** do FPS řádky.
+
+### Původní stav (build 38): VULKAN NA KARTĚ FUNGUJE
 
 Uživatel potvrdil „vulkan jede" a `nethersx2-vulkan.log` z karty to dokládá
 celé: `vkCreateInstance result=0` → `vkCreateViSurfaceNN result=0` →
@@ -25,105 +39,37 @@ Zbývá: LSFG (frame generation) a výkon. Detaily níž.
 
 ## 1. Okamžité další kroky
 
-1. **LSFG — uživatel DLL MÁ** (build 40 čeká na test). Postup, který mu byl
-   poslán: `Lossless.dll` do `sdmc:/switch/nethersx2/lsfg/Lossless.dll`
-   (přesně ten název, `lsfg_dll_path()` v `source/hooks/vk.c:192` i
-   `LSFG_DLL_FILE` v launcheru jsou case-sensitive), v launcheru zapnout
-   **"LSFG 2x (Vulkan only)"** (`Wrapper/LSFGEnabled`), volitelně
-   `Flow resolution` (`Wrapper/LSFGFlowScale`, default 0.25) a
-   `Performance mode` (`Wrapper/LSFGPerformance`, default true), spustit
-   hru s Vulkanem a frame generation zapnout až **v quick menu (L+R+Plus)**.
-   Port záměrně nechává u zdrojů 50/60 FPS normální cestu (aby se emulace
-   nepůlila) — LSFG se chytá u 25/30 FPS zdrojů.
-   V logu se to pozná podle `lsfg_prepared=1` (`vkCreateInstance`) a
-   `lsfg_capable=1 family=<čísl>` (`vkCreateDevice`); pokud tam bude pořád 0,
-   znamená to, že se nenašel soubor nebo je vypnutý přepínač.
-2. **Výkon — měření je v buildu 40 (VK) a 41 (i GL).** `vk_diag_note` píše
-   jednou za sekundu řádku
-   `FPS %.1f | %.2f ms/frame | min %.2f max %.2f ms | %u framu | lsfg=%d`
-   (patch v `build-switch.sh`, kotva `++vk_present_count;`). Je to **rate
-   prezentací** = emulační framerate, s LSFG dvojnásobný; `max` ukáže stutter.
-   Od buildu 41 má stejné okno i **GL větev**: patch 7b2 v `build-switch.sh`
-   vkládá do `source/hooks/egl.c` (kotva `++egl_swap_count;` v
-   `eglSwapBuffersHook`) blok, který píše do core logu
-   `[GL] FPS … | %u framu`; čas čte přímo z `mrs cntpct_el0/cntfrq_el0`, protože
-   `lsfg_monotonic_ns()` je jen ve VK větvi. Blok je zamčený na
-   `#if GS_RENDERER == 12`, takže ve VK `.nro` **není** (marker `[GL] FPS`
-   se v `NetherSX2_nx_vk.nro` hledat nemá).
-   Uživatel zatím naměřil (na GL): CPU 2700 MHz, GPU 1400 MHz; **GPU na
-   150 MHz nezměnilo FPS** → GPU není bottleneck, GT3 je CPU-bound.
-   **Reálná čísla z karty (18. 9., GL/NVC0, GT3 Europe):** 3 session, medián
-   **~32 FPS** (strop 50 = PAL), ve všech třech `stutter>25 ms` skoro v každé
-   sekundě (84–137 z ~90–143 oken) a nejhorší mezera 0,7–1,07 s. Core sám
-   k GL hlásí `GL_ARB_texture_barrier is not supported` (blending nebude
-   přesný) a `GL_ARB_direct_state_access is not supported, this will reduce
-   performance` — přesně proto je VK-only rozumný default a GL nemá cenu
-   držet v každém buildu.
-   **LTO:** upstream `build_all.sh` volá `make -j RENDERER=VK` bez override,
-   takže jeho release má `-flto=auto -fuse-linker-plugin` (Makefile default);
-   my jsme ho měli vypnutý. Od buildu 43 jedeme s LTO taky (`LTO=ano`
-   v digestu) — dřívější „error op…" způsobil THIN archiv od mesonu, ne LTO.
-   Emulační „speed %" core nikam neloguje (OnPerformanceMetrics v importech
-   není), takže CPU/GPU bound se rozliší jedině přes OSD hry.
-   Očekávání: NVK už jede optimální cestou (zero-copy WSI, perzistentní
-   shader cache 182 položek), takže další zisky jsou hlavně v nastavení
-   emulátoru a v taktech (sys-clk), ne v driveru.
-3. **Nastavení pro výkon, které se má zkusit:** vypnout
-   `GPU Palette Conversion` (core sám hlásí „reduce performance"),
-   `Cycle rate/skip` zpět na default (core hlásí „Unsafe Settings"),
-   zvážit `Hardware Download Mode`, v OSD zapnout FPS, a **při měření
-   smazat `ci-logging.enabled`** (zapíná i EE/IOP console logging, což je
-   per-frame formátování stringů).
-4. **`[Logging]` marker z karty smazat, až nebude potřeba.** `ci-logging.enabled`
-   v `/switch/nethersx2/` zapíná kromě našeho capture i `Logging/EnableEEConsole`
-   a `EnableIOPConsole` v jádře, což je podle upstreamu „formats a lot of
-   strings per frame" — na výkon to jde. Pro měření FPS tedy marker pryč
-   (logy pak nebudou, ale to je při ladění výkonu jedno).
-5. **Dočistit integraci:** od buildu 39 se `MESA_SHADER_CACHE_DIR` přesměrovává
-   na `/switch/nethersx2/cache`, takže `sdmc:/switch/mesa_shader_cache` už
-   nevzniká — starou složku může uživatel smazat.
-6. **VK-only režim (od buildu 43).** `VK_ONLY=1` v `mesa-vk.yml` znamená, že
-   se GL `.nro` vůbec nestaví (‑4 min runneru, ‑7,1 MB balíku) a launcher se
-   patchem v `build-switch.sh` zamkne na Vulkan:
-   * v nastavení zůstane jen `{"Vulkan (NVK)","14"}` (jinak by si člověk vybral
-     OpenGL a launcher by hledal neexistující `NetherSX2_nx_gl.nro`),
-   * v launch cestě `renderer="vk"` a efektivní `EmuCore/GS/Renderer` se
-     přepíše na `"14"` — per-game profily na kartě mají klidně `"12"` z
-     dřívějška a ten se čte PŘED globálním nastavením (viz bod 8).
-   `VK_ONLY=0` = zpět GL+VK (jediná změna; kód i GL FPS měřidlo zůstávají).
-7. **Volba rendereru je v launcheru, ne v `.nro`** — od buildu 42 ji navíc
-   logujeme. `launcher/source/main.cpp`:
-   `renderer = (EmuCore/GS/Renderer=="14") ? "vk" : "gl"` — takže
-   **14 → `NetherSX2_nx_vk.nro`, 12 i 13 → `NetherSX2_nx_gl.nro`**. Trojka
-   „OpenGL (Zink/NVK)" (13) tedy běží GL binárku a Zink se zapíná uvnitř ní
-   (`Wrapper/GLDriver=zink` → `source/main.c` nastaví
-   `MESA_LOADER_DRIVER_OVERRIDE=zink`, ale jen pod `#if GS_RENDERER == OGL`;
-   v našem GL `.nro` je switch-mesa z devkitPro portlibs, ne nxvk „unified"
-   SDK, na které ten komentář míří — zda tam zink opravdu je, není ověřené).
-   **Efektivní hodnota = profil hry přebíjí globální**:
-   `sdmc:/switch/nethersx2/gamecfg/<klíč hry>.ini` (fallbacky: pathKey,
-   legacyKey) má přednost před `sdmc:/switch/NetherSX2.ini`. Proto je klidně
-   možné „v nastavení mám Vulkan, a stejně mi jede GL" — a přesně to se
-   stalo v logu z 18. 9.: launcher 3× zkopíroval `NetherSX2_nx_gl.nro`
-   (i když uživatel tvrdí, že první běh byl Vulkan).
-   Build 42 to poprvé rozlišuje: `launcher-diag.log` má řádek
-   `renderer      [renderer-decision] EmuCore/GS/Renderer=<efektivní> (global=<globální>) -> nro=<vk|gl>, GLDriver=<…>`
-   + `game profil <cesta> = <velikost>/CHYBI`, a core log začíná
-   `[CI] emulator nro: VK build (GS_RENDERER=14), NVK_I_WANT_A_BROKEN_VULKAN_DRIVER=1`
-   nebo `GL build (GS_RENDERER=12) — Vulkan v tomhle .nro neni`.
+**Priorita je teď výkon GT3 (CPU/VU/GS).** Zadání, změřená čísla a experimenty
+v pořadí jsou v **`VU-GS-OPTIMALIZACE.md`** — tam začni.
 
-8. **Diagnostika portu zrcadlená do core logu:** v buildech 37/38 se psala na
-   `stderr`, jenže na kartě se přesměrovanej stderr do souboru **nepropsal**
-   (stdout ano — všechny core logy chodí). Od buildu 39 jde mirror na stdout
-   a `ci_core_log.c` navíc hlásí `[CI] stderr smerovan core logu: ok/SELHAL`.
-   Ověřeno v `.nro` greppem markeru `diag soubor nethersx2-vulkan.log`.
+Stručně, co je hotové a co ne:
+
+1. **VK-only** — hotovo (build 43/44, `VK_ONLY: 1`).
+2. **Zápisy do taktů z emulátoru** — hotovo (build 51): `cpu_boost()` je
+   prázdná, `FastLoad` (CPU 1785 + **GPU 76**) se už nevolá. Uživatel má
+   vlastní governor (Ultrahand) a jakýkoli zásah mu shazoval systém.
+3. **Log bez SD zápisu na frame** — hotovo (build 46–49): dedup + 64 KiB
+   buffer; v jedné GT3 session potlačeno 11 493 řádků.
+4. **Čtení taktů / rozložení threadů** — hotovo (build 47/49): funguje
+   (`clkrst` Result kódy 0x0, `cpu=2703 gpu=1497 emc=2666`).
+5. **Optimalizace VU/GS** — **nezačato**. Hypotézy: MTGS+VU1 na vlastní jádra
+   místo round-robinu (`pthr.c`), MTVU zap/vyp, `EECycleRate/Skip` zpět na
+   default, `vu1Instant`. Vše měřit jen na oknech se stejnými takty.
+6. **LSFG** — uživatel DLL má, netestováno (`lsfg=0` ve všech oknech,
+   `lsfg_capable=0`). Postup: `Lossless.dll` do
+   `sdmc:/switch/nethersx2/lsfg/Lossless.dll` (case-sensitive,
+   `lsfg_dll_path()` v `source/hooks/vk.c:192`), v launcheru zapnout
+   „LSFG 2x (Vulkan only)" (`Wrapper/LSFGEnabled`), ve hře pak **quick menu
+   (L+R+Plus)**. V logu se to pozná podle `lsfg_prepared=1`
+   (`vkCreateInstance`) a `lsfg_capable=1 family=<čísl>` (`vkCreateDevice`).
+   Není to emulační rychlost, ale z 39 FPS udělá plynulých ~60.
 
 ## 2. Čísla a identifikátory, co se špatně dohledávají
 
 | Věc | Hodnota |
 |---|---|
 | branch session | `arena/01a0b2a1-test` (nikdy nepushovat jinam; stará `arena/01a0aad9-test` už na remote není) |
-| poslední pushnutý commit | `6530e4b` (název release podle obsahu), před ním `1128c73` (docs), `2fcf3f4` (VK-only + cache loaderu + LTO), `66ab58d` |
+| poslední pushnutý commit | 204d405 docs: build 51 v tabulce (boost pryc, takty jen ke cteni) (a starší: build 51, log-analyzer, VU-GS plán) |
 | rolling release URL | `https://github.com/berlint-hub/TEST/releases/download/nro-latest/NetherSX2.nro` |
 | aktuální build | CI build 51, run `35339363420`, `NetherSX2.nro` = **71 594 119 B** (VK-only), `sha256=9c719e25cb27b374`, release `nro-latest` „NetherSX2.nro (CI build 51, Vulkan)". Obsahuje: **CPU boost pryč** (util.c; takty řídí sysmodul), log bez SD zápisu na frame, čtení taktů + `ci-clk.conf`, rozložení threadů. Předchozí: 48/49 spadly na stažení jader (api.github.com) — opraveno přímou CDN URL |
 | v balíku | build 43: jen `NetherSX2_nx_vk.nro` **23 088 003 B** (LTO + cache v loaderu; build 42 měl 23 124 867 B). GL binárka se nestaví (`VK_ONLY=1`) — zpět ji vrátíš přepnutím `VK_ONLY: 0` v `mesa-vk.yml`; kód i GL FPS měřidlo zůstávají |
@@ -135,6 +81,13 @@ Zbývá: LSFG (frame generation) a výkon. Detaily níž.
 
 Artefakty: `nethersx2-nro-vk-bundle` (90 dní), `mesa-sdk` (SDK s `lib/`,
 `pkg/`, `include/`).
+
+**Nástroje v repu** (co ušetří čas):
+* `ci/analyze-core-log.py <log>` — FPS podle taktů, stutter, rozložení threadů,
+  kolik řádků spolkl dedup. Umí i `--full` s rozpadem na jednotlivá okna.
+* `ci/patches/*.py` — patchery zdrojů portu (util_no_boost, vk_diag) — vždy
+  testovat na **čerstvém** souboru a dvakrát (idempotence).
+* `ci/patches/ci_core_log.c` — log modul + NSX_CLK + `ci-clk.conf`.
 
 ## 3. Poznání, který bolí nejvíc (přečti si ho, než sáhneš na VK link)
 
@@ -411,14 +364,46 @@ jádra ani BIOS se v repozitáři nenachází a nesmí — stahujou se v CI z
     Od buildu 47 to hlídá syntax kontrola v CI (`-Werror=enum-conversion`,
     `-Werror=implicit-function-declaration`).
 
-## 9. Ladění výkonu na kartě (build 46)
+## 9. Ladění výkonu na kartě (build 51)
 
-Uživatelova čísla, ať se nemusí znovu měřit: **GT3 31,6 FPS**, **Fallout:
-Brotherhood of Steel 59,9 FPS** (medián ze 2 session, VK, 1280×720). Fallout
-je v pohodě — nezhoršit. GT3 je cíl; snížení EE na 50 % **nic nezmění**, takže
-se nečeká na EE.
+### Změřeno na kartě (build 49, log `e1b92bd`, GT3, 172 FPS oken)
 
-Co je kvůli tomu v buildu 46 nového (vše za běhu vypínatelné markerem na SD):
+| takty cpu/gpu/emc | oken | FPS medián | p10 |
+|---|---|---|---|
+| **2703 / 1497 / 2666** (Ultrahand governor na max) | 124 | **38,7** | 26,8 |
+| 1020 / 307 / 1331 (governor dole) | 43 | 16,9 | 15,8 |
+| 2703 / 307 / 1331 | 2 | 33,8 | 33,8 |
+| 2703 / 1497 / 1331 | 2 | 34,2 | 33,8 |
+| 2703 / **76** / 2666 (držený FastLoad) | 1 | 40,7 | 40,7 |
+
+* **GT3 je CPU-bound**: při stejném CPU dá GPU 1497 MHz jen **+1 %** proti
+  307 MHz (34,2 vs 33,8 FPS). Optimalizace GS/Vulkan tedy nemá smysl;
+  páka je ve VU1/EE/synchronizaci threadů.
+* **`gpu=76` je v logu přímý důkaz** dřívější stížnosti „locknul jsi mi GPU na
+  minimu" — to byl náš držený `FastLoad`.
+* Stutter zůstává i na max taktech: nejdelší frame 580 ms (načítání/shader),
+  medián 27 ms.
+* **LSFG je vypnuté** (`lsfg=0` ve všech oknech, `lsfg_capable=0` ve vulkan
+  logu) — uživatel DLL má, ale netestoval.
+* `[CI] apm: mode=0 handheld=0x20003 docked=0x10001` — **není** to konfigurace
+  FastLoad (0x9222000A/0x92220009); Ultrahand si APM přepisuje sám.
+* `[CI] stderr smerovan do core logu: SELHAL (errno=5)` — na jeho konzoli
+  stderr přesměrovat nelze (EIO); Mesa chyby se ztrácejí, naše diag jde na
+  stdout.
+* Dedup logu funguje: v jedné GT3 session potlačil **11 493 řádků** (422
+  souhrnů); celý log má 96 KB místo dřívějších 630 KB.
+
+### Co je kvůli výkonu v buildu 51 (vše vypínatelné markerem na SD)
+
+Čísla, ať se nemusí znovu měřit:
+* **Fallout: Brotherhood of Steel — 59,9 FPS** (medián 2 session, build 43,
+  1280×720). Je v pohodě — **nezhoršit**.
+* **GT3 — 38,7 FPS** (build 49, okna na max taktech; 31,6 FPS naměřeno dřív,
+  když se takty nehlásily a governor jel jiný profil). Cíl je posunout
+  medián nahoru; snížení EE na 50 % **nic nezmění**, takže se nečeká na EE.
+* Hra je **CPU-bound** (GPU takt +1 % FPS) — viz tabulka výše.
+
+Co je kvůli tomu v buildu 46+ nového (vše za běhu vypínatelné markerem na SD):
 
 1. **`NSX_LOG_QUIET` — log už nezapisuje na kartu při každém framu.** GT3 měl
    za jednu session **7 309×** `Timezone=`/`SummerTime=` (volané per frame).
@@ -465,20 +450,25 @@ Co je kvůli tomu v buildu 46 nového (vše za běhu vypínatelné markerem na S
   round-robin po zbývajících jádrech; `bg` (audio) sedí na horním jádře při 4+.
 * „Dvě na VU" tedy nemá co zapnout — VU0 je součást EE threadu (oddělit by
   znamenalo zásah do jádra emulace) a VU1 už vlastní thread má.
-* **Co se z toho dá reálně zkusit pro GT3** (nezměřeno, v tomto pořadí):
-  1. Zahřátí/ověření taktů: drží `cpu=1785`? (build 46 to řekne v logu.)
-  2. LSFG zapnout (DLL má) — z 31 FPS udělá plynulých 60; není to sice
-     emulační rychlost, ale uživatelův „cíl" je plynulost.
-  3. MTVU vypnout/zapnout (launcher `vuThread`) — u GT3 se to může pohnout
-     oběma směry; měřit izolovaně, ať je vidět vliv.
-  4. `Unsafe Settings: Cycle rate/skip is not at default` — uživatel to má
-     přepnuté; vrátit na default a porovnat (může ubírat i přidávat).
-  5. Teprve pak sáhnout do kódu (např. pin VU1 na vlastní jádro mimo work
-     pool), protože bez měření to je hádání.
+* **Potvrzeno znovu (build 49, 4 sessions)**: rozložení je pořád stejné
+  (`mask=0xf ee=0 work=1,2 bg=3`), takže jde o stabilní vlastnost portu,
+  ne náhodu jednoho běhu.
+* **Co s tím (plán je v `VU-GS-OPTIMALIZACE.md` §5)**: pin MTGS a VU1 na
+  vlastní jádra místo round-robinu, MTVU zap/vyp, `EECycleRate/Skip` zpět na
+  default, `vu1Instant`. Měřit **jen okna se stejnými takty** — governor
+  uživatele přeskakuje mezi 2703/1497/2666 (38,7 FPS) a 1020/307/1331
+  (16,9 FPS), takže „zlepšení" se dá snadno splést s přepnutím profilu.
+* **Co už je vyloučené**: GPU takt. Při stejném CPU dal 4,9× vyšší GPU takt
+  jen **+1 % FPS** → GS/Vulkan není bottleneck. A EE na 50 % nic nezměnilo →
+  ani hrubý výkon EE. Zbývá VU1 + synchronizace threadů.
 
 ## 11. Takty CPU/GPU/EMC — co jde a co (zatím) ne
 
-* **Čtení taktů: `clkrst` v buildu 46 vracelo nuly** (`cpu=0 gpu=0 emc=0`
+* **Naměřeno na kartě (build 49)**: čtení funguje —
+  `[CI] clk: clkrst init=0x0 open cpu=0x0 gpu=0x0 emc=0x0 pcv=-1` a v FPS
+  řádce `cpu=2703 gpu=1497 emc=2666 MHz` (Ultrahand governor na max; při
+  drženém FastLoadu `gpu=76`, při nízkém profilu `1020/307/1331`).
+* **Historie: `clkrst` v buildu 46 vracelo nuly** (`cpu=0 gpu=0 emc=0`
   v celé session), takže se „GPU na minimu" nedalo ověřit. Build 47 tiskne
   Result kódy (`[CI] clk: clkrst init=0x… open cpu=0x… … pcv=…`) a zkouší
   i starší službu `pcv` jako fallback. Podle těch kódů se pozná, jestli

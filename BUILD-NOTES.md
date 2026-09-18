@@ -328,7 +328,8 @@ opakovala Nx`) a stdout má **64 KiB buffer** (`_IOFBF`), takže se na kartu
 nezapisuje po řádcích. Vypínatelné markerem `ci-rawlog.enabled`.
 
 **2) Port sám shazoval CPU boost po 60 framech** (≈2 s, `source/main.c` ~2053).
-Teď ho držíme (`NSX_KEEP_BOOST`), vypínatelné markerem `ci-noboost.enabled`.
+Tehdy jsme ho drželi (`NSX_KEEP_BOOST`) — *(historické; v buildu 51 je boost
+úplně zrušený, viz níž)*.
 FPS řádka hlásí `boost=0/1`, takže je to z logu vidět.
 
 **3) FPS řádka má takty** — `clkrst` session API (`NSX_CLK_API`, v CI se
@@ -360,15 +361,15 @@ sražené; sedí to i na čísla (GT3 medián 29,1 FPS proti 31,6 bez držení).
 Co je v buildu 47:
 
 1. **Držení boostu je opt-in** (`ci-keepboost.enabled`); default = upstream
-   (boost se po 60 framech shodí, GPU zůstane normální). Marker
-   `ci-noboost.enabled` pořád existuje jako pojistka.
+   (boost se po 60 framech shodí, GPU zůstane normální). *(Historické —
+   build 51 zrušil i tohle: boost se nevolá vůbec.)*
 2. **NSX_CLK** (`ci/patches/ci_core_log.c`): čtení taktů CPU/GPU/EMC
    s Result kódy v logu (proč build 46 vracel nuly), fallback na starší
    službu `pcv`, a `[CI] apm:` řádek s režimem/konfigurací (0x92220009/0A
    = FastLoad = CPU nahoru + GPU na minimum).
 3. **`ci-clk.conf`** na SD: `cpu=1785 gpu=460 emc=1600` (MHz) — aplikuje se
-   jednou na startu, loguje před/po + Result. `ci-keepboost.enabled` drží
-   FastLoad a NSX_CLK k tomu vrátí GPU na 460 (handheld) / 768 (docked).
+   jednou na startu, loguje před/po + Result. *(Historické: `ci-keepboost`
+   v buildu 51 zrušen.)*
 4. **Dedup logu zvládá střídavé vzory.** GT3 střídá `Timezone=`/`SummerTime=`,
    takže se nikdy neopakuje bezprostředně po sobě — tabulka 8 posledních
    vzorů to řeší (120 řádků/s → 1–2 souhrny/s). FPS řádky dedup míjejí.
@@ -410,4 +411,29 @@ v pořádku nebyly — stažení teď jde primárně přes kanonickou URL
 `github.com/<repo>/releases/download/<tag>/<asset>` (CDN, bez API),
 s `--retry 3 --retry-all-errors` a API jen jako fallback (s výpisem těla
 odpovědi, když selže i to).
+
+---
+
+## Log z karty (build 49) — co ukázal a co z toho plyne
+
+Uživatel poslal `nethersx2-core.log` z buildu 49 (4 sessions, GT3 + Fallout).
+Analyzátor `ci/analyze-core-log.py` z něj vytáhl:
+
+* **Takty se konečně čtou správně** (`clkrst init=0x0 open cpu=0x0 gpu=0x0
+  emc=0x0 pcv=-1`) — oprava `PcvModuleId` z buildu 47 zabrala.
+* **GT3 při Ultrahand governoru na max (cpu=2703 gpu=1497 emc=2666): medián
+  38,7 FPS.** Když governor spadne na 1020/307/1331: **16,9 FPS.**
+* **Přímý důkaz dřívější stížnosti**: při drženém `FastLoad` boostu bylo v logu
+  `gpu=76` (GPU na minimu) — proto tehdy FPS spadlo.
+* **GT3 je CPU-bound**: se stejným CPU (2703) dal GPU takt 1497 oproti 307
+  jen **+1 %** FPS (34,2 vs 33,8). Optimalizovat GS/Vulkan nemá cenu.
+* Stutter zůstává: nejdelší frame 580 ms, medián 27 ms.
+* LSFG je vypnuté (`lsfg=0`, `lsfg_capable=0`).
+* Dedup logu: v jedné session potlačeno **11 493** řádků → log 96 KB místo
+  630 KB; `ci-rawlog.enabled` ho vypne.
+* `stderr` přesměrovat na jeho konzoli nelze (`SELHAL (errno=5)`) — Mesa
+  chyby se ztrácejí, naše diagnostika proto chodí na stdout.
+
+Z toho plyne plán pro novou session: **`VU-GS-OPTIMALIZACE.md`** — VU1 +
+synchronizace threadů, MTGS/VU1 na vlastní jádra.
 
