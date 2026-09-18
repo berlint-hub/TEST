@@ -30,6 +30,11 @@ protože `FastLoad` srážel GPU na 76 MHz a bil se s governororem uživatele
 
 Uživatel hlásí: **poslední build shazuje Horizon OS/Atmosphere, když zapne
 GT3 a pak chce spustit Fallout — objeví se chyba a musí Switch vypnout.**
+Upřesnění z rozpravy (2026-09-18): chyba je **Atmosphere crash obrazovka
+s kódem** (tj. na kartě bude report v `sd:/atmosphere/crash_reports/`
+nebo `fatal_errors/` — dostavit si ho!) a **padá to u jakéhokoli přehazování
+her, ne jen GT3→Fallout**. Obojí sedí na degradaci stavu systému mezi
+procesy / pád sysmodulu.
 Nejnovější `nethersx2-core.log` + `launcher-diag.log` v repu (4 starty her:
 GT3 → Fallout → Fallout → GT3) ukazují:
 
