@@ -964,3 +964,20 @@ source/hooks/vk.c:172: error: conflicting types for 'vk_diag_exception'
   `const void *exc` a přetypuje si ho až vk.c (který `switch.h` má); do vk.h
   jde jen `#include <switch/arm/thread_context.h>`, aby hlavička zůstala
   samostatně přeložitelná.
+
+### Druhý pokus spadl na markerové bráně (run `35373076233`)
+
+Kompilace prošla, `.nro` se ale nesestavilo do konce:
+
+```
+vk: v binárce chybí: [session start build=57]
+končím kvůli: vk: v binárce chybí markery — build by byl zeleny, ale na karte bez diagnostiky
+```
+
+`ci/build-switch.sh` měl v seznamu markerů `"session start build=57"`
+**napsané ručně**, zatímco `ci_core_log.c` už měl `build=58`. Brana, která má
+hlídat, že diagnostika opravdu je v binárce, tak zabila zdravý build.
+Oprava: číslo se odvozuje `grep -o 'session start build=[0-9]*'`
+z `ci_core_log.c` (stejně jako `dist/ci-build.txt` na konci skriptu) a když se
+odvodit nedá, skript spadne — jinak by marker hlídal prázdný řetězec, což by
+prošlo vždycky.

@@ -693,11 +693,20 @@ PKGLIBS
       #   [CI] boost: = CPU boost se nevolá (takty drží Ultrahand governor)
       vkbin="$SRC/NetherSX2_nx_vk.nro"
       vkmiss=""
+      # Číslo binárky se MUSÍ brát z ci_core_log.c, ne vypsat natvrdo. Build 58
+      # (run 35373076233) spadl přesně na tomhle: marker hlídal
+      # „session start build=57", zatímco v binárce už bylo 58, a brana, která
+      # má diagnostiku chránit, zabila zdravý build.
+      local mark_build
+      mark_build=$(grep -o 'session start build=[0-9]*' \
+                     "$HERE/patches/ci_core_log.c" | head -1)
+      [ -n "$mark_build" ] \
+        || die "nejde odvodit NSX_CI_BUILD z ci_core_log.c — marker by hlídal prázdný řetězec"
       for marker in "NVK_I_WANT_A_BROKEN_VULKAN_DRIVER" "nsx-vk" \
                     "NetherSX2 Vulkan diagnostic" "diag soubor nethersx2-vulkan.log" \
                     "MESA_SHADER_CACHE_DIR" "FPS %.1f" \
                     "[CI] boost:" "[CI] cores:" \
-                    "session start build=57" "[CI] pin:" "PR_SET_NAME" \
+                    "$mark_build" "[CI] pin:" "PR_SET_NAME" \
                     "ci-pin.conf" "[CI] hack:" "ci-mtvu" "[CI] session end"; do
         # -F: markery maj v sobě [ ] a v regexu by to byla znaková třída
         grep -qaF -- "$marker" "$vkbin" || vkmiss="$vkmiss [$marker]"

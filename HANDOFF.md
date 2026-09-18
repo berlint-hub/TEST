@@ -630,7 +630,15 @@ jádra ani BIOS se v repozitáři nenachází a nesmí — stahujou se v CI z
     `so_module` **anonymní typedef** (`source/so_util.h:25`), tedy
     `struct so_module` jako typ neexistuje. Pravidlo: test bere typy
     **ze skutečných hlaviček portu/libnx**, nikdy ne z vlastní definice.
-21. **Mít v patcheru jednu značku pro víc editací stejného souboru.**
+21. **Vypsat číslo binárky natvrdo do markerové brány.** `ci/build-switch.sh`
+    měl v seznamu markerů `"session start build=57"` zapsané ručně, zatímco
+    `ci_core_log.c` už měl 58 — brána, která má hlídat, že diagnostika je
+    v binárce, zabila zdravý build (run `35373076233`:
+    `vk: v binárce chybí: [session start build=57]`). Číslo se teď odvozuje
+    `grep -o 'session start build=[0-9]*'` z `ci_core_log.c`, stejně jako
+    `dist/ci-build.txt` dole ve skriptu. **Kdykoli zvedáš `NSX_CI_BUILD`,
+    projdi `grep -rn "build=5" ci/ .github/`.**
+22. **Mít v patcheru jednu značku pro víc editací stejného souboru.**
     `if MARK in text: return` přeskočí při druhém průchodu (a v CI se patche
     pouštějí nad už patchnutým stromem) i ty editace, které ještě neproběhly.
     Každá editace musí mít vlastní značku.
