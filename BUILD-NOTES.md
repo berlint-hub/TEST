@@ -8,10 +8,11 @@ Zjištěno a **ověřeno běžením v GitHub Actions**, ne jen čtením README.
 
 ## Hlavní výsledek
 
-`ci/build-switch.sh` + `.github/workflows/bundle.yml` vyrobí **finální
-`NetherSX2.nro` = 55 586 951 B** (53 MB), tj. launcher + obě emulátorová jádra
-+ emulator `.nro` v romfs. Stáhni ho z artifactu **`nethersx2-nro-bundle`**
-na stránce runu (Actions → build / NetherSX2.nro → Artifacts).
+Aktuální finální `NetherSX2.nro` má **78 716 003 B**: launcher +
+emulátorová jádra + oba rendery v romfs (CI build 35, run `35302673001`).
+Stáhne se z release tagu `nro-latest`, historicky je má i artifact
+`nethersx2-nro-vk-bundle` na stránce runu. Úplně první kompletní
+GL-only balík měl 55 586 951 B — viz tabulka níže.
 
 Co to obnáší a co to dělá *jinak* než `build_all.sh`:
 
@@ -176,12 +177,16 @@ nedistribuuje.
 - Flat `vulkan/lib` cesta v Makefileu je **mrtvá napořád**: neobsahuje
   `-lEGL`, takže `eglGetError`/`eglGetConfigAttrib` nemůžou nikdy projít.
   jediná smysluplná cesta je `MESA_SDK_ROOT` + `-lvulkan`.
-- Oba dva pokusy (unified i flat) končily na `vkEnumerateInstanceVersion` a
-  `vkEnumerateInstanceLayerProperties`. Mesa ty dva entry pointy generuje jen
-  když je v buildu Vulkan *loader*; cross-build pro Switch žádnej nemá, proto
-  je nedodá-none archivech. `ci/build-switch.sh` je tedy dodává slabě jako
-  `source/hooks/ci_vk_loader_shim.c` (stejnej trik jako pro `writev`, který
-  picolibc na Switchu taky nemá). Ověřeno neběží — tvrdit opak by bylo blebtání.
-- Dokud `NetherSX2_nx_vk.nro` nevznikne, balík je 55 586 951 B a v launcheru
-  se musí vypnout Vulkan: **Settings → Renderer → OpenGL**. Velikost balíku je
-  zatím jedinej levnej detector, jestli v něm `_vk.nro` je.
+- VK link potřeboval doplnit i věci, který cross-build Mesy bez Vulkan
+  *loaderu* generuje jen v loaderu: `vkEnumerateInstanceVersion` a
+  `vkEnumerateInstanceLayerProperties` (dodáváme je slabě jako
+  `source/hooks/ci_vk_loader_shim.c`, stejný trik jako pro `writev`, který
+  picolibc na Switchu taky nemá) — a hlavně **všechna public `vk*` jména**,
+  který nxvk neexportuje vůbec; ty dělá `ci/gen-vk-loader.py`.
+- Kterou funkci se vyplatí *neskipnout*: `vkEnumerateInstanceExtensionProperties`
+  jsme měli stubem s nulou položek a GS na hardwaru pak spadlo na
+  „Missing required extension VK_KHR_surface“ — upstream si přes ni nechává
+  vypsat seznam extenzí, co smí vůbec povolit. Detail v HANDOFF.md §3.
+- Detektor VK v balíku už se nedělá z velikosti: stage 10 v `ci/build-switch.sh`
+  grepne RomFS tabulku jmen přímo v `out/NetherSX2.nro` a hlásí
+  `uvnitř .nro: NetherSX2_nx_vk.nro`, respektive `V .nRO CHYBÍ …`.
