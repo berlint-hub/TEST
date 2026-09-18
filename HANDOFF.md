@@ -125,7 +125,7 @@ Zbývá: LSFG (frame generation) a výkon. Detaily níž.
 | branch session | `arena/01a0b2a1-test` (nikdy nepushovat jinam; stará `arena/01a0aad9-test` už na remote není) |
 | poslední pushnutý commit | `6530e4b` (název release podle obsahu), před ním `1128c73` (docs), `2fcf3f4` (VK-only + cache loaderu + LTO), `66ab58d` |
 | rolling release URL | `https://github.com/berlint-hub/TEST/releases/download/nro-latest/NetherSX2.nro` |
-| aktuální build | CI build 44, run `35324161666`, `NetherSX2.nro` = **71 581 831 B** (VK-only, OpenGL vyřazen), `sha256=f10725781856a07f…`; 43 (`996bf6783ae34e67…`) je týž binárně-velký build, jen se špatným názvem release; 42 = `87e79e84db10167d…` (78,7 MB, GL+VK). Pozor: i při stejné velikosti se `sha256` mezi runy liší (launcher embeduje čas/verzi) — na rozlišení buildů je to tak správně |
+| aktuální build | CI build 46, run `35330694259`, `NetherSX2.nro` = **71 590 023 B** (VK-only), `sha256` = viz anotace runu; 45 (`35329833538`) **SELHAL** a je poučením — viz §8 body 13–14. Novější obsahuje: log bez SD zápisu na frame, držený CPU boost, takty v FPS řádce, rozložení threadů na jádra |
 | v balíku | build 43: jen `NetherSX2_nx_vk.nro` **23 088 003 B** (LTO + cache v loaderu; build 42 měl 23 124 867 B). GL binárka se nestaví (`VK_ONLY=1`) — zpět ji vrátíš přepnutím `VK_ONLY: 0` v `mesa-vk.yml`; kód i GL FPS měřidlo zůstávají |
 | pozor na velikosti | buildy 34–37 maj **identickou** velikost (stránkový zarovnání segmentů) — rozlišuj podle `sha256` (35 = `b3a06739…`, 36 = `f6ea45cb…`, 37 = `c2d6aa7d…`). Build 38 povyrostl na 78 724 195 B, protože se konečně zkompilovala diagnostika |
 | generovaný loader | 766 forwarderů, `libnsxvkloader.a` = 554 390 B |
@@ -393,3 +393,67 @@ jádra ani BIOS se v repozitáři nenachází a nesmí — stahujou se v CI z
     by znamenal měsíce práce s tím samým výsledkem.
 12. Věřit `key`/`::notice::` zápisu z CI o tom, že se něco zapnulo — u
     diagnostiky se to musí ověřit v hotovém .nro (viz §3 a §5).
+13. Psát do generátoru patchů `\n` tam, kde má být nový řádek v C. Python
+    `"\n"` = skutečný nový řádek, `"\\n"` = dvojice znaků pro C. Když se to
+    splete obráceně, dostane se do zdrojáku doslovné `\n` a `make` spadne až
+    za pár minut (`stray '\' in program`, `vk.c:87`, build 45 — 6 minut CI).
+    Pojistka je v `ci/build-switch.sh` hned za patchem `vk.c`: lex kontrola
+    (každé `\n` musí ležet uvnitř stringu) build zastaví hned.
+14. Hledat markery v `.nro` přes `grep -qa "..."` — `[CI] cores:` má hranaté
+    závorky a v základním grepu je to znaková třída, takže to hlásí „chybí
+    marker", i když v binárce je (falešný poplach buildu 46). Používej
+    `grep -qaF --`.
+
+## 9. Ladění výkonu na kartě (build 46)
+
+Uživatelova čísla, ať se nemusí znovu měřit: **GT3 31,6 FPS**, **Fallout:
+Brotherhood of Steel 59,9 FPS** (medián ze 2 session, VK, 1280×720). Fallout
+je v pohodě — nezhoršit. GT3 je cíl; snížení EE na 50 % **nic nezmění**, takže
+se nečeká na EE.
+
+Co je kvůli tomu v buildu 46 nového (vše za běhu vypínatelné markerem na SD):
+
+1. **`NSX_LOG_QUIET` — log už nezapisuje na kartu při každém framu.** GT3 měl
+   za jednu session **7 309×** `Timezone=`/`SummerTime=` (volané per frame).
+   `ci_core_log.c` teď: vypisuje přes `ci_emit` (stdout), opakující se řádky
+   slije do jednoho + `... predchozi radka se opakovala Nx`, a hlavně drží
+   **64 KiB buffer** (`_IOFBF`), takže malé zápisy nedojdou na SD. Vypnutí:
+   `ci-rawlog.enabled` (úplně bez dedupu) nebo smazat `ci-logging.enabled`.
+   **Pozor:** naše vlastní řádky (`[VK]`, `[GL]`, `[CI]`, `[nsx-vk]`) dedup
+   obchází a flushe hned — nesmí zmizet FPS měřidlo.
+2. **`NSX_KEEP_BOOST` — drží CPU boost.** Port si po **60 framech** (≈2 s)
+   sám shodí `FastLoad` boost zpátky na `Normal` (`source/main.c` ~2053).
+   Teď ho držíme. Vypnutí: marker `ci-noboost.enabled`.
+   FPS řádka to hlásí jako `boost=0/1` — bez toho se „boost drží" nedá ověřit.
+3. **FPS řádka s takty** (build 46 má `clkrst` API, ověřeno compile probem
+   v CI): `FPS 31.6 | 31.65 ms/frame | min … max … ms | N framu | lsfg=0
+   boost=1 | cpu=1785 gpu=768 emc=1600 MHz`. Když se `cpu` nehýbe z 1020, boost
+   nefunguje; když je CPU na 1785 a FPS stojí, je bottleneck jinde než v CPU.
+   `min`/`max` ms ukazují stutter.
+4. **Rozložení threadů na jádra** (`PTHRDIAG`, jen diagnostika):
+   `[CI] cores: mask=0x… -> hot=0x… ee=N work=a,b bg=c`, pak řádek za každý
+   emulační thread (`[CI] thread EE/VM -> core=N (vyhrazene)`, `[CI] thread #k
+   (work: MTGS/VU1/worker) -> core=N`, `[CI] thread bg (audio/...) -> core=N`).
+   Tohle odpovídá na dotaz „4 jádra: EE, 2× VU, GS?" — viz §10.
+
+## 10. Kolik jader hra dostane a jak se rozdělí (odpověď na dotaz)
+
+* **hbmenu dá 3 jádra** (4. jádro drží systém). **4 jádra jen přes zástupce na
+  HOME** — to je upstream chování (`f33e41e`), nic jsme na tom neměnili.
+* Rozdělení **není** „1× EE, 2× VU, 1× GS". Reálně (`source/pthr.c`):
+  `EE + VM(VU0)` = **jeden** thread, hard-pinned na `ee_core` (první jádro
+  masky); `GS` = vlastní thread (MTGS); `VU1` = vlastní thread **jen když je
+  zapnuté MTVU** (u nás default zapnuto); `work` pool (MTGS/VU1/worker) jde
+  round-robin po zbývajících jádrech; `bg` (audio) sedí na horním jádře při 4+.
+* „Dvě na VU" tedy nemá co zapnout — VU0 je součást EE threadu (oddělit by
+  znamenalo zásah do jádra emulace) a VU1 už vlastní thread má.
+* **Co se z toho dá reálně zkusit pro GT3** (nezměřeno, v tomto pořadí):
+  1. Zahřátí/ověření taktů: drží `cpu=1785`? (build 46 to řekne v logu.)
+  2. LSFG zapnout (DLL má) — z 31 FPS udělá plynulých 60; není to sice
+     emulační rychlost, ale uživatelův „cíl" je plynulost.
+  3. MTVU vypnout/zapnout (launcher `vuThread`) — u GT3 se to může pohnout
+     oběma směry; měřit izolovaně, ať je vidět vliv.
+  4. `Unsafe Settings: Cycle rate/skip is not at default` — uživatel to má
+     přepnuté; vrátit na default a porovnat (může ubírat i přidávat).
+  5. Teprve pak sáhnout do kódu (např. pin VU1 na vlastní jádro mimo work
+     pool), protože bez měření to je hádání.

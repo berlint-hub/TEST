@@ -679,7 +679,8 @@ PKGLIBS
                     "NetherSX2 Vulkan diagnostic" "diag soubor nethersx2-vulkan.log" \
                     "MESA_SHADER_CACHE_DIR" "FPS %.1f" "boost=%d" \
                     "[CI] cores:" "cpu boost DRZIM"; do
-        grep -qa "$marker" "$vkbin" || vkmiss="$vkmiss [$marker]"
+        # -F: markery maj v sobě [ ] a v regexu by to byla znaková třída
+        grep -qaF -- "$marker" "$vkbin" || vkmiss="$vkmiss [$marker]"
       done
       if [ -z "$vkmiss" ]; then
         key "vk: env patch + nový loader + diagnostika jsou v binárce"

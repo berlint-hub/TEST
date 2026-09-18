@@ -312,3 +312,36 @@ commity, tagy, release notes, `Makefile`, `build_all.sh`, `configure-mesa.sh`,
   a **loader** (bod 4, vyřešeno). Zdrojáky i nxvk jsou identické.
 * Uživatelovo „jeho VK je lepší" se dosud srovnávalo s NAŠÍM GL (viz bod 2) —
   naše VK ještě na kartě nezměřené nebylo.
+
+---
+
+## Build 46 — výkon GT3: žádný SD zápis na frame, držený boost, takty v logu
+
+Uživatel: **Fallout Brotherhood of Steel jede 59,9 FPS, GT3 stojí na 31,6 FPS**
+a „snížení EE na 50 % nic nezmění". Z logu z karty (`e8c6bb2`) vypadly dvě
+konkrétní brzdy, které šly odstranit bez zásahu do emulace:
+
+**1) Log zapisoval na SD kartu při každém framu.** GT3 volá `Timezone=` /
+`SummerTime=` per frame — v jedné session **7 309** řádků. `ci_core_log.c` teď
+píše přes `ci_emit`: opakující se řádky slije (`... predchozi radka se
+opakovala Nx`) a stdout má **64 KiB buffer** (`_IOFBF`), takže se na kartu
+nezapisuje po řádcích. Vypínatelné markerem `ci-rawlog.enabled`.
+
+**2) Port sám shazoval CPU boost po 60 framech** (≈2 s, `source/main.c` ~2053).
+Teď ho držíme (`NSX_KEEP_BOOST`), vypínatelné markerem `ci-noboost.enabled`.
+FPS řádka hlásí `boost=0/1`, takže je to z logu vidět.
+
+**3) FPS řádka má takty** — `clkrst` session API (`NSX_CLK_API`, v CI se
+zjišťuje compile probem, aby špatný odhad neshodil build):
+`FPS 31.6 | 31.65 ms/frame | min … max … ms | N framu | lsfg=0 boost=1 |
+cpu=1785 gpu=768 emc=1600 MHz`.
+
+**4) Rozložení threadů na jádra do logu** (jen diagnostika, `pthr.c`):
+`[CI] cores: mask=… -> hot=… ee=… work=… bg=…` + řádek za každý emulační
+thread. Odpovídá na dotaz „4 jádra: EE, 2× VU, GS?" — viz HANDOFF §10.
+
+**Build 45 selhal** (a není škoda): v generátoru patchů chybělo zdvojení
+`\n`, takže se do `vk.c` dostalo doslovné `\n` a `make` spadl na
+`stray '\' in program`. Přidána lex kontrola hned za patchem `vk.c`, která
+tuhle třídu chyb zastaví za sekundu.
+
