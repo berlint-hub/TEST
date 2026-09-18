@@ -2,607 +2,7 @@
 [CI] stderr smerovan do core logu: SELHAL (errno=5)
 [CI] boost: NEPOUZIVAME (appletSetCpuBoostMode je vynechany ve util.c; takty ridi sysmodul/governor)
 [CI] takty: od buildu 54 se nectou a nezapisujou (kolize s governorem taktu = fatal v pcv); opt-in cteni markerem ci-clk.enabled, zapis navic ci-clk.conf
-[CI] session start build=54 ts=1789738015 pid=-1
-[4][NativeLibrary] EmuFolders::DataRoot is '/switch/nethersx2'
-[4][NativeLibrary] EmuFolders::Cache is '/switch/nethersx2/cache'
-[4][NativeLibrary] EmuFolders::Resources is 'file:///android_asset'
-[4][NativeLibrary] EmuFolders::Settings is '/switch/nethersx2'
-[CI] cores: mask=0xf -> hot=0x7 ee=0 work=1,2 bg=3
-[CI] pin: zapnuty (default; ci-nopin.enabled ho vypne)
-[CI] thread #1 (work: MTGS/VU1/worker) -> core=1
-[CI] emulator nro: VK build (GS_RENDERER=14), NVK_I_WANT_A_BROKEN_VULKAN_DRIVER=1
-[CI] thread EE/VM -> core=0 (vyhrazene)
-[4][NativeLibrary] Searching for a BIOS image in '/switch/nethersx2/bios'...
-[4][NativeLibrary] Preparing for a 1280x720 window
-[4][NativeLibrary] Bios Found: USA     v02.30(20/02/2008)  Console 20080220-175343
-[4][NativeLibrary] Using BIOS '/switch/nethersx2/bios/SCPH-90001_BIOS_V18_USA_230.ROM0' (USA     v02.30(20/02/2008)  Console 20080220-175343 USA)
-[4][NativeLibrary] Opening CDVD...
-[4][NativeLibrary] isoFile open ok: /Roms/PS2/Gran Turismo 3 - A-Spec (Europe, Australia) (En,Fr,De,Es,It) (v2.00).iso
-[4][NativeLibrary] 	Image type  = DVD
-[4][NativeLibrary]  * CDVD Disk Open: DVD, Single layer or unknown:
-[4][NativeLibrary]  * * Track 1: Data (Mode 1) (1800304 sectors)
-[4][NativeLibrary] Opening GS...
-[CI] thread #2 (work: MTGS/VU1/worker) -> core=2
-[VK] vkCreateInstance begin api=4198400 app=NetherSX2 engine=NetherSX2 extensions=2
-[VK] instance extension[0]=VK_KHR_surface
-[VK] instance extension[1]=VK_KHR_android_surface
-[VK] vkCreateInstance end result=0 instance=0x5a0cabdec0 lsfg_prepared=0
-[4][NativeLibrary] No GPU requested, using first (NVIDIA Tegra X1 (NVK gm20b))
-[VK] vkCreateViSurfaceNN window=0x7cbe5eddb8 result=0 surface=0x5a383da750
-[4][NativeLibrary] 1 vulkan queue families
-[VK] vkCreateDevice begin physical=0x5a0cac0560 queues=1 extensions=6 lsfg_pref=0
-[VK] vkCreateDevice end result=0 device=0x5a383fd040 lsfg_capable=0 family=4294967295
-[VK] vkGetDeviceQueue family=0 index=0 queue=0x5a0cac7da0
-[VK] vkGetDeviceQueue family=0 index=0 queue=0x5a0cac7da0
-[4][NativeLibrary] VK_EXT_provoking_vertex is supported
-[4][NativeLibrary] VK_EXT_line_rasterization is supported
-[4][NativeLibrary] VK_EXT_calibrated_timestamps is supported
-[4][NativeLibrary] VK_ARM_rasterization_order_attachment_access is NOT supported
-[VK] vkGetDeviceQueue family=0 index=0 queue=0x5a0cac7da0
-[VK] vkCreateSwapchainKHR begin old=0x0 extent=1280x720 format=37 usage=0x10 images=3 mode=0
-[VK] vkCreateSwapchainKHR end result=0 swapchain=0x5a3dcd86c0 compatible=0 actual_usage=0x10 actual_images=3 actual_mode=0
-[VK] vkGetSwapchainImagesKHR call=1 fill=0 result=0 count=3
-[VK] vkGetSwapchainImagesKHR call=2 fill=1 result=0 count=3
-[CI] thread #3 (work: MTGS/VU1/worker) -> core=1
-[4][NativeLibrary] Read 400 entries from '/switch/nethersx2/cache/vulkan_shaders.idx'
-[4][NativeLibrary] Lazily allocating JNI environment for thread 0x5a0cac3da0
-[VK] core VM sequence returned vm_running=1
-[CI] thread bg (audio/...) -> core=3
-[4][NativeLibrary] Opening SPU2...
-[4][NativeLibrary] Initializing SndBuffer at sample rate of 48000...
-[4][NativeLibrary] (AAudioMod) Creating stream...
-[4][NativeLibrary] (AAudioMod) Starting stream...
-[4][NativeLibrary] Opening PAD...
-[CI] thread bg (audio/...) -> core=3
-[4][NativeLibrary] Opening DEV9...
-[4][NativeLibrary] Opening USB...
-[4][NativeLibrary] Opening FW...
-[4][NativeLibrary] McdSlot 0 [File]: /switch/nethersx2/memcards/Mcd001.ps2
-[4][NativeLibrary] EE/iR5900-ARM64 Recompiler Reset
-[4][NativeLibrary] Vsync is OFF
-[4][NativeLibrary] 	Searching for a BIOS image in '/switch/nethersx2/bios'...
-[4][NativeLibrary] 	Bios Found: USA     v02.30(20/02/2008)  Console 20080220-175343
-[4][NativeLibrary] 	Using BIOS '/switch/nethersx2/bios/SCPH-90001_BIOS_V18_USA_230.ROM0' (USA     v02.30(20/02/2008)  Console 20080220-175343 USA)
-[4][NativeLibrary] 	BIOS rom2 module not found, skipping...
-[4][NativeLibrary] VM subsystems initialized in 5270.87 ms
-[CI] ... vzor se opakoval 2x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] McdSlot # [File]: /switch/nethersx#/memcards/Mcd#.ps#
-[4][NativeLibrary] [GameDB] 12847 games on record (loaded in 1386.04ms)
-[4][NativeLibrary] [GameDB] Searching for '20080220-175343' in GameDB
-[4][NativeLibrary] [GameDB] Could not find '20080220-175343' in GameDB
-[4][NativeLibrary] Game Changed:
-[CI] ... vzor se opakoval 2x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] 	Bios Found: USA     v#.#(#/#/#)  Console #-#
-[4][NativeLibrary]   Name: 
-[4][NativeLibrary]   Serial: 20080220-175343
-[4][NativeLibrary]   CRC: 00000000
-[4][NativeLibrary] Applying settings...
-[4][NativeLibrary] [Unsafe Settings] Hardware Download Mode is not set to Accurate, this may break rendering in some games.
-[4][NativeLibrary] OSD [unsafe_settings_warning]:  Hardware Download Mode is not set to Accurate, this may break rendering in some games.
-[4][NativeLibrary] [Unsafe Settings] GPU Palette Conversion is enabled, this may reduce performance.
-[4][NativeLibrary] OSD [performance_settings_warning]:  GPU Palette Conversion is enabled, this may reduce performance.
-[4][NativeLibrary] [GameDB] Searching for '20080220-175343' in GameDB
-[4][NativeLibrary] [GameDB] Could not find '20080220-175343' in GameDB
-[6][cpuinfo] failed to parse the list of possible processors in /sys/devices/system/cpu/possible
-[6][cpuinfo] failed to parse the list of present processors in /sys/devices/system/cpu/present
-[6][cpuinfo] failed to parse both lists of possible and present processors
-[4][NativeLibrary] Failed to initialize cpuinfo
-[4][NativeLibrary] OSD [android_warning]: You are using AetherSX2, and it should not be sold, or distributed as part of any other app.
-
-[4][NativeLibrary] If you paid for this app, you should get your money back.
-[4][NativeLibrary] # Initialize memory (rev:4.00, ctm:196Mhz, cpuclk:147Mhz detected)
-
-[4][NativeLibrary] Applying settings...
-[4][NativeLibrary] [Unsafe Settings] Hardware Download Mode is not set to Accurate, this may break rendering in some games.
-[4][NativeLibrary] OSD [unsafe_settings_warning]:  Hardware Download Mode is not set to Accurate, this may break rendering in some games.
-[4][NativeLibrary] [Unsafe Settings] GPU Palette Conversion is enabled, this may reduce performance.
-[4][NativeLibrary] OSD [performance_settings_warning]:  GPU Palette Conversion is enabled, this may reduce performance.
-[4][NativeLibrary] [GameDB] Searching for '20080220-175343' in GameDB
-[4][NativeLibrary] [GameDB] Could not find '20080220-175343' in GameDB
-[VK] vkAcquireNextImageKHR call=1 result=0 image=0 semaphore=0x5a3ea8aac0 fence=0x0
-[4][NativeLibrary] 
-PlayStation 2 ======== 
-[VK] vkQueueSubmit call=1 count=1 fence=0x5a383daec0 result=0
-[VK] vkQueuePresentKHR enter call=1 waits=1 swaps=1 lsfg=0
-[4][NativeLibrary] Hard reset boot
-[VK] vkQueuePresentKHR call=1 swaps=1 result=0
-[4][NativeLibrary] 
-
-[VK] vkAcquireNextImageKHR call=2 result=0 image=1 semaphore=0x5a3ea8ac40 fence=0x0
-[4][NativeLibrary]  ROMGEN=
-[4][NativeLibrary] 2008-0220
-[4][NativeLibrary] , IOP info (CPUID=
-[4][NativeLibrary] 1f
-[4][NativeLibrary] , CACH_CONFIG=
-[4][NativeLibrary] 14000200, 2MB
-[4][NativeLibrary] , IOP mode)
-
-[4][NativeLibrary]  <
-[4][NativeLibrary] 20080220-175343,ROMconf,PS20230WC20080220.bin
-[4][NativeLibrary] :11824>
-
-[4][NativeLibrary] # Total accessable memory size: 32 MB (B:2:8:0) (400:2:7c30)
-
-[4][NativeLibrary] # TLB spad=0 kernel=1:12 default=13:30 extended=31:38
-
-[4][NativeLibrary] # Initialize Start.
-
-[4][NativeLibrary] # Initialize GS ...
-
-[4][NativeLibrary] # Initialize INTC ...
-
-[4][NativeLibrary] # Initialize TIMER ...
-
-[4][NativeLibrary] # Initialize DMAC ...
-
-[4][NativeLibrary] # Initialize VU1 ...
-
-[4][NativeLibrary] # Initialize VIF1 ...
-
-[4][NativeLibrary] # Initialize GIF ...
-
-[4][NativeLibrary] # Initialize IPU ...
-
-[4][NativeLibrary] # Initialize FPU ...
-
-[4][NativeLibrary] # Initialize User Memory ...
-
-[VK] vkQueueSubmit call=2 count=1 fence=0x5a0cad52c0 result=0
-[VK] vkQueuePresentKHR enter call=2 waits=1 swaps=1 lsfg=0
-[VK] vkQueuePresentKHR call=2 swaps=1 result=0
-[VK] vkAcquireNextImageKHR call=3 result=0 image=2 semaphore=0x5a3ea8adc0 fence=0x0
-[VK] vkQueueSubmit call=3 count=1 fence=0x5a0cad5600 result=0
-[VK] vkQueuePresentKHR enter call=3 waits=1 swaps=1 lsfg=0
-[VK] vkQueuePresentKHR call=3 swaps=1 result=0
-[VK] vkAcquireNextImageKHR call=4 result=0 image=0 semaphore=0x5a3ea8aac0 fence=0x0
-[VK] vkQueuePresentKHR enter call=4 waits=1 swaps=1 lsfg=0
-[4][NativeLibrary] # Initialize Scratch Pad ...
-
-[4][NativeLibrary] # Initialize Done.
-
-[VK] vkQueuePresentKHR call=4 swaps=1 result=0
-[CI] ... vzor se opakoval 2x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] # Initialize VU# ...
-
-[4][NativeLibrary] 
-
-[CI] ... vzor se opakoval 2x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] # Initialize VIF# ...
-
-[4][NativeLibrary] EE DECI2 Manager version 0.06 Sep  5 2006 12:57:08
-
-[4][NativeLibrary]   CPUID=2e20, BoardID=0, ROMGEN=2008-0220, 32M
-
-[4][NativeLibrary] (SYSTEM.CNF) Detected PS2 Disc = cdrom0:\SCES_502.94;1
-[4][NativeLibrary] (SYSTEM.CNF) Software version = 2.00
-[4][NativeLibrary] (SYSTEM.CNF) Disc region type = PAL
-[4][NativeLibrary] ELF (cdrom0:\SCES_502.94;1) Game CRC = 0xB590CE04, EntryPoint = 0x01000008
-[4][NativeLibrary] 
-IOP Realtime Kernel Ver.0.9.1
-    Copyright 1999 (C) Sony C
-[CI] ... vzor se opakoval 2x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] 
-
-[4][NativeLibrary] omputer Entertainment Inc. 
-
-[4][NativeLibrary] Reboot service module.(99/11/10)
-
-[4][NativeLibrary] cdvd driver module version 0.1.1 (C)SCEI
-
-[CI] ... vzor se opakoval 2x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] (SYSTEM.CNF) Detected PS# Disc = cdrom#:\SCES_#.#;#
-[4][NativeLibrary] Load File service.(99/11/05)
-
-[CI] ... vzor se opakoval 2x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] (SYSTEM.CNF) Software version = #.#
-[4][NativeLibrary] Multi Threaded Fileio module.(99/11/15) 
-
-[CI] ... vzor se opakoval 2x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] (SYSTEM.CNF) Disc region type = PAL
-[4][NativeLibrary] iop heap service (99/11/03)
-
-[4][NativeLibrary] loadelf: fname cdrom0:¥SCES_502.94;1 secname all
-
-[4][NativeLibrary] loadelf version 3.30
-
-[CI] clk: cteni taktu VYPNUTO (build 54; crash report ukazal fatal v pcv sysmodulu pri souboji s governorem taktu — zapnes jen markerem ci-clk.enabled)
-[CI] log capture ON, NVK_I_WANT_A_BROKEN_VULKAN_DRIVER=1
-[CI] stderr smerovan do core logu: SELHAL (errno=5)
-[CI] boost: NEPOUZIVAME (appletSetCpuBoostMode je vynechany ve util.c; takty ridi sysmodul/governor)
-[CI] takty: od buildu 54 se nectou a nezapisujou (kolize s governorem taktu = fatal v pcv); opt-in cteni markerem ci-clk.enabled, zapis navic ci-clk.conf
-[CI] session start build=54 ts=1789738111 pid=-1
-[4][NativeLibrary] EmuFolders::DataRoot is '/switch/nethersx2'
-[4][NativeLibrary] EmuFolders::Cache is '/switch/nethersx2/cache'
-[4][NativeLibrary] EmuFolders::Resources is 'file:///android_asset'
-[4][NativeLibrary] EmuFolders::Settings is '/switch/nethersx2'
-[CI] cores: mask=0xf -> hot=0x7 ee=0 work=1,2 bg=3
-[CI] pin: zapnuty (default; ci-nopin.enabled ho vypne)
-[CI] thread #1 (work: MTGS/VU1/worker) -> core=1
-[CI] emulator nro: VK build (GS_RENDERER=14), NVK_I_WANT_A_BROKEN_VULKAN_DRIVER=1
-[CI] thread EE/VM -> core=0 (vyhrazene)
-[4][NativeLibrary] Searching for a BIOS image in '/switch/nethersx2/bios'...
-[4][NativeLibrary] Preparing for a 1280x720 window
-[4][NativeLibrary] Bios Found: USA     v02.30(20/02/2008)  Console 20080220-175343
-[4][NativeLibrary] Using BIOS '/switch/nethersx2/bios/SCPH-90001_BIOS_V18_USA_230.ROM0' (USA     v02.30(20/02/2008)  Console 20080220-175343 USA)
-[4][NativeLibrary] Opening CDVD...
-[4][NativeLibrary] isoFile open ok: /Roms/PS2/Gran Turismo 3 - A-Spec (Europe, Australia) (En,Fr,De,Es,It) (v2.00).iso
-[4][NativeLibrary] 	Image type  = DVD
-[4][NativeLibrary]  * CDVD Disk Open: DVD, Single layer or unknown:
-[4][NativeLibrary]  * * Track 1: Data (Mode 1) (1800304 sectors)
-[4][NativeLibrary] Opening GS...
-[CI] thread #2 (work: MTGS/VU1/worker) -> core=2
-[VK] vkCreateInstance begin api=4198400 app=NetherSX2 engine=NetherSX2 extensions=2
-[VK] instance extension[0]=VK_KHR_surface
-[VK] instance extension[1]=VK_KHR_android_surface
-[VK] vkCreateInstance end result=0 instance=0x3c842bdec0 lsfg_prepared=0
-[4][NativeLibrary] No GPU requested, using first (NVIDIA Tegra X1 (NVK gm20b))
-[VK] vkCreateViSurfaceNN window=0xe5f5d1db8 result=0 surface=0x3cafbda750
-[4][NativeLibrary] 1 vulkan queue families
-[VK] vkCreateDevice begin physical=0x3c842c0560 queues=1 extensions=6 lsfg_pref=0
-[VK] vkCreateDevice end result=0 device=0x3cafbfd040 lsfg_capable=0 family=4294967295
-[VK] vkGetDeviceQueue family=0 index=0 queue=0x3c842c7da0
-[VK] vkGetDeviceQueue family=0 index=0 queue=0x3c842c7da0
-[4][NativeLibrary] VK_EXT_provoking_vertex is supported
-[4][NativeLibrary] VK_EXT_line_rasterization is supported
-[4][NativeLibrary] VK_EXT_calibrated_timestamps is supported
-[4][NativeLibrary] VK_ARM_rasterization_order_attachment_access is NOT supported
-[VK] vkGetDeviceQueue family=0 index=0 queue=0x3c842c7da0
-[VK] vkCreateSwapchainKHR begin old=0x0 extent=1280x720 format=37 usage=0x10 images=3 mode=0
-[VK] vkCreateSwapchainKHR end result=0 swapchain=0x3cb54d86c0 compatible=0 actual_usage=0x10 actual_images=3 actual_mode=0
-[VK] vkGetSwapchainImagesKHR call=1 fill=0 result=0 count=3
-[VK] vkGetSwapchainImagesKHR call=2 fill=1 result=0 count=3
-[CI] thread #3 (work: MTGS/VU1/worker) -> core=1
-[4][NativeLibrary] Read 400 entries from '/switch/nethersx2/cache/vulkan_shaders.idx'
-[4][NativeLibrary] Lazily allocating JNI environment for thread 0x3c842c3da0
-[VK] core VM sequence returned vm_running=1
-[CI] thread bg (audio/...) -> core=3
-[4][NativeLibrary] Opening SPU2...
-[4][NativeLibrary] Initializing SndBuffer at sample rate of 48000...
-[4][NativeLibrary] (AAudioMod) Creating stream...
-[4][NativeLibrary] (AAudioMod) Starting stream...
-[4][NativeLibrary] Opening PAD...
-[CI] thread bg (audio/...) -> core=3
-[4][NativeLibrary] Opening DEV9...
-[4][NativeLibrary] Opening USB...
-[4][NativeLibrary] Opening FW...
-[4][NativeLibrary] McdSlot 0 [File]: /switch/nethersx2/memcards/Mcd001.ps2
-[4][NativeLibrary] EE/iR5900-ARM64 Recompiler Reset
-[4][NativeLibrary] Vsync is OFF
-[4][NativeLibrary] 	Searching for a BIOS image in '/switch/nethersx2/bios'...
-[4][NativeLibrary] 	Bios Found: USA     v02.30(20/02/2008)  Console 20080220-175343
-[4][NativeLibrary] 	Using BIOS '/switch/nethersx2/bios/SCPH-90001_BIOS_V18_USA_230.ROM0' (USA     v02.30(20/02/2008)  Console 20080220-175343 USA)
-[4][NativeLibrary] 	BIOS rom2 module not found, skipping...
-[4][NativeLibrary] VM subsystems initialized in 2798.30 ms
-[CI] ... vzor se opakoval 2x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] McdSlot # [File]: /switch/nethersx#/memcards/Mcd#.ps#
-[4][NativeLibrary] [GameDB] 12847 games on record (loaded in 1329.99ms)
-[4][NativeLibrary] [GameDB] Searching for '20080220-175343' in GameDB
-[4][NativeLibrary] [GameDB] Could not find '20080220-175343' in GameDB
-[4][NativeLibrary] Game Changed:
-[CI] ... vzor se opakoval 2x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] 	Bios Found: USA     v#.#(#/#/#)  Console #-#
-[4][NativeLibrary]   Name: 
-[4][NativeLibrary]   Serial: 20080220-175343
-[4][NativeLibrary]   CRC: 00000000
-[4][NativeLibrary] Applying settings...
-[4][NativeLibrary] [Unsafe Settings] Hardware Download Mode is not set to Accurate, this may break rendering in some games.
-[4][NativeLibrary] OSD [unsafe_settings_warning]:  Hardware Download Mode is not set to Accurate, this may break rendering in some games.
-[4][NativeLibrary] [Unsafe Settings] GPU Palette Conversion is enabled, this may reduce performance.
-[4][NativeLibrary] OSD [performance_settings_warning]:  GPU Palette Conversion is enabled, this may reduce performance.
-[4][NativeLibrary] [GameDB] Searching for '20080220-175343' in GameDB
-[4][NativeLibrary] [GameDB] Could not find '20080220-175343' in GameDB
-[6][cpuinfo] failed to parse the list of possible processors in /sys/devices/system/cpu/possible
-[6][cpuinfo] failed to parse the list of present processors in /sys/devices/system/cpu/present
-[6][cpuinfo] failed to parse both lists of possible and present processors
-[4][NativeLibrary] Failed to initialize cpuinfo
-[4][NativeLibrary] OSD [android_warning]: You are using AetherSX2, and it should not be sold, or distributed as part of any other app.
-
-[4][NativeLibrary] If you paid for this app, you should get your money back.
-[4][NativeLibrary] # Initialize memory (rev:4.00, ctm:196Mhz, cpuclk:147Mhz detected)
-
-[4][NativeLibrary] Applying settings...
-[4][NativeLibrary] [Unsafe Settings] Hardware Download Mode is not set to Accurate, this may break rendering in some games.
-[4][NativeLibrary] OSD [unsafe_settings_warning]:  Hardware Download Mode is not set to Accurate, this may break rendering in some games.
-[4][NativeLibrary] [Unsafe Settings] GPU Palette Conversion is enabled, this may reduce performance.
-[4][NativeLibrary] OSD [performance_settings_warning]:  GPU Palette Conversion is enabled, this may reduce performance.
-[4][NativeLibrary] [GameDB] Searching for '20080220-175343' in GameDB
-[4][NativeLibrary] [GameDB] Could not find '20080220-175343' in GameDB
-[VK] vkAcquireNextImageKHR call=1 result=0 image=0 semaphore=0x3cb628aac0 fence=0x0
-[4][NativeLibrary] 
-PlayStation 2 ======== 
-[4][NativeLibrary] Hard reset boot
-[VK] vkQueueSubmit call=1 count=1 fence=0x3cafbdaec0 result=0
-[4][NativeLibrary] 
-
-[VK] vkQueuePresentKHR enter call=1 waits=1 swaps=1 lsfg=0
-[4][NativeLibrary]  ROMGEN=
-[VK] vkQueuePresentKHR call=1 swaps=1 result=0
-[4][NativeLibrary] 2008-0220
-[VK] vkAcquireNextImageKHR call=2 result=0 image=1 semaphore=0x3cb628ac40 fence=0x0
-[4][NativeLibrary] , IOP info (CPUID=
-[4][NativeLibrary] 1f
-[4][NativeLibrary] , CACH_CONFIG=
-[4][NativeLibrary] 14000200, 2MB
-[4][NativeLibrary] , IOP mode)
-
-[4][NativeLibrary]  <
-[4][NativeLibrary] 20080220-175343,ROMconf,PS20230WC20080220.bin
-[4][NativeLibrary] :11824>
-
-[4][NativeLibrary] # Total accessable memory size: 32 MB (B:2:8:0) (400:2:7c30)
-
-[4][NativeLibrary] # TLB spad=0 kernel=1:12 default=13:30 extended=31:38
-
-[4][NativeLibrary] # Initialize Start.
-
-[4][NativeLibrary] # Initialize GS ...
-
-[4][NativeLibrary] # Initialize INTC ...
-
-[4][NativeLibrary] # Initialize TIMER ...
-
-[4][NativeLibrary] # Initialize DMAC ...
-
-[4][NativeLibrary] # Initialize VU1 ...
-
-[4][NativeLibrary] # Initialize VIF1 ...
-
-[4][NativeLibrary] # Initialize GIF ...
-
-[4][NativeLibrary] # Initialize IPU ...
-
-[4][NativeLibrary] # Initialize FPU ...
-
-[4][NativeLibrary] # Initialize User Memory ...
-
-[VK] vkQueueSubmit call=2 count=1 fence=0x3c842d52c0 result=0
-[VK] vkQueuePresentKHR enter call=2 waits=1 swaps=1 lsfg=0
-[VK] vkQueuePresentKHR call=2 swaps=1 result=0
-[VK] vkAcquireNextImageKHR call=3 result=0 image=2 semaphore=0x3cb628adc0 fence=0x0
-[VK] vkQueueSubmit call=3 count=1 fence=0x3c842d5600 result=0
-[4][NativeLibrary] # Initialize Scratch Pad ...
-
-[VK] vkQueuePresentKHR enter call=3 waits=1 swaps=1 lsfg=0
-[4][NativeLibrary] # Initialize Done.
-
-[VK] vkQueuePresentKHR call=3 swaps=1 result=0
-[VK] vkAcquireNextImageKHR call=4 result=0 image=0 semaphore=0x3cb628aac0 fence=0x0
-[CI] ... vzor se opakoval 2x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] # Initialize VU# ...
-
-[4][NativeLibrary] 
-
-[CI] ... vzor se opakoval 2x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] # Initialize VIF# ...
-
-[4][NativeLibrary] EE DECI2 Manager version 0.06 Sep  5 2006 12:57:08
-
-[VK] vkQueuePresentKHR enter call=4 waits=1 swaps=1 lsfg=0
-[4][NativeLibrary]   CPUID=2e20, BoardID=0, ROMGEN=2008-0220, 32M
-
-[VK] vkQueuePresentKHR call=4 swaps=1 result=0
-[4][NativeLibrary] (SYSTEM.CNF) Detected PS2 Disc = cdrom0:\SCES_502.94;1
-[4][NativeLibrary] (SYSTEM.CNF) Software version = 2.00
-[4][NativeLibrary] (SYSTEM.CNF) Disc region type = PAL
-[4][NativeLibrary] ELF (cdrom0:\SCES_502.94;1) Game CRC = 0xB590CE04, EntryPoint = 0x01000008
-[4][NativeLibrary] 
-IOP Realtime Kernel Ver.0.9.1
-    Copyright 1999 (C) Sony C
-[CI] ... vzor se opakoval 2x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] 
-
-[4][NativeLibrary] omputer Entertainment Inc. 
-
-[4][NativeLibrary] Reboot service module.(99/11/10)
-
-[4][NativeLibrary] cdvd driver module version 0.1.1 (C)SCEI
-
-[CI] ... vzor se opakoval 2x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] (SYSTEM.CNF) Detected PS# Disc = cdrom#:\SCES_#.#;#
-[4][NativeLibrary] Load File service.(99/11/05)
-
-[CI] ... vzor se opakoval 2x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] (SYSTEM.CNF) Software version = #.#
-[4][NativeLibrary] Multi Threaded Fileio module.(99/11/15) 
-
-[CI] ... vzor se opakoval 2x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] (SYSTEM.CNF) Disc region type = PAL
-[4][NativeLibrary] iop heap service (99/11/03)
-
-[4][NativeLibrary] loadelf: fname cdrom0:¥SCES_502.94;1 secname all
-
-[4][NativeLibrary] loadelf version 3.30
-
-[4][NativeLibrary] Input ELF format filename = cdrom0:¥SCES_502.94;1
-
-[4][NativeLibrary] 0 01000000 000417eb 
-[4][NativeLibrary] .
-[CI] clk: cteni taktu VYPNUTO (build 54; crash report ukazal fatal v pcv sysmodulu pri souboji s governorem taktu — zapnes jen markerem ci-clk.enabled)
-[CI] log capture ON, NVK_I_WANT_A_BROKEN_VULKAN_DRIVER=1
-[CI] stderr smerovan do core logu: SELHAL (errno=5)
-[CI] boost: NEPOUZIVAME (appletSetCpuBoostMode je vynechany ve util.c; takty ridi sysmodul/governor)
-[CI] takty: od buildu 54 se nectou a nezapisujou (kolize s governorem taktu = fatal v pcv); opt-in cteni markerem ci-clk.enabled, zapis navic ci-clk.conf
-[CI] session start build=54 ts=1789738147 pid=-1
-[4][NativeLibrary] EmuFolders::DataRoot is '/switch/nethersx2'
-[4][NativeLibrary] EmuFolders::Cache is '/switch/nethersx2/cache'
-[4][NativeLibrary] EmuFolders::Resources is 'file:///android_asset'
-[4][NativeLibrary] EmuFolders::Settings is '/switch/nethersx2'
-[CI] cores: mask=0xf -> hot=0x7 ee=0 work=1,2 bg=3
-[CI] pin: zapnuty (default; ci-nopin.enabled ho vypne)
-[CI] thread #1 (work: MTGS/VU1/worker) -> core=1
-[CI] emulator nro: VK build (GS_RENDERER=14), NVK_I_WANT_A_BROKEN_VULKAN_DRIVER=1
-[CI] thread EE/VM -> core=0 (vyhrazene)
-[4][NativeLibrary] Searching for a BIOS image in '/switch/nethersx2/bios'...
-[4][NativeLibrary] Preparing for a 1280x720 window
-[4][NativeLibrary] Bios Found: USA     v02.30(20/02/2008)  Console 20080220-175343
-[4][NativeLibrary] Using BIOS '/switch/nethersx2/bios/SCPH-90001_BIOS_V18_USA_230.ROM0' (USA     v02.30(20/02/2008)  Console 20080220-175343 USA)
-[4][NativeLibrary] Opening CDVD...
-[4][NativeLibrary] isoFile open ok: /Roms/PS2/Gran Turismo 3 - A-Spec (Europe, Australia) (En,Fr,De,Es,It) (v2.00).iso
-[4][NativeLibrary] 	Image type  = DVD
-[4][NativeLibrary]  * CDVD Disk Open: DVD, Single layer or unknown:
-[4][NativeLibrary]  * * Track 1: Data (Mode 1) (1800304 sectors)
-[4][NativeLibrary] Opening GS...
-[CI] thread #2 (work: MTGS/VU1/worker) -> core=2
-[VK] vkCreateInstance begin api=4198400 app=NetherSX2 engine=NetherSX2 extensions=2
-[VK] instance extension[0]=VK_KHR_surface
-[VK] instance extension[1]=VK_KHR_android_surface
-[VK] vkCreateInstance end result=0 instance=0x3c842bdec0 lsfg_prepared=0
-[4][NativeLibrary] No GPU requested, using first (NVIDIA Tegra X1 (NVK gm20b))
-[VK] vkCreateViSurfaceNN window=0xbe238cdb8 result=0 surface=0x3cafbda750
-[4][NativeLibrary] 1 vulkan queue families
-[VK] vkCreateDevice begin physical=0x3c842c0560 queues=1 extensions=6 lsfg_pref=0
-[VK] vkCreateDevice end result=0 device=0x3cafbfd040 lsfg_capable=0 family=4294967295
-[VK] vkGetDeviceQueue family=0 index=0 queue=0x3c842c7da0
-[VK] vkGetDeviceQueue family=0 index=0 queue=0x3c842c7da0
-[4][NativeLibrary] VK_EXT_provoking_vertex is supported
-[4][NativeLibrary] VK_EXT_line_rasterization is supported
-[4][NativeLibrary] VK_EXT_calibrated_timestamps is supported
-[4][NativeLibrary] VK_ARM_rasterization_order_attachment_access is NOT supported
-[VK] vkGetDeviceQueue family=0 index=0 queue=0x3c842c7da0
-[VK] vkCreateSwapchainKHR begin old=0x0 extent=1280x720 format=37 usage=0x10 images=3 mode=0
-[VK] vkCreateSwapchainKHR end result=0 swapchain=0x3cb54d86c0 compatible=0 actual_usage=0x10 actual_images=3 actual_mode=0
-[VK] vkGetSwapchainImagesKHR call=1 fill=0 result=0 count=3
-[VK] vkGetSwapchainImagesKHR call=2 fill=1 result=0 count=3
-[CI] thread #3 (work: MTGS/VU1/worker) -> core=1
-[4][NativeLibrary] Read 400 entries from '/switch/nethersx2/cache/vulkan_shaders.idx'
-[4][NativeLibrary] Lazily allocating JNI environment for thread 0x3c842c3da0
-[VK] core VM sequence returned vm_running=1
-[CI] thread bg (audio/...) -> core=3
-[4][NativeLibrary] Opening SPU2...
-[4][NativeLibrary] Initializing SndBuffer at sample rate of 48000...
-[4][NativeLibrary] (AAudioMod) Creating stream...
-[4][NativeLibrary] (AAudioMod) Starting stream...
-[4][NativeLibrary] Opening PAD...
-[CI] thread bg (audio/...) -> core=3
-[4][NativeLibrary] Opening DEV9...
-[4][NativeLibrary] Opening USB...
-[4][NativeLibrary] Opening FW...
-[4][NativeLibrary] McdSlot 0 [File]: /switch/nethersx2/memcards/Mcd001.ps2
-[4][NativeLibrary] EE/iR5900-ARM64 Recompiler Reset
-[4][NativeLibrary] Vsync is OFF
-[4][NativeLibrary] 	Searching for a BIOS image in '/switch/nethersx2/bios'...
-[4][NativeLibrary] 	Bios Found: USA     v02.30(20/02/2008)  Console 20080220-175343
-[4][NativeLibrary] 	Using BIOS '/switch/nethersx2/bios/SCPH-90001_BIOS_V18_USA_230.ROM0' (USA     v02.30(20/02/2008)  Console 20080220-175343 USA)
-[4][NativeLibrary] 	BIOS rom2 module not found, skipping...
-[4][NativeLibrary] VM subsystems initialized in 2828.78 ms
-[CI] ... vzor se opakoval 2x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] McdSlot # [File]: /switch/nethersx#/memcards/Mcd#.ps#
-[4][NativeLibrary] [GameDB] 12847 games on record (loaded in 1316.16ms)
-[4][NativeLibrary] [GameDB] Searching for '20080220-175343' in GameDB
-[4][NativeLibrary] [GameDB] Could not find '20080220-175343' in GameDB
-[4][NativeLibrary] Game Changed:
-[CI] ... vzor se opakoval 2x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] 	Bios Found: USA     v#.#(#/#/#)  Console #-#
-[4][NativeLibrary]   Name: 
-[4][NativeLibrary]   Serial: 20080220-175343
-[4][NativeLibrary]   CRC: 00000000
-[4][NativeLibrary] Applying settings...
-[6][cpuinfo] failed to parse the list of possible processors in /sys/devices/system/cpu/possible
-[CI] ... vzor se opakoval 2x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] [GameDB] Searching for '#-#' in GameDB
-[6][cpuinfo] failed to parse the list of present processors in /sys/devices/system/cpu/present
-[CI] ... vzor se opakoval 2x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] [GameDB] Could not find '#-#' in GameDB
-[6][cpuinfo] failed to parse both lists of possible and present processors
-[4][NativeLibrary] Failed to initialize cpuinfo
-[4][NativeLibrary] OSD [android_warning]: You are using AetherSX2, and it should not be sold, or distributed as part of any other app.
-
-[4][NativeLibrary] If you paid for this app, you should get your money back.
-[4][NativeLibrary] # Initialize memory (rev:4.00, ctm:196Mhz, cpuclk:147Mhz detected)
-
-[CI] ... vzor se opakoval 2x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Applying settings...
-[4][NativeLibrary] [GameDB] Searching for '20080220-175343' in GameDB
-[4][NativeLibrary] [GameDB] Could not find '20080220-175343' in GameDB
-[VK] vkAcquireNextImageKHR call=1 result=0 image=0 semaphore=0x3cb628aac0 fence=0x0
-[4][NativeLibrary] 
-PlayStation 2 ======== 
-[VK] vkQueueSubmit call=1 count=1 fence=0x3cafbdaec0 result=0
-[4][NativeLibrary] Hard reset boot
-[VK] vkQueuePresentKHR enter call=1 waits=1 swaps=1 lsfg=0
-[4][NativeLibrary] 
-
-[VK] vkQueuePresentKHR call=1 swaps=1 result=0
-[4][NativeLibrary]  ROMGEN=
-[VK] vkAcquireNextImageKHR call=2 result=0 image=1 semaphore=0x3cb628ac40 fence=0x0
-[4][NativeLibrary] 2008-0220
-[4][NativeLibrary] , IOP info (CPUID=
-[4][NativeLibrary] 1f
-[4][NativeLibrary] , CACH_CONFIG=
-[4][NativeLibrary] 14000200, 2MB
-[4][NativeLibrary] , IOP mode)
-
-[4][NativeLibrary]  <
-[4][NativeLibrary] 20080220-175343,ROMconf,PS20230WC20080220.bin
-[4][NativeLibrary] :11824>
-
-[4][NativeLibrary] # Total accessable memory size: 32 MB (B:2:8:0) (400:2:7c30)
-
-[4][NativeLibrary] # TLB spad=0 kernel=1:12 default=13:30 extended=31:38
-
-[4][NativeLibrary] # Initialize Start.
-
-[4][NativeLibrary] # Initialize GS ...
-
-[4][NativeLibrary] # Initialize INTC ...
-
-[4][NativeLibrary] # Initialize TIMER ...
-
-[4][NativeLibrary] # Initialize DMAC ...
-
-[4][NativeLibrary] # Initialize VU1 ...
-
-[4][NativeLibrary] # Initialize VIF1 ...
-
-[4][NativeLibrary] # Initialize GIF ...
-
-[4][NativeLibrary] # Initialize IPU ...
-
-[4][NativeLibrary] # Initialize FPU ...
-
-[4][NativeLibrary] # Initialize User Memory ...
-
-[VK] vkQueueSubmit call=2 count=1 fence=0x3c842d52c0 result=0
-[VK] vkQueuePresentKHR enter call=2 waits=1 swaps=1 lsfg=0
-[VK] vkQueuePresentKHR call=2 swaps=1 result=0
-[VK] vkAcquireNextImageKHR call=3 result=0 image=2 semaphore=0x3cb628adc0 fence=0x0
-[VK] vkQueueSubmit call=3 count=1 fence=0x3c842d5600 result=0
-[VK] vkQueuePresentKHR enter call=3 waits=1 swaps=1 lsfg=0
-[4][NativeLibrary] # Initialize Scratch Pad ...
-
-[VK] vkQueuePresentKHR call=3 swaps=1 result=0
-[4][NativeLibrary] # Initialize Done.
-
-[VK] vkAcquireNextImageKHR call=4 result=0 image=0 semaphore=0x3cb628aac0 fence=0x0
-[CI] ... vzor se opakoval 2x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] # Initialize VU# ...
-
-[4][NativeLibrary] 
-
-[VK] vkQueuePresentKHR enter call=4 waits=1 swaps=1 lsfg=0
-[CI] ... vzor se opakoval 2x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] # Initialize VIF# ...
-
-[4][NativeLibrary] EE DECI2 Manager version 0.06 Sep  5 2006 12:57:08
-
-[VK] vkQueuePresentKHR call=4 swaps=1 result=0
-[4][NativeLibrary]   CPUID=2e20, BoardID=0, ROMGEN=2008-0220, 32M
-
-[4][NativeLibrary] (SYSTEM.CNF) Detected PS2 Disc = cdrom0:\SCES_502.94;1
-[4][NativeLibrary] (SYSTEM.CNF) Software version = 2.00
-[4][NativeLibrary] (SYSTEM.CNF) Disc region type = PAL
-[4][NativeLibrary] ELF (cdrom0:\SCES_502.94;1) Game CRC = 0xB590CE04, EntryPoint = 0x01000008
-[4][NativeLibrary] 
-IOP Realtime Kernel Ver.0.9.1
-    Copyright 1999 (C) Sony C
-[CI] ... vzor se opakoval 2x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] 
-
-[4][NativeLibrary] omputer Entertainment Inc. 
-
-[4][NativeLibrary] Reboot service module.(99/11/10)
-
-[4][NativeLibrary] cdvd driver module version 0.1.1 (C)SCEI
-
-[CI] ... vzor se opakoval 2x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] (SYSTEM.CNF) Detected PS# Disc = cdrom#:\SCES_#.#;#
-[4][NativeLibrary] Load File service.(99/11/05)
-
-[CI] ... vzor se opakoval 2x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] (SYSTEM.CNF) Software version = #.#
-[4][NativeLibrary] Multi Threaded Fileio module.(99/11/15) 
-
-[CI] ... vzor se opakoval 2x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] (SYSTEM.CNF) Disc region type = PAL
-[4][NativeLibrary] iop heap service (99/11/03)
-
-[4][NativeLibrary] loadelf: fname cdrom0:¥SCES_502.94;1 secname all
-
-[4][NativeLibrary] loadelf version 3.30
-
-[4][NativeLibrary] Input ELF format filename = cdrom0:¥SCES_502.94;1
-
-[4][NativeLibrary] 0 01000000 000417eb 
-[4][NativeLibrary] .
-[CI] clk: cteni taktu VYPNUTO (build 54; crash report ukazal fatal v pcv sysmodulu pri souboji s governorem taktu — zapnes jen markerem ci-clk.enabled)
-[CI] log capture ON, NVK_I_WANT_A_BROKEN_VULKAN_DRIVER=1
-[CI] stderr smerovan do core logu: SELHAL (errno=5)
-[CI] boost: NEPOUZIVAME (appletSetCpuBoostMode je vynechany ve util.c; takty ridi sysmodul/governor)
-[CI] takty: od buildu 54 se nectou a nezapisujou (kolize s governorem taktu = fatal v pcv); opt-in cteni markerem ci-clk.enabled, zapis navic ci-clk.conf
-[CI] session start build=54 ts=1789738258 pid=-1
+[CI] session start build=54 ts=1789758206 pid=-1
 [4][NativeLibrary] EmuFolders::DataRoot is '/switch/nethersx2'
 [4][NativeLibrary] EmuFolders::Cache is '/switch/nethersx2/cache'
 [4][NativeLibrary] EmuFolders::Resources is 'file:///android_asset'
@@ -626,34 +26,39 @@ IOP Realtime Kernel Ver.0.9.1
 [VK] vkCreateInstance begin api=4198400 app=NetherSX2 engine=NetherSX2 extensions=2
 [VK] instance extension[0]=VK_KHR_surface
 [VK] instance extension[1]=VK_KHR_android_surface
-[VK] vkCreateInstance end result=0 instance=0x3c842be160 lsfg_prepared=0
+[VK] vkCreateInstance end result=0 instance=0x3e376be160 lsfg_prepared=0
 [4][NativeLibrary] No GPU requested, using first (NVIDIA Tegra X1 (NVK gm20b))
-[VK] vkCreateViSurfaceNN window=0x66b8d18db8 result=0 surface=0x3cafbda750
+[VK] vkCreateViSurfaceNN window=0x1ca48adb8 result=0 surface=0x3e62fda750
 [4][NativeLibrary] 1 vulkan queue families
-[VK] vkCreateDevice begin physical=0x3c842c0740 queues=1 extensions=6 lsfg_pref=0
-[VK] vkCreateDevice end result=0 device=0x3cafbfd040 lsfg_capable=0 family=4294967295
-[VK] vkGetDeviceQueue family=0 index=0 queue=0x3c842d80c0
-[VK] vkGetDeviceQueue family=0 index=0 queue=0x3c842d80c0
+[VK] vkCreateDevice begin physical=0x3e376c0740 queues=1 extensions=6 lsfg_pref=0
+[VK] vkCreateDevice end result=0 device=0x3e62ffd040 lsfg_capable=0 family=4294967295
+[VK] vkGetDeviceQueue family=0 index=0 queue=0x3e376d80c0
+[VK] vkGetDeviceQueue family=0 index=0 queue=0x3e376d80c0
 [4][NativeLibrary] VK_EXT_provoking_vertex is supported
 [4][NativeLibrary] VK_EXT_line_rasterization is supported
 [4][NativeLibrary] VK_EXT_calibrated_timestamps is supported
 [4][NativeLibrary] VK_ARM_rasterization_order_attachment_access is NOT supported
-[VK] vkGetDeviceQueue family=0 index=0 queue=0x3c842d80c0
+[VK] vkGetDeviceQueue family=0 index=0 queue=0x3e376d80c0
 [VK] vkCreateSwapchainKHR begin old=0x0 extent=1280x720 format=37 usage=0x10 images=3 mode=0
-[VK] vkCreateSwapchainKHR end result=0 swapchain=0x3cb54d86c0 compatible=0 actual_usage=0x10 actual_images=3 actual_mode=0
+[VK] vkCreateSwapchainKHR end result=0 swapchain=0x3e689e5bc0 compatible=0 actual_usage=0x10 actual_images=3 actual_mode=0
 [VK] vkGetSwapchainImagesKHR call=1 fill=0 result=0 count=3
 [VK] vkGetSwapchainImagesKHR call=2 fill=1 result=0 count=3
 [CI] thread #3 (work: MTGS/VU1/worker) -> core=1
-[4][NativeLibrary] Read 400 entries from '/switch/nethersx2/cache/vulkan_shaders.idx'
-[4][NativeLibrary] Lazily allocating JNI environment for thread 0x3c842bd040
+[4][NativeLibrary] Pipeline cache failed validation: Incorrect UUID
+[4][NativeLibrary] Mismatched pipeline cache header in '/switch/nethersx2/cache/vulkan_shaders.idx' (GPU/driver changed?)
+[4][NativeLibrary] Removing existing index file '/switch/nethersx2/cache/vulkan_shaders.idx'
+[4][NativeLibrary] Removing existing blob file '/switch/nethersx2/cache/vulkan_shaders.bin'
+[4][NativeLibrary] Removing existing pipeline cache '/switch/nethersx2/cache/vulkan_pipelines.bin'
+[4][NativeLibrary] Lazily allocating JNI environment for thread 0x3e376bd040
 [VK] core VM sequence returned vm_running=1
 [CI] thread bg (audio/...) -> core=3
 [4][NativeLibrary] Opening SPU2...
 [4][NativeLibrary] Initializing SndBuffer at sample rate of 48000...
+[CI] ... vzor se opakoval 2x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Pipeline cache failed validation: Incorrect UUID
 [4][NativeLibrary] (AAudioMod) Creating stream...
 [4][NativeLibrary] (AAudioMod) Starting stream...
-[4][NativeLibrary] Opening PAD...
 [CI] thread bg (audio/...) -> core=3
+[4][NativeLibrary] Opening PAD...
 [4][NativeLibrary] Opening DEV9...
 [4][NativeLibrary] Opening USB...
 [4][NativeLibrary] Opening FW...
@@ -664,9 +69,9 @@ IOP Realtime Kernel Ver.0.9.1
 [4][NativeLibrary] 	Bios Found: USA     v02.30(20/02/2008)  Console 20080220-175343
 [4][NativeLibrary] 	Using BIOS '/switch/nethersx2/bios/SCPH-90001_BIOS_V18_USA_230.ROM0' (USA     v02.30(20/02/2008)  Console 20080220-175343 USA)
 [4][NativeLibrary] 	BIOS rom2 module not found, skipping...
-[4][NativeLibrary] VM subsystems initialized in 2911.41 ms
+[4][NativeLibrary] VM subsystems initialized in 4056.53 ms
 [CI] ... vzor se opakoval 2x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] McdSlot # [File]: /switch/nethersx#/memcards/Mcd#.ps#
-[4][NativeLibrary] [GameDB] 12847 games on record (loaded in 1301.68ms)
+[4][NativeLibrary] [GameDB] 12847 games on record (loaded in 139.29ms)
 [4][NativeLibrary] [GameDB] Searching for '20080220-175343' in GameDB
 [4][NativeLibrary] [GameDB] Could not find '20080220-175343' in GameDB
 [4][NativeLibrary] Game Changed:
@@ -689,17 +94,17 @@ IOP Realtime Kernel Ver.0.9.1
 [CI] ... vzor se opakoval 2x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Applying settings...
 [4][NativeLibrary] [GameDB] Searching for '20080220-175343' in GameDB
 [4][NativeLibrary] [GameDB] Could not find '20080220-175343' in GameDB
-[VK] vkAcquireNextImageKHR call=1 result=0 image=0 semaphore=0x3cb628ab60 fence=0x0
+[VK] vkAcquireNextImageKHR call=1 result=0 image=0 semaphore=0x3e689ccec0 fence=0x0
 [4][NativeLibrary] 
 PlayStation 2 ======== 
-[VK] vkQueueSubmit call=1 count=1 fence=0x3cafbda960 result=0
+[VK] vkQueueSubmit call=1 count=1 fence=0x3e62fdab60 result=0
 [4][NativeLibrary] Hard reset boot
 [VK] vkQueuePresentKHR enter call=1 waits=1 swaps=1 lsfg=0
 [4][NativeLibrary] 
 
 [VK] vkQueuePresentKHR call=1 swaps=1 result=0
 [4][NativeLibrary]  ROMGEN=
-[VK] vkAcquireNextImageKHR call=2 result=0 image=1 semaphore=0x3cb628ace0 fence=0x0
+[VK] vkAcquireNextImageKHR call=2 result=0 image=1 semaphore=0x3e6968a8e0 fence=0x0
 [4][NativeLibrary] 2008-0220
 [4][NativeLibrary] , IOP info (CPUID=
 [4][NativeLibrary] 1f
@@ -737,30 +142,30 @@ PlayStation 2 ========
 
 [4][NativeLibrary] # Initialize User Memory ...
 
-[VK] vkQueueSubmit call=2 count=1 fence=0x3cafbdaca0 result=0
+[VK] vkQueueSubmit call=2 count=1 fence=0x3e62fdaea0 result=0
 [VK] vkQueuePresentKHR enter call=2 waits=1 swaps=1 lsfg=0
 [VK] vkQueuePresentKHR call=2 swaps=1 result=0
-[VK] vkAcquireNextImageKHR call=3 result=0 image=2 semaphore=0x3cb628ae60 fence=0x0
-[VK] vkQueueSubmit call=3 count=1 fence=0x3c842ca4e0 result=0
+[VK] vkAcquireNextImageKHR call=3 result=0 image=2 semaphore=0x3e6968aa60 fence=0x0
+[VK] vkQueueSubmit call=3 count=1 fence=0x3e376ca6c0 result=0
+[VK] vkQueuePresentKHR enter call=3 waits=1 swaps=1 lsfg=0
+[VK] vkQueuePresentKHR call=3 swaps=1 result=0
+[VK] vkAcquireNextImageKHR call=4 result=0 image=0 semaphore=0x3e689ccec0 fence=0x0
+[VK] vkQueuePresentKHR enter call=4 waits=1 swaps=1 lsfg=0
 [4][NativeLibrary] # Initialize Scratch Pad ...
 
-[VK] vkQueuePresentKHR enter call=3 waits=1 swaps=1 lsfg=0
+[VK] vkQueuePresentKHR call=4 swaps=1 result=0
 [4][NativeLibrary] # Initialize Done.
 
-[VK] vkQueuePresentKHR call=3 swaps=1 result=0
 [CI] ... vzor se opakoval 2x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] # Initialize VU# ...
 
 [4][NativeLibrary] 
 
-[VK] vkAcquireNextImageKHR call=4 result=0 image=0 semaphore=0x3cb628ab60 fence=0x0
 [CI] ... vzor se opakoval 2x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] # Initialize VIF# ...
 
 [4][NativeLibrary] EE DECI2 Manager version 0.06 Sep  5 2006 12:57:08
 
-[VK] vkQueuePresentKHR enter call=4 waits=1 swaps=1 lsfg=0
 [4][NativeLibrary]   CPUID=2e20, BoardID=0, ROMGEN=2008-0220, 32M
 
-[VK] vkQueuePresentKHR call=4 swaps=1 result=0
 [4][NativeLibrary] (SYSTEM.CNF) Detected PS2 Disc = cdrom0:\SLUS_205.39;1
 [4][NativeLibrary] (SYSTEM.CNF) Software version = 1.00
 [4][NativeLibrary] (SYSTEM.CNF) Disc region type = NTSC
@@ -789,12 +194,16 @@ IOP Realtime Kernel Ver.0.9.1
 
 [4][NativeLibrary] loadelf version 3.30
 
+[4][NativeLibrary] Input ELF format filename = cdrom0:¥SLUS_205.39;1
+
+[4][NativeLibrary] 0 00100000 0010aec8 
+[4][NativeLibrary] .
 [CI] clk: cteni taktu VYPNUTO (build 54; crash report ukazal fatal v pcv sysmodulu pri souboji s governorem taktu — zapnes jen markerem ci-clk.enabled)
 [CI] log capture ON, NVK_I_WANT_A_BROKEN_VULKAN_DRIVER=1
 [CI] stderr smerovan do core logu: SELHAL (errno=5)
 [CI] boost: NEPOUZIVAME (appletSetCpuBoostMode je vynechany ve util.c; takty ridi sysmodul/governor)
 [CI] takty: od buildu 54 se nectou a nezapisujou (kolize s governorem taktu = fatal v pcv); opt-in cteni markerem ci-clk.enabled, zapis navic ci-clk.conf
-[CI] session start build=54 ts=1789738523 pid=-1
+[CI] session start build=54 ts=1789758620 pid=-1
 [4][NativeLibrary] EmuFolders::DataRoot is '/switch/nethersx2'
 [4][NativeLibrary] EmuFolders::Cache is '/switch/nethersx2/cache'
 [4][NativeLibrary] EmuFolders::Resources is 'file:///android_asset'
@@ -818,26 +227,26 @@ IOP Realtime Kernel Ver.0.9.1
 [VK] vkCreateInstance begin api=4198400 app=NetherSX2 engine=NetherSX2 extensions=2
 [VK] instance extension[0]=VK_KHR_surface
 [VK] instance extension[1]=VK_KHR_android_surface
-[VK] vkCreateInstance end result=0 instance=0x3c842bdec0 lsfg_prepared=0
+[VK] vkCreateInstance end result=0 instance=0x3e376bdec0 lsfg_prepared=0
 [4][NativeLibrary] No GPU requested, using first (NVIDIA Tegra X1 (NVK gm20b))
-[VK] vkCreateViSurfaceNN window=0xc21193db8 result=0 surface=0x3cafbda750
+[VK] vkCreateViSurfaceNN window=0x1f21fa2db8 result=0 surface=0x3e62fdabc0
 [4][NativeLibrary] 1 vulkan queue families
-[VK] vkCreateDevice begin physical=0x3c842c0560 queues=1 extensions=6 lsfg_pref=0
-[VK] vkCreateDevice end result=0 device=0x3cafbfd040 lsfg_capable=0 family=4294967295
-[VK] vkGetDeviceQueue family=0 index=0 queue=0x3c842c7da0
-[VK] vkGetDeviceQueue family=0 index=0 queue=0x3c842c7da0
+[VK] vkCreateDevice begin physical=0x3e376c0560 queues=1 extensions=6 lsfg_pref=0
+[VK] vkCreateDevice end result=0 device=0x3e62ffd040 lsfg_capable=0 family=4294967295
+[VK] vkGetDeviceQueue family=0 index=0 queue=0x3e63004d60
+[VK] vkGetDeviceQueue family=0 index=0 queue=0x3e63004d60
 [4][NativeLibrary] VK_EXT_provoking_vertex is supported
 [4][NativeLibrary] VK_EXT_line_rasterization is supported
 [4][NativeLibrary] VK_EXT_calibrated_timestamps is supported
 [4][NativeLibrary] VK_ARM_rasterization_order_attachment_access is NOT supported
-[VK] vkGetDeviceQueue family=0 index=0 queue=0x3c842c7da0
+[VK] vkGetDeviceQueue family=0 index=0 queue=0x3e63004d60
 [VK] vkCreateSwapchainKHR begin old=0x0 extent=1280x720 format=37 usage=0x10 images=3 mode=0
-[VK] vkCreateSwapchainKHR end result=0 swapchain=0x3cb54d86c0 compatible=0 actual_usage=0x10 actual_images=3 actual_mode=0
+[VK] vkCreateSwapchainKHR end result=0 swapchain=0x3e688da6c0 compatible=0 actual_usage=0x10 actual_images=3 actual_mode=0
 [VK] vkGetSwapchainImagesKHR call=1 fill=0 result=0 count=3
 [VK] vkGetSwapchainImagesKHR call=2 fill=1 result=0 count=3
 [CI] thread #3 (work: MTGS/VU1/worker) -> core=1
-[4][NativeLibrary] Read 400 entries from '/switch/nethersx2/cache/vulkan_shaders.idx'
-[4][NativeLibrary] Lazily allocating JNI environment for thread 0x3c842c3da0
+[4][NativeLibrary] Read 94 entries from '/switch/nethersx2/cache/vulkan_shaders.idx'
+[4][NativeLibrary] Lazily allocating JNI environment for thread 0x3e376c3da0
 [VK] core VM sequence returned vm_running=1
 [CI] thread bg (audio/...) -> core=3
 [4][NativeLibrary] Opening SPU2...
@@ -856,9 +265,9 @@ IOP Realtime Kernel Ver.0.9.1
 [4][NativeLibrary] 	Bios Found: USA     v02.30(20/02/2008)  Console 20080220-175343
 [4][NativeLibrary] 	Using BIOS '/switch/nethersx2/bios/SCPH-90001_BIOS_V18_USA_230.ROM0' (USA     v02.30(20/02/2008)  Console 20080220-175343 USA)
 [4][NativeLibrary] 	BIOS rom2 module not found, skipping...
-[4][NativeLibrary] VM subsystems initialized in 3021.59 ms
+[4][NativeLibrary] VM subsystems initialized in 3231.50 ms
 [CI] ... vzor se opakoval 2x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] McdSlot # [File]: /switch/nethersx#/memcards/Mcd#.ps#
-[4][NativeLibrary] [GameDB] 12847 games on record (loaded in 1316.42ms)
+[4][NativeLibrary] [GameDB] 12847 games on record (loaded in 1049.13ms)
 [4][NativeLibrary] [GameDB] Searching for '20080220-175343' in GameDB
 [4][NativeLibrary] [GameDB] Could not find '20080220-175343' in GameDB
 [4][NativeLibrary] Game Changed:
@@ -881,17 +290,17 @@ IOP Realtime Kernel Ver.0.9.1
 [CI] ... vzor se opakoval 2x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] Applying settings...
 [4][NativeLibrary] [GameDB] Searching for '20080220-175343' in GameDB
 [4][NativeLibrary] [GameDB] Could not find '20080220-175343' in GameDB
-[VK] vkAcquireNextImageKHR call=1 result=0 image=0 semaphore=0x3cb628aac0 fence=0x0
+[VK] vkAcquireNextImageKHR call=1 result=0 image=0 semaphore=0x3e6968ce00 fence=0x0
 [4][NativeLibrary] 
 PlayStation 2 ======== 
-[VK] vkQueueSubmit call=1 count=1 fence=0x3cafbdaec0 result=0
+[VK] vkQueueSubmit call=1 count=1 fence=0x3e630654e0 result=0
 [4][NativeLibrary] Hard reset boot
 [VK] vkQueuePresentKHR enter call=1 waits=1 swaps=1 lsfg=0
 [4][NativeLibrary] 
 
 [VK] vkQueuePresentKHR call=1 swaps=1 result=0
 [4][NativeLibrary]  ROMGEN=
-[VK] vkAcquireNextImageKHR call=2 result=0 image=1 semaphore=0x3cb628ac40 fence=0x0
+[VK] vkAcquireNextImageKHR call=2 result=0 image=1 semaphore=0x3e63077ee0 fence=0x0
 [4][NativeLibrary] 2008-0220
 [4][NativeLibrary] , IOP info (CPUID=
 [4][NativeLibrary] 1f
@@ -929,30 +338,30 @@ PlayStation 2 ========
 
 [4][NativeLibrary] # Initialize User Memory ...
 
-[VK] vkQueueSubmit call=2 count=1 fence=0x3c842d52c0 result=0
+[VK] vkQueueSubmit call=2 count=1 fence=0x3e63065820 result=0
 [VK] vkQueuePresentKHR enter call=2 waits=1 swaps=1 lsfg=0
 [VK] vkQueuePresentKHR call=2 swaps=1 result=0
-[VK] vkAcquireNextImageKHR call=3 result=0 image=2 semaphore=0x3cb628adc0 fence=0x0
-[VK] vkQueueSubmit call=3 count=1 fence=0x3c842d5600 result=0
+[VK] vkAcquireNextImageKHR call=3 result=0 image=2 semaphore=0x3e68b6fbe0 fence=0x0
+[VK] vkQueueSubmit call=3 count=1 fence=0x3e63065b60 result=0
+[VK] vkQueuePresentKHR enter call=3 waits=1 swaps=1 lsfg=0
+[VK] vkQueuePresentKHR call=3 swaps=1 result=0
 [4][NativeLibrary] # Initialize Scratch Pad ...
 
-[VK] vkQueuePresentKHR enter call=3 waits=1 swaps=1 lsfg=0
+[VK] vkAcquireNextImageKHR call=4 result=0 image=0 semaphore=0x3e6968ce00 fence=0x0
 [4][NativeLibrary] # Initialize Done.
 
-[VK] vkQueuePresentKHR call=3 swaps=1 result=0
+[VK] vkQueuePresentKHR enter call=4 waits=1 swaps=1 lsfg=0
+[VK] vkQueuePresentKHR call=4 swaps=1 result=0
 [CI] ... vzor se opakoval 2x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] # Initialize VU# ...
 
 [4][NativeLibrary] 
 
-[VK] vkAcquireNextImageKHR call=4 result=0 image=0 semaphore=0x3cb628aac0 fence=0x0
 [CI] ... vzor se opakoval 2x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] # Initialize VIF# ...
 
 [4][NativeLibrary] EE DECI2 Manager version 0.06 Sep  5 2006 12:57:08
 
-[VK] vkQueuePresentKHR enter call=4 waits=1 swaps=1 lsfg=0
 [4][NativeLibrary]   CPUID=2e20, BoardID=0, ROMGEN=2008-0220, 32M
 
-[VK] vkQueuePresentKHR call=4 swaps=1 result=0
 [4][NativeLibrary] (SYSTEM.CNF) Detected PS2 Disc = cdrom0:\SCES_502.94;1
 [4][NativeLibrary] (SYSTEM.CNF) Software version = 2.00
 [4][NativeLibrary] (SYSTEM.CNF) Disc region type = PAL
@@ -985,4 +394,58 @@ IOP Realtime Kernel Ver.0.9.1
 
 [4][NativeLibrary] 0 01000000 000417eb 
 [4][NativeLibrary] .
+[4][NativeLibrary] 
+
+[4][NativeLibrary] Loaded, cdrom0:¥SCES_502.94;1
+
+[4][NativeLibrary] start address 0x1000008
+
+[4][NativeLibrary] gp address 00000000
+
+[4][NativeLibrary] # Restart Without Memory Clear.
+
+[4][NativeLibrary] # Initialize GS ...
+
+[4][NativeLibrary] # Initialize INTC ...
+
+[CI] ... vzor se opakoval 5x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] .
+[4][NativeLibrary] # Initialize TIMER ...
+
+[4][NativeLibrary] # Initialize DMAC ...
+
+[4][NativeLibrary] # Initialize VU1 ...
+
+[4][NativeLibrary] # Initialize VIF1 ...
+
+[4][NativeLibrary] # Initialize GIF ...
+
+[4][NativeLibrary] # Initialize IPU ...
+
+[4][NativeLibrary] # Initialize FPU ...
+
+[4][NativeLibrary] # Initialize Scratch Pad ...
+
+[4][NativeLibrary] # Restart Without Memory Clear Done.
+
+[4][NativeLibrary] Elf entry point @ 0x01000008 about to get recompiled. Load patches first.
+[CI] ... vzor se opakoval 2x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] # Initialize VU# ...
+
+[4][NativeLibrary] [GameDB] Searching for 'sces-50294' in GameDB
+[CI] ... vzor se opakoval 2x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] # Initialize VIF# ...
+
+[4][NativeLibrary] [GameDB] Found 'sces-50294' in GameDB
+[4][NativeLibrary] [GameDB] Searching for patch with CRC 'B590CE04'
+[4][NativeLibrary] [GameDB] No CRC-specific patch or default patch found
+[4][NativeLibrary] Overall 0 Cheats loaded
+[4][NativeLibrary] Game Changed:
+[4][NativeLibrary]   Name: Gran Turismo 3 - A-Spec
+[4][NativeLibrary]   Serial: SCES-50294
+[CI] ... vzor se opakoval 2x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] [GameDB] Searching for 'sces-#' in GameDB
+[4][NativeLibrary]   CRC: B590CE04
+[CI] ... vzor se opakoval 2x (potlaceno; ci-rawlog.enabled to vypne): [#][NativeLibrary] [GameDB] Found 'sces-#' in GameDB
+[4][NativeLibrary] Applying settings...
+[4][NativeLibrary] [GameDB] Searching for 'sces-50294' in GameDB
+[4][NativeLibrary] [GameDB] Found 'sces-50294' in GameDB
+[4][NativeLibrary] Add 1 seconds play time to 20080220-175343 -> now 3
+[4][NativeLibrary] (UpdateVSyncRate) Mode Changed to PAL.
 [CI] clk: cteni taktu VYPNUTO (build 54; crash report ukazal fatal v pcv sysmodulu pri souboji s governorem taktu — zapnes jen markerem ci-clk.enabled)
