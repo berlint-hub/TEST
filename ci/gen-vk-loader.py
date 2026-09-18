@@ -29,7 +29,7 @@ Jednotlivý forwardery jsou v samostatnejch sekcích a finální link má
 Použití:
     gen-vk-loader.py <vulkan_core.h> <out.c> [--skip name,name,...]
 
-Dvě věci záměrně přeskočíme, i když jsou ve hlavičkách:
+Přeskočíme ty, kde by forwarder byl horší než stub:
   * vkEnumerateInstanceVersion / vkEnumerateInstance{,Device}LayerProperties
     / vkEnumerateDeviceExtensionProperties — na to má build-switch.sh
     vlastní weak stuby s rozumnou návratovou hodnotou (0 vrstev, 1.3);
@@ -55,8 +55,13 @@ SKIP_DEFAULT = {
     "vkGetDeviceProcAddr",    # ditto
     "vkEnumerateInstanceVersion",
     "vkEnumerateInstanceLayerProperties",
-    "vkEnumerateInstanceExtensionProperties",
     "vkEnumerateDeviceLayerProperties",
+    # AŤ TU NIKDY NENÍ vkEnumerateInstanceExtensionProperties! Původně tam byla,
+    # aby ji pokryl weak stub přímo v build-switch.sh. Na hardwaru se ukázalo,
+    # že přes tu funkci upstream zjišťuje, který instance extenze mu směj bejt
+    # povolený (source/hooks/vk.c:998) — když ji Mesa nenabídne, jádro
+    # selže na „Vulkan: Missing required extension VK_KHR_surface". Tak ať
+    # odpoví Meska, která je ví.
 }
 
 # Návratový hodnoty, kdy driver danou funkci nemá. U VkResult je důležité

@@ -140,6 +140,11 @@ jobs:
       # v Settings → Renderer co prepnout. Stale plati, ze kdyz VK binárka
       # nevznikne, verdict job rozběhne a nic se nepublikuje.
       VK_ONLY: 0
+      # VK build si sem tahá vlastní diagnostiku do souboru na kartě
+      # (viz nsx_vk_pkg v build-switch.sh). Vypneme, až bude Vulkan
+      # prubozkousany; dokud neni, je to nejlevnejsi zpusob, jak ziskat
+      # vic nez jen „GS failed to open".
+      VK_DIAG: 1
 
     steps:
       - uses: actions/checkout@v4

@@ -619,6 +619,37 @@ PKGLIBS
     err "vk: přepis LIBS neprošel"
     return 1
   fi
+  # Volitelně zapnout upstream VK diagnostiku: source/hooks/vk.c si pod
+  # NETHERSX2_VK_DIAGNOSTIC píše /switch/nethersx2/nethersx2-vulkan.log —
+  # jaký extenze jádro skutečně žádalo, výsledek CreateViSurfaceNN,
+  # CreateDevice (queues/family/lsfg_capable). Bez toho máme z VK cesty jen
+  # ConsoleLog jádra, a přesně proto sme „Missing required extension
+  # VK_KHR_surface" museli dohadovat z jedný řádky.
+  if [ "${VK_DIAG:-0}" = "1" ]; then
+    if python3 - "$SRC/Makefile" <<'VKDIAG'
+import sys
+path = sys.argv[1]
+text = open(path, encoding="utf-8", errors="surrogateescape").read()
+if "NETHERSX2_VK_DIAGNOSTIC" in text:
+    print("Makefile: VK diagnostika už zapnutá")
+    sys.exit(0)
+needle = "DEFINES\t+=\t-DUSE_VULKAN"
+if needle not in text:
+    print("Makefile: kotva DEFINES pro VK větev nenalezena")
+    sys.exit(1)
+i = text.index(needle)
+j = text.index("\n", i)
+text = text[:j] + " -DNETHERSX2_VK_DIAGNOSTIC" + text[j:]
+open(path, "w", encoding="utf-8", errors="surrogateescape").write(text)
+print("Makefile: -DNETHERSX2_VK_DIAGNOSTIC přidáno na řádek VK DEFINES")
+VKDIAG
+    then
+      key "vk: DIAGNOSTIC zapnutej -> sdmc:/switch/nethersx2/nethersx2-vulkan.log"
+    else
+      warn "VK_DIAG=1 ale Makefile patch neprošel, jedeme bez diagnostiky"
+    fi
+  fi
+
   make -C "$SRC" clean >/dev/null 2>&1
   if run_soft "make emulator VK (nxvk pkg + loader)" make -C "$SRC" -j"$JOBS" RENDERER=VK LTOFLAGS=; then
     if [ -f "$SRC/NetherSX2_nx.nro" ]; then
@@ -809,12 +840,23 @@ ssize_t writev(int fd, const struct iovec *vectors, int count) {
 SHIM
   note "psán weak writev shim pro VK link (source/hooks, ne source/switch)"
 
-  # Dva další chybějící symboly ve VK linku: vkEnumerateInstanceVersion a
-  # vkEnumerateInstanceLayerProperties. Mesa je kompiluje jen když je v buildu
-  # Vulkan *loader* — cross-build pro Switch žádnej loader nemá, proto je
-  # nemaj ani libvulkan_runtime.a, ani plochejch 23 archivů. Emulator ale oba
-  # volá ještě *před* vkCreateInstance (zjišťuje verzi a vrstvy), tudíž je
-  # musíme dodat sami. Slabě, aby je Mesa přebila, až je dodá taky.
+  # Dva symboly ve VK linku, který Mesa sama nedává, protože cross-build pro
+  # Switch nemá Vulkan *loader*: vkEnumerateInstanceVersion a
+  # vkEnumerateInstanceLayerProperties. Emulator je volá ještě *před*
+  # vkCreateInstance, takže je dodáváme slabě s hodnotama, který na Switchi
+  # platěj (1.3, nula vrstev).
+  #
+  # VK_KHR_SURFACE: TOHLE SE TÝKÁ — a proto jsme tu tu funkci odstranili.
+  # Předchozí verze tohohle souboru měla i vkEnumerateInstanceExtensionProperties
+  # vracející nula extenzí. Jenže upstream si přes tu samou funkci
+  # (source/hooks/vk.c:998, vkEnumerateInstanceExtensionProperties_hook)
+  # zjišťuje, jaký instance extenze smí vůbec povolit, a akorát do toho
+  # seznamu přidá VK_KHR_android_surface (kterej CreateInstance_hook přejmenuje
+  # na VK_NN_vi_surface). S naší nulou dostalo jádro prázdnnej seznam a
+  # skončilo na „Vulkan: Missing required extension VK_KHR_surface“ — přesně
+  # tak to hlásí nethersx2-core.log z hardware (GT3, EU/AU iso). Tuhle funkci
+  # proto NEDEFINUJEME a necháme vygenerovat forwarder na Mesu, která
+  # skutečnej seznam NVK umí vydat.
   cat > "$SRC/source/hooks/ci_vk_loader_shim.c" <<'VKSHIM'
 /* CI shim, ne část upstreamu — sémantika je přesně ta, co vyžaduje Vulkan
  * spec pro loader-level funkce bez načtený instance: žádná vrstva, žádná
@@ -845,17 +887,6 @@ VkResult_t vkEnumerateInstanceLayerProperties(uint32_t *pCount, void *pPropertie
     return VK_SUCCESS;
 }
 
-__attribute__((weak))
-VkResult_t vkEnumerateInstanceExtensionProperties(const char *pLayerName,
-                                                  uint32_t *pCount,
-                                                  void *pProperties) {
-    (void)pLayerName;
-    (void)pProperties;
-    if (pCount == 0)
-        return VK_INCOMPLETE;
-    *pCount = 0;
-    return VK_SUCCESS;
-}
 VKSHIM
   note "psán weak VK loader shim (instance version/layer/extension enumeration)"
   # Unified větev Makefile linkuje -lvulkan -lEGL -lGLESv2 -lglapi + mesa util,
