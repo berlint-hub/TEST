@@ -8,7 +8,8 @@ během**, ne domněnka; kde se pochybuje, je to napsané.
 > **`VU-GS-OPTIMALIZACE.md`** (zadání, změřené FPS podle taktů, rozložení
 > threadů, hypotézy v pořadí, jak měřit). Tenhle HANDOFF pak čti jako
 > referenci — hlavně §8 (pasti), §9–§11 (výkon a takty).
-> Poslední build: **58** (diagnostika pádu + čtení tabulky taktů, §0d).
+> Poslední build: **58** — ZELENO (run `35374925218`, `sha256=ce9cd788ff537a79`),
+> diagnostika pádu + čtení tabulky taktů, §0d.
 > Na kartě **build 57 padá při startu hry** — viz §0d, tam jsou logy a čísla.
 > Build 55 = výkon (thready na vlastní jádra); **build 56 = sledování taktů
 > venku (§0b)**; **build 57 = CPU boost pryč i z launcheru (§0b)**.

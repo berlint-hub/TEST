@@ -981,3 +981,24 @@ Oprava: číslo se odvozuje `grep -o 'session start build=[0-9]*'`
 z `ci_core_log.c` (stejně jako `dist/ci-build.txt` na konci skriptu) a když se
 odvodit nedá, skript spadne — jinak by marker hlídal prázdný řetězec, což by
 prošlo vždycky.
+
+### CI: ZELENO na čtvrtý pokus (run `35374925218`)
+
+`status=completed / conclusion=success`, release `nro-latest` =
+**„NetherSX2.nro (binarka build 58, run 64, Vulkan)"**, **71 598 215 B**,
+`sha256=ce9cd788ff537a79`, vnitřní `.nro` 23 104 387 B. Anotace: 21 notice +
+2 warning, **0 error**. Klíče, které potvrzují, že diagnostika je v binárce:
+
+* `crash dump: registry + thread + queryMemory + backtrace do exception logu`
+* `launcher: aktivni konfigurace taktu v diagu (pred spustenim hry)`
+* `launcher main.cpp: lex kontrola ok (zadny string pres konec radku)`
+* `vk.c: lex kontrola ok (\n jen uvnitr stringu)`
+* `launcher: appletSetCpuBoostMode zakomentovano (GPU neshazuje FastLoad)`
+* `ci-build.txt=58`, `VERDICT: OK`
+
+Na kartě poznáš build podle `[CI] session start build=58`.
+
+**Zkus to s vypnutým pinováním** — `/switch/nethersx2/ci-pin.conf` s jediným
+řádkem `mode=off` vrátí rozložení threadů na upstream round-robin (to z
+buildu 54) **bez rebuildu**; v logu se to pozná podle
+`[CI] pin: mode=off order1=1 order2=2 pravidel=0`.
