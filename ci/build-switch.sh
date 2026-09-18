@@ -273,14 +273,26 @@ PY
 }
 
 note "=== stage 4: jádra (4248 z repozitáře, 3668 vypnuto) ==="
-# Core dodává uživatel přímo v repu (libemucore.so = v2.2n-4248), proto ho
-# nestahujeme z APK. Z patch-release se berou jen assets (GameIndex + cheaty),
-# které jsou binárkou core nezávislé. Classic 3668 je vyřazený — balík jede
-# čistě na 4248.
+# Core dodává uživatel přímo v repu (libemucore_phase1.so = v2.2n-4248 se
+# zákazkovým phase1 hex-patchem; libemucore.so = čistý 4248). Bereme phase1,
+# s fallbackem na čistý .so, kdyby phase1 chyběl. Z patch-release se berou jen
+# assets (GameIndex + cheaty), které jsou binárkou core nezávislé. Classic
+# 3668 je vyřazený — balík jede čistě na 4248.
+CORE_SO=""
+for c in "$ROOT/libemucore_phase1.so" "$ROOT/libemucore.so"; do
+  if [ -f "$c" ]; then
+    CORE_SO="$c"
+    break
+  fi
+done
+if [ -z "$CORE_SO" ]; then
+  err "v repozitáři chybí libemucore_phase1.so i libemucore.so — core nemá co balit"
+  die "core .so v repu chybí"
+fi
 mkdir -p "$CORES_DIR/NetherSX2-v2.2n-4248/lib/arm64-v8a"
-cp -f "$ROOT/libemucore.so" "$CORES_DIR/NetherSX2-v2.2n-4248/lib/arm64-v8a/libemucore.so" \
-  || die "kopie libemucore.so z repozitáře"
-key "core: uživatelský libemucore.so (4248) ze zdrojáku, sha256=$(sha256sum "$ROOT/libemucore.so" | cut -c1-16)"
+cp -f "$CORE_SO" "$CORES_DIR/NetherSX2-v2.2n-4248/lib/arm64-v8a/libemucore.so" \
+  || die "kopie core z repozitáře"
+key "core: $(basename "$CORE_SO") (4248) ze zdrojáku, sha256=$(sha256sum "$CORE_SO" | cut -c1-16)"
 fetch_core Trixarian/NetherSX2-patch 4248 assets
 
 # -------------------------------------------------------------------- 5. upstream
