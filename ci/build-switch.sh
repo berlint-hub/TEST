@@ -655,6 +655,15 @@ VKDIAG
     if [ -f "$SRC/NetherSX2_nx.nro" ]; then
       cp -f "$SRC/NetherSX2_nx.nro" "$SRC/NetherSX2_nx_vk.nro"
       key "vk=$(stat -c %s "$SRC/NetherSX2_nx_vk.nro") (nxvk pkg + loader)"
+      # Velikost .nro se mezi buildy nehne (segmenty se zarovnávaj na stránky),
+      # takže „stejná velikost" nic nedokazuje. Ověříme proto přímo v binárce,
+      # že v ní je ten povolovací řetězec pro NVK — bez něj by build vypadal
+      # zeleně a na kartě by zas vracel nula zařízení.
+      if grep -qa "NVK_I_WANT_A_BROKEN_VULKAN_DRIVER" "$SRC/NetherSX2_nx_vk.nro"; then
+        key "vk: env NVK_I_WANT_A_BROKEN_VULKAN_DRIVER je v binárce"
+      else
+        err "vk: v binárce NENÍ NVK_I_WANT_A_BROKEN_VULKAN_DRIVER — main.c patch se do buildu nedostal"
+      fi
       return 0
     fi
   fi
@@ -722,6 +731,7 @@ cat > "$SRC/source/hooks/ci_core_log.c" <<'CI_CORE_LOG_C'
 /* CI log capture — vygeneroval ho ci/build-switch.sh, není část upstreamu. */
 #include <stdarg.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <sys/stat.h>
 
 #define CI_LOG_PATH  "/switch/nethersx2/nethersx2-core.log"
@@ -741,6 +751,13 @@ static int ci_on(void) {
        * nevydá žádný zařízení. Zapisujeme do stejnýho souboru. */
       if (freopen(CI_LOG_PATH, "a", stderr))
         setvbuf(stderr, NULL, _IOLBF, 1024);
+      /* Runtime důkaz, že patch z build-switch.sh (krok 7a) prošel až sem:
+       * bez "1" tady NVK nevydá žádný fyzický zařízení. */
+      {
+        const char *nvk_env = getenv("NVK_I_WANT_A_BROKEN_VULKAN_DRIVER");
+        fprintf(stdout, "[CI] log capture ON, NVK_I_WANT_A_BROKEN_VULKAN_DRIVER=%s\n",
+                nvk_env ? nvk_env : "(nenastaveno)");
+      }
     }
   }
   return ci_enabled;
