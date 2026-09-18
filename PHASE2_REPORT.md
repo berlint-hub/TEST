@@ -172,7 +172,42 @@ cestou; tohle je druhá, nezávislá sada.)
 
 ---
 
-**Generováno**: 2026-09-18 (pův.), verifikováno 2026-09-19 (agent)
+## 💥 HW test — phase2 padá (2026-09-19)
+
+Phase2 nahozena do buildu (`nro-latest`, core sha256=21ab48c8…; build 71) a
+testnuta na kartě. **Aplikace spadla v obou testovaných hrách** (Fallout:
+Brotherhood of Steel, Gran Turismo 3) na **identickém místě**.
+
+Poslední řádky logu před pádem:
+
+```
+[CI] thread #3 (work: MTGS/VU1/worker) -> core=1
+[VK] vkGetSwapchainImagesKHR call=2 fill=1 result=0 count=3
+[4][NativeLibrary] Lazily allocating JNI environment for thread 0x1c820eae40
+  → (nic dál; žádné vm_running, žádné "Opening SPU2")
+```
+
+Porovnání s phase1 runem (build 71): phase1 po `thread #3` pokračuje na
+`vm_running=1` → `Opening SPU2` → `Opening PAD` → … a končí čistým
+`vkDestroyDevice`. Phase2 umře **přesně při startu worker vlákna MTGS/VU1**
+— tedy v momentě, kdy se poprvé aplikuje affinity/priority sada z `.data`
+(`0xB98180..`, `0xB98190/94/A0`).
+
+**Příčina (hypotéza, koreluje s předchozí analýzou):**
+
+* Priorita `9→99 / 13→98 / 7→97` je **linux/Android nice-hodnota**; na
+  Horizonu user-space RT prioritu vynutit nelze — worker vlákno se nespustí.
+* Tabuka `4,8,16 → 64,64,128` (`0xB949A0/A4/A8`) láme monotónní posloupnost
+  mocnin dvojky — to mohlo být víc než tři volné konstanty (viz 2B).
+
+**Rozhodnutí:** build vrácen na `libemucore_phase1.so` (fallback chain
+`phase1 → libemucore.so`). `libemucore_phase2.so` zůstává v repu jen jako
+artefakt, neballí se. Pokud se phase2 má zachránit, je nutné **odstranit
+priority (2E)** — přednostně zkusit phase2 **bez** 2E (jen affinity+cache).
+
+---
+
+**Generováno**: 2026-09-18 (pův.), verifikováno 2026-09-19 (agent), HW test 2026-09-19
 **Verze**: Phase 2 — Thread Pinning + Cache Alignment + FIFO/DMA (revidováno)
 **Cíl**: Nintendo Switch Tegra X1 (AetherSX2/NetherSX2)
 **Riziko**: Střední (špatně popsané offsety v pův. reportu = špatně

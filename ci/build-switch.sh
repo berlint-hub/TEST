@@ -273,21 +273,22 @@ PY
 }
 
 note "=== stage 4: jádra (4248 z repozitáře, 3668 vypnuto) ==="
-# Core dodává uživatel přímo v repu. Fallback chain od nejnovějšího:
-#   libemucore_phase2.so  (phase2: affinity+priority+cache/FIFO/DMA patch)
-#   libemucore_phase1.so  (phase1: FIFO 32/64 -> 256/512)
+# Core dodává uživatel přímo v repu. Fallback chain od posledního stabilního:
+#   libemucore_phase1.so  (phase1: FIFO 32/64 -> 256/512 — ověřeno na HW)
 #   libemucore.so         (čistý upstream 4248)
+# POZOR: libemucore_phase2.so NEPOUŽÍVAT zatím — crash při startu worker
+# vlákna MTGS/VU1 (viz PHASE2_REPORT.md, sekce "HW test"). Vráceno na phase1.
 # Z patch-release se berou jen assets (GameIndex + cheaty), které jsou binárkou
 # core nezávislé. Classic 3668 je vyřazený — balík jede čistě na 4248.
 CORE_SO=""
-for c in "$ROOT/libemucore_phase2.so" "$ROOT/libemucore_phase1.so" "$ROOT/libemucore.so"; do
+for c in "$ROOT/libemucore_phase1.so" "$ROOT/libemucore.so"; do
   if [ -f "$c" ]; then
     CORE_SO="$c"
     break
   fi
 done
 if [ -z "$CORE_SO" ]; then
-  err "v repozitáři chybí libemucore_phase2.so, _phase1.so i libemucore.so — core nemá co balit"
+  err "v repozitáři chybí libemucore_phase1.so i libemucore.so — core nemá co balit"
   die "core .so v repu chybí"
 fi
 mkdir -p "$CORES_DIR/NetherSX2-v2.2n-4248/lib/arm64-v8a"
