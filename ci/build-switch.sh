@@ -653,9 +653,13 @@ PKGLIBS
       #   NVK_I_WANT_A_BROKEN_VULKAN_DRIVER = povolení pro NVK (jinak nula zařízení)
       #   nsx-vk                            = novej loader se zapamatovanou instancí
       #   NetherSX2 Vulkan diagnostic       = VK diagnostika je vůbec zapnutá
+      #   diag soubor nethersx2-vulkan.log  = diag se zrcadlí i do core logu
+      #   MESA_SHADER_CACHE_DIR             = cache u emulátoru, ne v rootu SD
       vkbin="$SRC/NetherSX2_nx_vk.nro"
       vkmiss=""
-      for marker in "NVK_I_WANT_A_BROKEN_VULKAN_DRIVER" "nsx-vk" "NetherSX2 Vulkan diagnostic"; do
+      for marker in "NVK_I_WANT_A_BROKEN_VULKAN_DRIVER" "nsx-vk" \
+                    "NetherSX2 Vulkan diagnostic" "diag soubor nethersx2-vulkan.log" \
+                    "MESA_SHADER_CACHE_DIR"; do
         grep -qa "$marker" "$vkbin" || vkmiss="$vkmiss [$marker]"
       done
       if [ -z "$vkmiss" ]; then
@@ -707,6 +711,13 @@ block = (
     "   * souhlas — nvk_is_conformant() odmítá Tegru (type=SOC) a v release\n"
     "   * buildu to dělá úplně bez hlášky. */\n"
     "  setenv(\"NVK_I_WANT_A_BROKEN_VULKAN_DRIVER\", \"1\", 1);\n"
+    "  /* NVK si shader cache sype defaultně do sdmc:/switch/mesa_shader_cache\n"
+    "   * (disk_cache_horizon.c: base = os_get_option(\"MESA_SHADER_CACHE_DIR\"),\n"
+    "   * jinak \"sdmc:/switch\"). Ať to nebydlí v rootu SD, ale u emulátoru;\n"
+    "   * make_dir() v tom souboru dělá jenom jeden mkdir, takže rodičovská\n"
+    "   * složka musí existovat (jinak se cache tiše vypne). */\n"
+    "  mkdir(DATA_ROOT \"/cache\", 0777);\n"
+    "  setenv(\"MESA_SHADER_CACHE_DIR\", DATA_ROOT \"/cache\", 1);\n"
     "#endif\n"
 )
 text = text.replace(anchor, block, 1)
@@ -748,14 +759,20 @@ static int ci_on(void) {
       /* Mesa (a tím i NVK) hlásí svoje chyby přes vk_errorf/mesa_log na
        * stderr a ten dosud nikam neved — přesně tam je důvod, proč driver
        * nevydá žádný zařízení. Zapisujeme do stejnýho souboru. */
-      if (freopen(CI_LOG_PATH, "a", stderr))
+      int stderr_ok = freopen(CI_LOG_PATH, "a", stderr) != NULL;
+      if (stderr_ok)
         setvbuf(stderr, NULL, _IOLBF, 1024);
       /* Runtime důkaz, že patch z build-switch.sh (krok 7a) prošel až sem:
-       * bez "1" tady NVK nevydá žádný fyzický zařízení. */
+       * bez "1" tady NVK nevydá žádný fyzický zařízení.
+       * Poznámka z karty: na Switchi se přesměrovanej stderr do souboru
+       * nepropsal, i když freopen hlásil úspěch (proto ten výpis) — všechny
+       * naše vlastní diagnostiky jdou proto na stdout. */
       {
         const char *nvk_env = getenv("NVK_I_WANT_A_BROKEN_VULKAN_DRIVER");
         fprintf(stdout, "[CI] log capture ON, NVK_I_WANT_A_BROKEN_VULKAN_DRIVER=%s\n",
                 nvk_env ? nvk_env : "(nenastaveno)");
+        fprintf(stdout, "[CI] stderr smerovan do core logu: %s\n",
+                stderr_ok ? "ok" : "SELHAL");
       }
     }
   }
@@ -980,12 +997,14 @@ done = 0
 
 note_anchor = "void\nvk_diag_note(const char *format, ...) {\n"
 note_patch = (note_anchor +
-    "  /* NSX_VK_DIAG_STDERR: stejnou zprávu i na stderr — log capture na\n"
-    "   * kartě ho bere do nethersx2-core.log, takže diag nezávisí na tom,\n"
-    "   * jestli se povedlo otevřít nethersx2-vulkan.log. */\n"
+    "  /* NSX_VK_DIAG_STDERR: stejnou zprávu i do core logu (nethersx2-core.log),\n"
+    "   * aby diag nezávisela na tom, jestli se povedlo otevřít\n"
+    "   * nethersx2-vulkan.log. Pozor: na kartě se ukázalo, že přesměrovanej\n"
+    "   * STDERR do toho souboru nic nezapsal (stdout ano), takže se posílá\n"
+    "   * stdout — viz ci_core_log.c a poznámka v HANDOFF. */\n"
     "  { va_list nsx_mirror; va_start(nsx_mirror, format);\n"
-    "    fputs(\"[VK] \", stderr); vfprintf(stderr, format, nsx_mirror);\n"
-    "    fputc('\\n', stderr); va_end(nsx_mirror); }\n")
+    "    fputs(\"[VK] \", stdout); vfprintf(stdout, format, nsx_mirror);\n"
+    "    fputc('\\n', stdout); va_end(nsx_mirror); }\n")
 if note_anchor in text:
     text = text.replace(note_anchor, note_patch, 1)
     done += 1
@@ -996,7 +1015,7 @@ reset_anchor = ('    fprintf(vk_diag_file, "NetherSX2 Vulkan diagnostic %s\\n", 
                 "    fsync(fileno(vk_diag_file));\n"
                 "  }\n")
 reset_patch = reset_anchor + (
-    "  fprintf(stderr, \"[VK] diag soubor nethersx2-vulkan.log: %s\\n\",\n"
+    "  fprintf(stdout, \"[VK] diag soubor nethersx2-vulkan.log: %s\\n\",\n"
     "          vk_diag_file ? \"otevren\" : \"SE NEPOVEDLO OTEVRIT\");\n")
 if reset_anchor in text:
     text = text.replace(reset_anchor, reset_patch, 1)

@@ -10,43 +10,54 @@ zařízeních — příčina nalezena a opravena** (chybějící
 Cíl uživatele: reproducible CI, který vyrobí šiřitelné `.nro` s funkčním
 Vulkan rendererem (LSFG), plus zpětná vazba z logů na kartě.
 
+## 0. STAV: VULKAN NA KARTĚ FUNGUJE (2026-09-18, build 38)
+
+Uživatel potvrdil „vulkan jede" a `nethersx2-vulkan.log` z karty to dokládá
+celé: `vkCreateInstance result=0` → `vkCreateViSurfaceNN result=0` →
+`vkCreateDevice result=0` → `vkCreateSwapchainKHR result=0` (3 images,
+1280×720) → `vkAcquireNextImageKHR`/`vkQueueSubmit`/`vkQueuePresentKHR`
+`result=0` opakovaně. `nethersx2-mesa.log` k tomu říká
+`nvk wsi: zero-copy ENABLED` (scanout bez kopie) a
+`shader cache: sdmc:/switch/mesa_shader_cache/cache.bin, 182 entries`.
+Hra (GT3) běží. GL i VK větev jsou tím ověřené.
+
+Zbývá: LSFG (frame generation) a výkon. Detaily níž.
+
 ## 1. Okamžité další kroky
 
-1. Poslat uživateli build 38 a nechat ho pustit Vulkan. Zpátky stačí
-   `nethersx2-core.log` + `launcher-diag.log`: diagnostika portu se od buildu
-   38 zrcadlí na stderr (řádky `[VK] …`) a ten log capture bere do core logu,
-   takže `nethersx2-vulkan.log` už není podmínka. Zajímavé řádky:
-   `[VK] diag soubor …: otevren/SE NEPOVEDLO OTEVRIT`,
-   `[VK] vkCreateInstance begin/end`, `[VK] vkCreateViSurfaceNN … result=`,
-   a případné `[nsx-vk] symbol neni k dispozici: …`.
-2. Když v `nethersx2-core.log` chybí `[CI] log capture ON` nebo je za `=` něco
-   jiného než `1`, proměnná se do binárky nedostala (to je bug buildu, ne
-   driveru). CI greppuje tři markery v `NetherSX2_nx_vk.nro`:
-   `NVK_I_WANT_A_BROKEN_VULKAN_DRIVER` (povolení pro NVK), `nsx-vk` (nový
-   loader) a `NetherSX2 Vulkan diagnostic` (diag je zapnutá).
-3. Bez toho env NVK na Tegře nevydá ani jedno fyzický zařízení (viz §3),
-   takže „zase nula zařízení" = patch se nepropsal, ne „NVK je rozbitej".
-4. Stav po buildu 37: enumerace zařízení **funguje**, padá `vkCreateViSurfaceNN`
-   (přes `vkCreateAndroidSurfaceKHR`) s `-3`. To byl náš loader, ne driver —
-   `nsx_sym()` se ptal s `(VkInstance)0` a mesa runtime s NULL instancí vydá
-   jen pět pre-instance entrypointů, všechno ostatní je NULL → fallback
-   `VK_ERROR_INITIALIZATION_FAILED`. Od buildu 38 si loader instanci pamatuje.
-5. Další v řadě: `vkCreateDevice`, swapchain, prezentace. Všechny tyhle cesty
-   volá port přes `vkCreate*_shim`, a ty volaj globální `vk*` symboly → jdou
-   přes `nsx_sym()`, takže je pokrývá stejná oprava. Kdyby se objevilo
-   `[nsx-vk] symbol neni k dispozici: X`, znamená to, že X v dané fázi
-   (před instancí / po destroy) není k dispozici.
-6. Až bude VK projí: `VK_DIAG: 1` v `.github/workflows/mesa-vk.yml` vypnout
-   a rozumně přidat `NetherSX2_nx.nro` pro LSFG test — port si pro LSFG povídá
-   s `file_readable(lsfg_dll_path())`, tj. potřebuje soubor navic; ten sme
-   zatím nikdy neověřovali.
+1. **LSFG.** V `nethersx2-vulkan.log` z karty je `lsfg_prepared=0` a
+   `lsfg_capable=0 family=4294967295 (VK_QUEUE_FAMILY_IGNORED)`. Kód portu
+   (`source/hooks/vk.c`) pustí LSFG jen když platí
+   `prefs_get_bool("Wrapper/LSFGEnabled") && file_readable(DATA_ROOT "/lsfg/Lossless.dll")`,
+   tj. `/switch/nethersx2/lsfg/Lossless.dll`. **Ten soubor od Lossless Scaling
+   tam uživatel nemá** (a ani nemusí chtít řešit licenci), takže LSFG je
+   zatím jen netestovaná cesta — není to regrese. Než se do toho půjde,
+   je fér uživateli říct, že bez toho DLL to nepůjde a že je to proprietární
+   soubor z Lossless Scaling.
+2. **Výkon.** `EmuCore/GS` má v ini `Cycle rate/skip` mimo default (core to sám
+   hlásí jako „Unsafe Settings"), `Hardware Download Mode` není Accurate a je
+   zapnutá `GPU Palette Conversion`. Uživatel by měl zkusit defaulty; na
+   Switchi se hodí i `Wrapper/FastmemMode=hybrid` (už je).
+3. **`[Logging]` marker z karty smazat, až nebude potřeba.** `ci-logging.enabled`
+   v `/switch/nethersx2/` zapíná kromě našeho capture i `Logging/EnableEEConsole`
+   a `EnableIOPConsole` v jádře, což je podle upstreamu „formats a lot of
+   strings per frame" — na výkon to jde. Pro měření FPS tedy marker pryč
+   (logy pak nebudou, ale to je při ladění výkonu jedno).
+4. **Dočistit integraci:** od buildu 39 se `MESA_SHADER_CACHE_DIR` přesměrovává
+   na `/switch/nethersx2/cache`, takže `sdmc:/switch/mesa_shader_cache` už
+   nevzniká — starou složku může uživatel smazat.
+5. **Diagnostika portu zrcadlená do core logu:** v buildech 37/38 se psala na
+   `stderr`, jenže na kartě se přesměrovanej stderr do souboru **nepropsal**
+   (stdout ano — všechny core logy chodí). Od buildu 39 jde mirror na stdout
+   a `ci_core_log.c` navíc hlásí `[CI] stderr smerovan core logu: ok/SELHAL`.
+   Ověřeno v `.nro` greppem markeru `diag soubor nethersx2-vulkan.log`.
 
 ## 2. Čísla a identifikátory, co se špatně dohledávají
 
 | Věc | Hodnota |
 |---|---|
 | branch session | `arena/01a0b2a1-test` (nikdy nepushovat jinam; stará `arena/01a0aad9-test` už na remote není) |
-| poslední pushnutý commit | `8b52978` (loader si pamatuje instanci), před ním `cac2660`/`57bd8d9` (NVK env patch) |
+| poslední pushnutý commit | `8b52978` (loader si pamatuje instanci) + `9cda71d` (docs), před nimi `cac2660`/`57bd8d9` (NVK env patch) |
 | rolling release URL | `https://github.com/berlint-hub/TEST/releases/download/nro-latest/NetherSX2.nro` |
 | aktuální build | CI build 38, run `35308243500`, `NetherSX2.nro` = **78 724 195 B**, `sha256=3b1ab1f4d92d39f2…` |
 | v balíku | `NetherSX2_nx_vk.nro` 23 124 867 B, `NetherSX2_nx_gl.nro` 7 105 411 B |
@@ -61,6 +72,30 @@ Artefakty: `nethersx2-nro-vk-bundle` (90 dní), `mesa-sdk` (SDK s `lib/`,
 
 ## 3. Poznání, který bolí nejvíc (přečti si ho, než sáhneš na VK link)
 
+* **Přesměrovanej `stderr` na Switchi do souboru nic nezapsal.** Od buildu 37
+  `ci_core_log.c` dělal `freopen(CI_LOG_PATH, "a", stderr)`, aby se do
+  `nethersx2-core.log` chytly i chyby Mesy — a mirror `vk_diag_note` psal
+  na stderr. Na kartě (build 38) v core logu **není ani jeden** `[VK]` řádek,
+  zatímco `nethersx2-vulkan.log` je plnej. Diagnostika samotná tedy funguje
+  (soubor se otevřel), jen cesta přes stderr ne. Od buildu 39 se všechno
+  vlastní zrcadlí na **stdout** (ten do souboru prokazatelně chodí — všechny
+  core logy jsou z něj) a `ci_core_log.c` navíc hlásí
+  `[CI] stderr smerovan do core logu: ok/SELHAL`, aby to příště bylo vidět
+  z logu a nemuselo se hádat.
+* **LSFG chce `sdmc:/switch/nethersx2/lsfg/Lossless.dll`.** `lsfg_dll_path()`
+  v `source/hooks/vk.c` vrací `DATA_ROOT "/lsfg/Lossless.dll"` a device se
+  připravuje jako „lsfg_capable" jen když je ten soubor čitelnej **a** je
+  zapnutý `Wrapper/LSFGEnabled`. V logu z karty je `lsfg_prepared=0`
+  i `lsfg_capable=0 family=4294967295`, takže se ta větev vůbec nezkoušela.
+  Není to chyba buildu — bez DLL od Lossless Scaling (proprietární) to
+  neprojde. `third_party/lsfg-vk` je GPL-3.0 a je součástí portu.
+* **Shader cache NVK**: `disk_cache_horizon.c` má `base =
+  os_get_option("MESA_SHADER_CACHE_DIR")`, jinak natvrdo `sdmc:/switch`, a
+  dělá `%s/mesa_shader_cache`. Proto se na kartě objevilo
+  `sdmc:/switch/mesa_shader_cache`. Přenastavuje se v `main.c`
+  (patch v `build-switch.sh`, krok 7a) na `DATA_ROOT "/cache"`, s předchozím
+  `mkdir`, protože `make_dir()` v tom souboru umí jen jeden `mkdir` a bez
+  existující rodičovské složky se cache **tiše vypne**.
 * **Náš generovanej loader si musí pamatovat instanci.** `vk_icdGetInstanceProcAddr`
   s `instance == NULL` vydá jen pět pre-instance entrypointů
   (`EnumerateInstance{,Extension,Layer}Properties`, `EnumerateInstanceVersion`,

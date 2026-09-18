@@ -29,11 +29,20 @@ Finální `.nro` má 78 716 003 B a obsahuje oba rendery, takže „přepni
 Renderer na OpenGL" už není podmínka — default `EmuCore/GS/Renderer = 14`
 (Vulkan) má co načíst a OpenGL je fallback v Settings.
 
-Build 35 na kartě došel k `vkEnumeratePhysicalDevices` a dostal **VK_SUCCESS
-s nula zařízeními**; příčina je v nxvk (conformant check odmítá Tegru a
-release build to dělá bez hlášky) a řeší ji jediná proměnná
-`NVK_I_WANT_A_BROKEN_VULKAN_DRIVER=1`, kterou build 37 nastavuje v `main()`.
-Detail a všechna čísla v HANDOFF.md §3.
+**Aktuální stav: Vulkan na kartě jede** (build 38). Postupně se opravily tři
+věci, každá o jednu úroveň hlouběji:
+
+1. build 35 → `vkEnumeratePhysicalDevices` vrátil `VK_SUCCESS` s nula
+   zařízeními; příčina v nxvk (conformant check odmítá Tegru, release build
+   bez hlášky) → `NVK_I_WANT_A_BROKEN_VULKAN_DRIVER=1` (build 37),
+2. build 37 → `vkCreateAndroidSurfaceKHR failed: (-3)`; náš generovanej loader
+   se ptal s NULL instancí, takže WSI funkce „neexistovaly" → loader si
+   instanci pamatuje (build 38),
+3. build 38 → **hotovo**: `vkCreateInstance`/`vkCreateViSurfaceNN`/
+   `vkCreateDevice`/`vkCreateSwapchainKHR`/`vkQueuePresentKHR` všechny
+   `result=0`, `nvk wsi: zero-copy ENABLED`, GT3 běží.
+
+Detail a všechna čísla v HANDOFF.md §0 a §3.
 
 ## Stav: co ověřeno
 
