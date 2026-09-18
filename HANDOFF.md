@@ -46,11 +46,11 @@ Vulkan rendererem (LSFG), plus zpětná vazba z logů na kartě.
 | Věc | Hodnota |
 |---|---|
 | branch session | `arena/01a0b2a1-test` (nikdy nepushovat jinam; stará `arena/01a0aad9-test` už na remote není) |
-| poslední pushnutý commit | `cac2660` (ověření env v binárce), před ním `57bd8d9` (NVK env patch) |
+| poslední pushnutý commit | `8b52978` (loader si pamatuje instanci), před ním `cac2660`/`57bd8d9` (NVK env patch) |
 | rolling release URL | `https://github.com/berlint-hub/TEST/releases/download/nro-latest/NetherSX2.nro` |
-| aktuální build | CI build 37, run `35306142087`, `NetherSX2.nro` = **78 716 003 B**, `sha256=c2d6aa7dad448cf7…` |
-| v balíku | `NetherSX2_nx_vk.nro` 23 116 675 B, `NetherSX2_nx_gl.nro` 7 105 411 B |
-| pozor na velikosti | buildy 34, 35, 36, 37 maj **identickou** velikost (stránkový zarovnání segmentů) — rozlišuj podle `sha256` (35 = `b3a06739…`, 36 = `f6ea45cb…`, 37 = `c2d6aa7d…`) |
+| aktuální build | CI build 38, run `35308243500`, `NetherSX2.nro` = **78 724 195 B**, `sha256=3b1ab1f4d92d39f2…` |
+| v balíku | `NetherSX2_nx_vk.nro` 23 124 867 B, `NetherSX2_nx_gl.nro` 7 105 411 B |
+| pozor na velikosti | buildy 34–37 maj **identickou** velikost (stránkový zarovnání segmentů) — rozlišuj podle `sha256` (35 = `b3a06739…`, 36 = `f6ea45cb…`, 37 = `c2d6aa7d…`). Build 38 povyrostl na 78 724 195 B, protože se konečně zkompilovala diagnostika |
 | generovaný loader | 766 forwarderů, `libnsxvkloader.a` = 554 390 B |
 | upstream refáček | `NaGaa95/NetherSX2_nx` @ `f084dc1`; `PalindromicBreadLoaf/nxvk` @ `switch` (`238e06f`) |
 | ceny | Mesa od nuly ~25–35 min, bundle ~9 min, reuse SDK ~4 min; kvóta privátního repa ~2000 runner min/měsíc |
