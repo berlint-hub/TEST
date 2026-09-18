@@ -707,6 +707,9 @@ PKGLIBS
         key "vk: env patch + nový loader + diagnostika jsou v binárce"
       else
         err "vk: v binárce chybí:$vkmiss (build je zelenej, ale na kartě bude bez diagnostiky)"
+        # `err` jen anotuje a build NEshodí — „zelený build bez diagnostiky" by
+        # prošel (přesně past č. 5 v HANDOFF §8). Od buildu 55 proto die.
+        die "vk: v binárce chybí markery (viz výše) — build by byl zeleny, ale na karte bez diagnostiky"
       fi
       return 0
     fi

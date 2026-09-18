@@ -657,3 +657,47 @@ A/B se nebude plést s přepínáním profilů. Postup:
   (`PR_SET_NAME`) — dokud jména neuvidíme, je A/B test platný (dvě těžké
   vlákna na různých jádrech), ale interpretace „kde je VU1" ne.
 * LSFG zůstává vypnuté (`lsfg_capable=0`; chybí `Lossless.dll`).
+
+### Build 55 — výsledek kompilace (CI run `35358359052`, 2026-09-18 14:48 UTC)
+
+**Success.** Branch `arena/01a0b4ce-test`, commit `b98a772`, upstream `f084dc1`,
+Mesa SDK z posledního runu (job `nxvk / Mesa NVK SDK` = *skipped*, takže celý
+běh trval ~2 min).
+
+| | |
+|---|---|
+| `NetherSX2.nro` | **71 602 311 B** (build 54: 71 598 215 B → +4 096 B) |
+| `NetherSX2_nx_vk.nro` | 23 108 483 B |
+| `sha256` | `ec0880d0488379e8` |
+| release | `nro-latest`, publikováno 14:48:46 UTC |
+
+Co CI nahlásilo (anotace bundle jobu `105643234904`):
+
+* `ci/patches: syntaxe proti libnx ok` — smyčka v 7b kontroluje **všechny**
+  `.c` v `ci/patches/` s `-Werror=enum-conversion`
+  `-Werror=implicit-function-declaration`, takže i nový `pthr_pin.c`.
+* `pin: work #1/#2 exkluzivne na svem jadre + identita threadu v logu`
+  (= `imports_pin_diag.py` + `pthr_pin.py` prošly).
+* `session end se pise na vseh trech koncich + speedhack markery na SD`
+  (= `main_hacks_markers.py` + `error_crash_end.py` prošly).
+* `vk: env patch + nový loader + diagnostika jsou v binárce` — tohle je grep
+  **16 markerů přímo v `NetherSX2_nx_vk.nro`**, z toho 6 nových pro build 55:
+  `session start build=55`, `[CI] pin:`, `PR_SET_NAME`, `ci-pin.conf`,
+  `[CI] hack:`, `ci-mtvu`, `[CI] session end`.
+* `VERDICT: OK NetherSX2.nro`, `VÝSLEDEK OK`.
+
+**Jak je ověřené, že markery opravdu prošly:** `err()` v `build-switch.sh`
+pouze píše `::error::` anotaci a **build neshodí**, takže důkaz není „zelený
+run", ale „mezi 24 anotacemi jobu není žádná na úrovni error" (21 notice +
+3 warning; strop anotací je ~30, tedy se nic neztratilo). **Od tohohle commitu
+je tam místo `err` rovnou `die`** — past č. 5 z HANDOFF §8 („zelený build bez
+diagnostiky") už neprojde.
+
+**Pozor na jméno release:** „NetherSX2.nro (CI build 55, Vulkan)" je
+`${GITHUB_RUN_NUMBER}` (pořadí runu v repu), **ne** `NSX_CI_BUILD`
+z `ci_core_log.c`. Čísla se teď shodují náhodou. Která binárka běží na kartě,
+to poznáš jedině podle `[CI] session start build=55` v logu.
+
+**Co v tomhle běhu nebylo přeložené:** `VK_ONLY=1`, takže GL `.nro` se nestaví
+(`GL build přeskočen — ušetřeno ~4 min`). Větev `NSX_GL_FPS` v `egl.c` tedy
+kompilací neprošla — ale v téhle session jsme ji neměnili.
