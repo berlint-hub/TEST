@@ -782,6 +782,32 @@ static int ci_on(void) {
 /* main.c se přes to ptá, jestě má bejt Logging/* z ini (marker na kartě) */
 int ci_logging_enabled(void) { return ci_on(); }
 
+/* Jednoznačná identifikace běžícího .nro. Volá se z main.c až v běhu
+ * (po setenv z kroku 7a), takže na rozdíl od hlášky v ci_on() nemůže
+ * ukazovat hodnotu z doby před main() — z karty se totiž jinak „GL vs VK"
+ * odhaduje jen podle toho, jestli v logu jsou [VK] řádky, a to je slabý. */
+void ci_renderer_banner(void) {
+  if (!ci_on()) return;
+#ifdef USE_VULKAN
+  const char *nvk = getenv("NVK_I_WANT_A_BROKEN_VULKAN_DRIVER");
+# ifdef GS_RENDERER
+  fprintf(stdout, "[CI] emulator nro: VK build (GS_RENDERER=%d), "
+                  "NVK_I_WANT_A_BROKEN_VULKAN_DRIVER=%s\n",
+          GS_RENDERER, nvk ? nvk : "(nenastaveno)");
+# else
+  fprintf(stdout, "[CI] emulator nro: VK build, NVK_I_WANT_A_BROKEN_VULKAN_DRIVER=%s\n",
+          nvk ? nvk : "(nenastaveno)");
+# endif
+#else
+# ifdef GS_RENDERER
+  fprintf(stdout, "[CI] emulator nro: GL build (GS_RENDERER=%d) — Vulkan v tomhle .nro neni\n",
+          GS_RENDERER);
+# else
+  fprintf(stdout, "[CI] emulator nro: GL build — Vulkan v tomhle .nro neni\n");
+# endif
+#endif
+}
+
 int ci_android_log_write(int prio, const char *tag, const char *text) {
   if (!ci_on()) return 0;
   fprintf(stdout, "[%d][%s] %s\n", prio, tag ? tag : "-", text ? text : "");
@@ -864,7 +890,9 @@ if first not in text:
     sys.exit(1)
 text = text.replace(first,
     'extern int ci_logging_enabled(void);\n'
+    '  extern void ci_renderer_banner(void);\n'
     '  const int ci_log = ci_logging_enabled();\n'
+    '  ci_renderer_banner();\n'
     '  prefs_set_string("Logging/EnableSystemConsole", ci_log ? "1" : "0");', 1)
 for k in keys[1:]:
     text = text.replace('prefs_set_string("Logging/%s", "0");' % k,
@@ -1352,14 +1380,34 @@ edits = [
     #     vrátit starej st_size -> „size mismatch" a zahozenej soubor.
     ("  struct stat temporary{};",
      "  fsdevCommitDevice(\"sdmc\");\n  struct stat temporary{};"),
-    # (6) jediny bod, kde jsou k dispozici vsechny tri priznaky + obe cesty
+    # (6) jediny bod, kde jsou k dispozici vsechny tri priznaky + obe cesty.
+    #     Navic se sem propisuje ROZHODNUTI o rendereru (backend/renderer/
+    #     GLDriver + hodnota z globalniho store a cesta k profilu hry) —
+    #     bez toho se z logu neda poznat, proc launcher vzal gl misto vk
+    #     .nro, a clovek se zbytecne ptá, jestli log nelze.
     ("    willChain=haveCore&&haveEmulator&&haveResources&&configSaved;",
      "    willChain=haveCore&&haveEmulator&&haveResources&&configSaved;\n"
-     "    { extern void ciLaunchDiag(const char *,const char *,const char *,const char *,bool,bool,bool,bool);\n"
+     "    { extern void ciLaunchDiag(const char *,const char *,const char *,const char *,const char *,const char *,const char *,const char *,const char *,const char *,\n"
+     "                               bool,bool,bool,bool);\n"
+     "      std::string ciProfile=std::string(GAMECFG_DIR)+\"/\"+(launchKey.empty()?std::string(\"(bez klice)\"):launchKey)+\".ini\";\n"
+     "      if(!regularFileExists(ciProfile)&&!launchPathKey.empty()) ciProfile=std::string(GAMECFG_DIR)+\"/\"+launchPathKey+\".ini\";\n"
+     "      if(!regularFileExists(ciProfile)&&launchLegacyUnique&&!launchLegacyKey.empty()) ciProfile=std::string(GAMECFG_DIR)+\"/\"+launchLegacyKey+\".ini\";\n"
      "      ciLaunchDiag(coreSource.c_str(),coreDestination.c_str(),emulatorSource.c_str(),emulatorDestination.c_str(),\n"
-     "                    haveCore,haveEmulator,haveResources,configSaved); }"),
+     "                   storeGet(effective,\"EmuCore/GS/Renderer\",\"(neni)\"),\n"
+     "                   storeGet(g_global,\"EmuCore/GS/Renderer\",\"(neni)\"),\n"
+     "                   renderer.c_str(), storeGet(effective,\"Wrapper/GLDriver\",\"(neni)\"),\n"
+     "                   launchKey.c_str(), ciProfile.c_str(),\n"
+     "                   haveCore,haveEmulator,haveResources,configSaved); }"),
 ]
 done = 0
+# Upgrade ze starších buildu: kdyby strom už měl starý (8-arg) ciLaunchDiag,
+# ten blok smaž a níž se vloží nový. Bez toho by v opakovaném běhu zůstal
+# viset starý call s jiným počtem argumentů a link by spadl.
+if "renderer.c_str(), storeGet(effective,\"Wrapper/GLDriver\"" not in text and "ciLaunchDiag(" in text:
+    _i = text.index("{ extern void ciLaunchDiag(")
+    _j = text.index("configSaved); }", _i) + len("configSaved); }")
+    text = text[:_i] + text[_j:]
+
 for find, repl in edits:
     if repl in text:
         done += 1          # uz patcheno (idempotentni re-run)
@@ -1462,12 +1510,38 @@ void probe(FILE *out, const char *dir) {
 
 extern void ciLaunchDiag(const char *coreSource, const char *coreDestination,
                          const char *emulatorSource, const char *emulatorDestination,
+                         const char *rendererBackend, const char *rendererGlobal,
+                         const char *rendererNro, const char *glDriver,
+                         const char *launchKey, const char *profilePath,
                          bool haveCore, bool haveEmulator, bool haveResources, bool configSaved) {
   FILE *out = std::fopen(DIAG_LOG, "a");
   if (!out) return;   // launcher kvuli tomu nesmi spadnout
   std::fprintf(out, "--- start hry %lld ---\n", static_cast<long long>(std::time(nullptr)));
   std::fprintf(out, "  priznaky: core=%d emu=%d zdrojaky=%d config=%d\n",
                haveCore ? 1 : 0, haveEmulator ? 1 : 0, haveResources ? 1 : 0, configSaved ? 1 : 0);
+  // ROZHODNUTI o rendereru. Launcher vybira .nro podle efektivni hodnoty
+  // EmuCore/GS/Renderer: 14 -> vk, 12 i 13 -> gl (13 = zink uvnitr GL
+  // stacku, viz Wrapper/GLDriver). Efektivni hodnota = profil hry prebiji
+  // globalni nastaveni, takze „nastavil jsem Vulkan" muze znamenat „v
+  // globalnim store, ale profil hry ma OpenGL" — a to je presne to, co
+  // z logu jinak nevidis.
+  std::fprintf(out, "  renderer      [renderer-decision] EmuCore/GS/Renderer=%s (global=%s)"
+                    " -> nro=%s, GLDriver=%s\n",
+               rendererBackend ? rendererBackend : "(null)",
+               rendererGlobal ? rendererGlobal : "(null)",
+               rendererNro ? rendererNro : "(null)",
+               glDriver ? glDriver : "(null)");
+  {
+    struct stat st {};
+    const bool ok = profilePath && *profilePath && stat(profilePath, &st) == 0 && S_ISREG(st.st_mode);
+    std::fprintf(out, "  game profil   %s = ", profilePath ? profilePath : "(null)");
+    if (ok)
+      std::fprintf(out, "%lld B (klic=%s)\n", static_cast<long long>(st.st_size),
+                   launchKey && *launchKey ? launchKey : "-");
+    else
+      std::fprintf(out, "CHYBI (klic=%s) -> plati globalni hodnota\n",
+                   launchKey && *launchKey ? launchKey : "-");
+  }
   describe(out, "core zdroj", coreSource);
   describe(out, "core cil", coreDestination);
   describe(out, "emu zdroj", emulatorSource);
@@ -1547,6 +1621,14 @@ for n in emu/NetherSX2_nx_vk.nro emu/NetherSX2_nx_gl.nro cores/libemucore.so \
     err "  V .nRO CHYBÍ $name — balík je nepoužitelný"
   fi
 done
+# Launcher musí umět do launcher-diag.log zapsat, PROČ vzal gl/vk .nro
+# (efektivní EmuCore/GS/Renderer + profil hry). Bez toho se „vybral jsem
+# Vulkan, ale jelo GL" nedá z logu rozhodnout.
+if grep -qa "renderer-decision" "$OUT/NetherSX2.nro"; then
+  key "launcher: rozhodnuti o rendereru je v diagu"
+else
+  warn "launcher: diag bez rozhodnuti o rendereru — patch main.cpp neprošel"
+fi
 key "sha256=$(sha256sum "$OUT/NetherSX2.nro" | cut -c1-16)"
 bash "$HERE/annotate.sh" "notice+" 40 < "$DIGEST"
 note "SD layout: sdmc:/switch/NetherSX2.nro + sdmc:/switch/nethersx2/ (BIOS si kladeš sám)"

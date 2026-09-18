@@ -245,3 +245,22 @@ nedistribuuje.
 markeru `[GL] FPS` (build 41 ho v `NetherSX2_nx_gl.nro` našel, velikost
 zůstala 7 105 411 B, protože segmenty se zarovnávají na stránky).
 VK část buildu 41 je shodná s buildem 40.
+
+## Build 42 — diagnostika volby rendereru (2026-09-18)
+
+Podnět z karty: uživatel tvrdil, že v předchozím buildu pustil Vulkan → GL →
+GL Zink, ale log měl u všech tří běhů GL. Log nelhal: `launcher-diag.log`
+i `nethersx2-core.log` (3× `EGL Version: 1.4`, `Created an OpenGL ES context`,
+0× `[VK]`) shodně ukazují, že launcher 3× zkopíroval `NetherSX2_nx_gl.nro`.
+Dvě ze tří voleb (12 NVC0, 13 Zink) přitom **mají** GL `.nro` použít — do
+VK binárky vede jen volba 14. Co v logu chybělo, bylo *rozhodnutí*:
+
+* `ci_launch_diag.cpp` dostal 6 nových parametrů a píše
+  `[renderer-decision]` řádek s efektivní hodnotou `EmuCore/GS/Renderer`,
+  hodnotou z globálního store, zvoleným `nro` a `Wrapper/GLDriver`, plus
+  cestu k profilu hry (rozloženou stejně jako upstream: klíč → pathKey →
+  legacyKey) a jestli existuje.
+* `ci_core_log.c` má `ci_renderer_banner()` (volaný z `main.c` po `setenv`),
+  takže každý core log začíná větou, které `.nro` to je — dosud se to
+  odhadovalo z absence `[VK]` řádků.
+* Stage 10 navíc greppem ověřuje marker `renderer-decision` v balíku.

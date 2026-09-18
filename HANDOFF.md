@@ -71,6 +71,27 @@ Zbývá: LSFG (frame generation) a výkon. Detaily níž.
 5. **Dočistit integraci:** od buildu 39 se `MESA_SHADER_CACHE_DIR` přesměrovává
    na `/switch/nethersx2/cache`, takže `sdmc:/switch/mesa_shader_cache` už
    nevzniká — starou složku může uživatel smazat.
+7. **Volba rendereru se děje v launcheru, ne v `.nro`** (od buildu 42 to
+   navíc logujeme). `launcher/source/main.cpp`:
+   `renderer = (EmuCore/GS/Renderer=="14") ? "vk" : "gl"` — takže
+   **14 → `NetherSX2_nx_vk.nro`, 12 i 13 → `NetherSX2_nx_gl.nro`**. Trojka
+   „OpenGL (Zink/NVK)" (13) tedy běží GL binárku a Zink se zapíná uvnitř ní
+   (`Wrapper/GLDriver=zink` → `source/main.c` nastaví
+   `MESA_LOADER_DRIVER_OVERRIDE=zink`, ale jen pod `#if GS_RENDERER == OGL`;
+   v našem GL `.nro` je switch-mesa z devkitPro portlibs, ne nxvk „unified"
+   SDK, na které ten komentář míří — zda tam zink opravdu je, není ověřené).
+   **Efektivní hodnota = profil hry přebíjí globální**:
+   `sdmc:/switch/nethersx2/gamecfg/<klíč hry>.ini` (fallbacky: pathKey,
+   legacyKey) má přednost před `sdmc:/switch/NetherSX2.ini`. Proto je klidně
+   možné „v nastavení mám Vulkan, a stejně mi jede GL" — a přesně to se
+   stalo v logu z 18. 9.: launcher 3× zkopíroval `NetherSX2_nx_gl.nro`
+   (i když uživatel tvrdí, že první běh byl Vulkan).
+   Build 42 to poprvé rozlišuje: `launcher-diag.log` má řádek
+   `renderer      [renderer-decision] EmuCore/GS/Renderer=<efektivní> (global=<globální>) -> nro=<vk|gl>, GLDriver=<…>`
+   + `game profil <cesta> = <velikost>/CHYBI`, a core log začíná
+   `[CI] emulator nro: VK build (GS_RENDERER=14), NVK_I_WANT_A_BROKEN_VULKAN_DRIVER=1`
+   nebo `GL build (GS_RENDERER=12) — Vulkan v tomhle .nro neni`.
+
 6. **Diagnostika portu zrcadlená do core logu:** v buildech 37/38 se psala na
    `stderr`, jenže na kartě se přesměrovanej stderr do souboru **nepropsal**
    (stdout ano — všechny core logy chodí). Od buildu 39 jde mirror na stdout
