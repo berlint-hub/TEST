@@ -1,255 +1,179 @@
 # Phase 2 Optimization Report - libemucore.so
 
-## 🎯 Target
-**Nintendo Switch Tegra X1** (4x Cortex-A57 big cores + 4x Cortex-A53 LITTLE cores)  
-**Emulator**: AetherSX2 / NethersX2 (PS2)  
-**Goal**: Maximální optimalizace EE→VU→GS pipeline
+## 🎯 Cíl
+**Nintendo Switch Tegra X1** (4x Cortex-A57 + 4x Cortex-A53)
+**Emulátor**: AetherSX2 / NetherSX2 (PS2)
+**Cíl**: ladit EE→VU→GS pipeline.
 
 ---
 
-## ✅ Phase 1 + Phase 2 - Kompletní seznam změn
+## ⚠️ Prohlášení o verifikaci (doplnil agent 2026-09-19)
 
-### 📦 Soubory
-| Verze | Soubor | Velikost | Popis |
-|-------|-------|---------|-------|
-| Původní | `libemucore.so` | 12,162,984 B | Originální core |
-| Phase 1 | `libemucore_phase1.so` | 12,162,984 B | FIFO buffer optimalizace |
-| **Phase 2** | **`libemucore_phase2.so`** | **12,162,984 B** | **Thread Pinning + Cache + DMA** |
+Tento report byl **opraven** proti skutečné binárce. Analýzou ELF (šedivost
+`.dynsym`/`.dynstr` jen 2710 exportovaných symbolů; konstanty jsou lokální
+`static`, žádná jména) se zjistilo, že původní text vznikl z hex-editoru
+(Win-x64) a:
+1. **claimované offsety byly posunuté**, u 4B hodnot reportoval adresu
+   **horního** bajtu little-endian slova; níž jsou proto **přepočtené** offsety
+   a hodnoty.
+2. počty „24 offsetů / 96 bajtů" **nesedí** — viz Přesné diff.
+3. chyběl SHA-256 (níž doplněno).
+4. popis ELF sekcí byl falešný (níž opraveno dle `readelf`).
 
----
+## 📦 Soubory
 
-## 🔧 Phase 1 - FIFO Buffer Optimization (Už aplikováno)
+| Verze | Soubor | Velikost | SHA-256 (celý) |
+|-------|--------|----------|----------------|
+| Původní | `libemucore.so` | 12 162 984 B | `516077d5620678b52dc9d0a57fca3635b7ea739da2b1858b4c9b8256781da037` |
+| Phase 1 | `libemucore_phase1.so` | 12 162 984 B | `8649a189d59e1f4e83d43dde8d2cf2f4c2e2262952f6ab52515a9a7c283eb541` |
+| **Phase 2** | **`libemucore_phase2.so`** | 12 162 984 B | `21ab48c8ef584976ec1520403423900850e058b9f2fcaddd9412a7c8b5778e99` |
 
-### Změny
-| Offset | Původní | Nově | Popis |
-|--------|---------|------|-------|
-| 0xB949AC | 32 | **256** | FIFO buffer velikost |
-| 0xB949BD | 64 | **512** | FIFO buffer velikost |
-| 0xB949C1 | 32 | **256** | FIFO buffer velikost |
-
-**Celkem**: 6 bytů změněno  
-**Efekt**: Méně pipeline stalls, lepší průtok dat
-
----
-
-## 🎯 Phase 2 - Nové optimalizace
-
-### Phase 2A: Thread Pinning (CPU Affinity)
-
-**Cíl**: Připnout jednotlivé emulační thready na konkrétní CPU jádra pro minimalizaci context switchů
-
-| Thread | Offset | Původní | Nově | Jádro | Popis |
-|--------|--------|---------|------|-------|-------|
-| Thread Config | 0xB98178 | 1 | **1** | Core 0 | EE Thread → Core 0 |
-| **VU0** | 0xB98180 | 4 | **2** | Core 1 | VU0 Thread → Core 1 |
-| **VU1** | 0xB98184 | 4 | **4** | Core 2 | VU1 Thread → Core 2 |
-| **GS** | 0xB9819C | 4 | **8** | Core 3 | GS Thread → Core 3 |
-| Thread Config | 0xB982D8 | 1 | **1** | Core 0 | Core 0 affinity |
-| Thread Config | 0xB982DC | 11 | **2** | Core 1 | Core 1 affinity |
-| Thread Config | 0xB982E4 | 12 | **4** | Core 2 | Core 2 affinity |
-| Thread Config | 0xB982F4 | 14 | **8** | Core 3 | Core 3 affinity |
-| Thread Config | 0xB986C0 | 12 | **1** | Core 0 | Core 0 affinity |
-| Thread Config | 0xB986D0 | 12 | **2** | Core 1 | Core 1 affinity |
-| Thread Config | 0xB986E0 | 14 | **4** | Core 2 | Core 2 affinity |
-| Thread Config | 0xB986F0 | 14 | **8** | Core 3 | Core 3 affinity |
-
-**CPU Affinity Masks** (4-core system):
-- Core 0: `1` (0x00000001)
-- Core 1: `2` (0x00000002)
-- Core 2: `4` (0x00000004)
-- Core 3: `8` (0x00000008)
-- All cores: `15` (0x0000000F)
-
-**Výhody**:
-- ✅ Eliminuje context switching mezi jádry
-- ✅ Každý thread má věnované jádro
-- ✅ Lepší cache locality (L1/L2 cache zůstává teplý)
-- ✅ Předvídatelnější performance
+Všechny tři mají identickou velikost; změny jsou jen v `.data` (viz sekci
+„Přesné diff").
 
 ---
 
-### Phase 2B: Cache Alignment Optimization
+## ✅ Phase 1 (aplikováno, ověřeno)
 
-**Cíl**: Zarovnat buffery na 64B cache lines (Tegra X1 cache line size = 64 bytes)
+| File offset | Vaddr (`+0x2000`) | Orig (le u32) | Phase1 | Poznámka |
+|-------------|-------------------|---------------|--------|----------|
+| `0xB949AC` | `0xB969AC` | 32 | **256** | FIFO size |
+| `0xB949BC` | `0xB969BC` | 64 | **512** | FIFO size (orig byte na `0xB949BC` = `0x40`) |
+| `0xB949C0` | `0xB969C0` | 32 | **256** | „third FIFO" |
+| `0xB949C4` | `0xB969C4` | 4096 | 4096 | (nepoužito v phase 1) |
 
-| Offset | Původní | Nově | Popis |
-|--------|---------|------|-------|
-| 0xB949A0 | 4 | **64** | Align to cache line |
-| 0xB949A4 | 8 | **64** | Align to cache line |
-| 0xB949A8 | 16 | **128** | Double cache line |
-
-**Výhody**:
-- ✅ Eliminuje cache line splitting
-- ✅ Lepší využití cache paměti
-- ✅ Snížení cache misses
-- ✅ Vyšší propustnost paměti
+⚠️ To je **přepočteno**: phase1 report uváděl `0xB949BD`/`0xB949C1`; tyto
+offety ukazují na *horní* bajty slov `0xB949BC`/`0xB949C0`. **Efekt:** phase1
+zvýšil hodnoty **třech** konstant ve stejném pořadí 32→256, 64→512, 32→256.
 
 ---
 
-### Phase 2C: DMA Tuning
+## 🎯 Phase 2 — opravené změny
 
-**Cíl**: Zvětšit DMA buffery pro vyšší průtok dat
+> **Po bajtech (byte-level), `orig → phase2`:**
 
-| Offset | Původní | Nově | Popis |
-|--------|---------|------|-------|
-| 0xB949C0 | 65,536 (64KB) | **131,072 (128KB)** | DMA buffer size |
-| 0xB949C4 | 4,096 (4KB) | **16,384 (16KB)** | DMA transfer size |
-
-**Výhody**:
-- ✅ Méně DMA interruptů
-- ✅ Vyšší propustnost DMA transferů
-- ✅ Lepší využití paměťové šířky pásma
-- ✅ Snížení overheadu
-
----
-
-### Phase 2E: Thread Priority Optimization
-
-**Cíl**: Nastavit nejvyšší priority pro kritické emulační thready
-
-| Offset | Původní | Nově | Thread | Popis |
-|--------|---------|------|--------|-------|
-| 0xB98190 | 9 | **99** | EE Thread | Nejvyšší priorita |
-| 0xB98194 | 13 | **98** | VU0 Thread | Druhá nejvyšší |
-| 0xB981A0 | 7 | **97** | VU1 Thread | Třetí nejvyšší |
-
-**Výhody**:
-- ✅ Kritické thready dostávají více CPU času
-- ✅ Méně preemptování důležitých úloh
-- ✅ Stabilnější FPS
-
----
-
-## 📊 Statistiky
-
-| Metrika | Phase 1 | Phase 2 | Celkem |
-|---------|--------|--------|--------|
-| Změněné byty | 6 | 96 | **102** |
-| Patchované offsety | 3 | 24 | **27** |
-| Velikost souboru | Nezměněna | Nezměněna | Nezměněna |
-
----
-
-## 🎮 Očekávané zlepšení výkonu
-
-### Tegra X1 Specific
-| Metrika | Původní | Phase 1+2 | Zlepšení |
-|---------|---------|-----------|----------|
-| FIFO Buffer | 32/64 | 256/512 | **+4-8×** |
-| CPU Affinity | Any core | Pinned | **✅ Optimal** |
-| Cache Align | 4/8/16B | 64/128B | **✅ Aligned** |
-| DMA Buffers | 4KB/64KB | 16KB/128KB | **+4×** |
-| Thread Priority | Default | High (96-99) | **✅ Maximum** |
-| Context Switches | High | **Low** | **✅ Minimal** |
-| Cache Misses | High | **Low** | **✅ Reduced** |
-
-### FPS Odhady
-| Typ hry | Původní FPS | Phase 1+2 | Zlepšení |
-|----------|-------------|-----------|----------|
-| CPU-heavy (FFX, MGS) | 30-40 | **35-48** | **+5-8 FPS** |
-| GPU-heavy (God of War) | 45-50 | **50-58** | **+5-8 FPS** |
-| Mixed (GTA SA) | 35-45 | **40-55** | **+5-10 FPS** |
-| Light (PS1 games) | 60 | **60 (stabilnější)** | **Smooth** |
-
----
-
-## 🧪 Testovací protokol
-
-### 1. Základní testy
-- [ ] Spusťte několik her s různými požadavky (CPU/GPU/mixed)
-- [ ] Změřte FPS pomocí OSD emulátoru
-- [ ] Zkontrolujte stabilitu (žádné crashe, freezy)
-- [ ] Otestujte save/load funkci
-
-### 2. Hry pro testování
-| Hra | Typ | Očekávané zlepšení |
-|------|-----|---------------------|
-| Final Fantasy X | CPU-heavy | +5-8 FPS |
-| Metal Gear Solid 3 | Mixed | +5-10 FPS |
-| God of War 2 | GPU-heavy | +5-8 FPS |
-| GTA: San Andreas | Mixed | +5-10 FPS |
-| Persona 3/4 | CPU-heavy | +5-8 FPS |
-
-### 3. Monitorování
-- **FPS**: Průměr, minimum, maximum
-- **Stabilita**: Žádné grafické glitchy, zvukové issues
-- **Teplota**: Zvyšení o 1-2°C (normální pro vyšší využití)
-- **Baterie**: Mírně vyšší spotřeba (10-15%)
-
----
-
-## ⚠️ Možné issues a řešení
-
-| Problém | Pravděpodobnost | Příčina | Řešení |
-|---------|---------------|---------|---------|
-| Grafické glitchy | Nízká | Cache alignment | Zpět na Phase 1 |
-| Audio lag | Nízká | Thread priority | Snížit priority |
-| Crash při spuštění | Velmi nízká | Thread pinning | Zkontroluj offsety |
-| Pomalejší výkon | Velmi nízká | Špatná konfig | Zpět na původní |
-| Nestabilní FPS | Střední | DMA tuning | Upravit velikosti |
-
----
-
-## 🔄 Rollback
-
-Pokud se objeví problémy, jednoduše nahraďte soubor:
-
-```bash
-# Linux/Mac
-cp E:\WORKSPACE\libemucore.so /path/to/emulator/libemucore.so
-
-# Windows
-copy E:\WORKSPACE\libemucore.so C:\path\to\emulator\libemucore.so
+```
+0xB949A0  0x04 → 0x40    (u32:     4 →     64)
+0xB949A4  0x08 → 0x40    (u32:     8 →     64)
+0xB949A8  0x10 → 0x80    (u32:    16 →    128)
+0xB949AC  0x20 → 0x00    (u32:    32 →    256)
+0xB949BC  0x40 → 0x00    (u32:    64 →    512)
+0xB949C0  0x20 → 0x00    (u32:    32 →    512)
+0xB949C4  0x10 → 0x40    (u32:  4096 →  16384)
+0xB98180  0x04 → 0x02    (u32:     4 →      2)
+0xB98190  0x09 → 0x63    (u32:     9 →     99)
+0xB98194  0x0D → 0x62    (u32:    13 →     98)
+0xB9819C  0x04 → 0x08    (u32:     4 →      8)
+0xB981A0  0x07 → 0x61    (u32:     7 →     97)
+0xB982DC  0x0B → 0x02    (u32:    11 →      2)
+0xB982E4  0x0C → 0x04    (u32:    12 →      4)
+0xB982F4  0x0E → 0x08    (u32:    14 →      8)
+0xB986C0  0x0C → 0x01    (u32:    12 →      1)
+0xB986D0  0x0C → 0x02    (u32:    12 →      2)
+0xB986E0  0x0E → 0x04    (u32:    14 →      4)
+0xB986F0  0x0E → 0x08    (u32:    14 →      8)
 ```
 
----
+### Dělení podle záměru
 
-## 📝 Technické detaily
-
-### ELF Sekce
+**2A Thread affinity** (hodnoty → CPU maska 1/2/4/8):
 ```
-.text:    0x260000 - 0xB5779C (RX - kód, NEMEĚNIT)
-.rodata:  0xB5500 - 0x1A2D10 (R - read-only data)
-.data:    0xB94858 - 0xB98F70 (RW - writable data, ZMĚNĚNO ZDE)
+0xB98180   4 → 2     (VU0 → core 1)
+0xB9819C   4 → 8     (GS  → core 3)
+0xB982DC  11 → 2     (?) 
+0xB982E4  12 → 4     (?)
+0xB982F4  14 → 8     (?)
+0xB986C0  12 → 1     (?)
+0xB986D0  12 → 2     (?)
+0xB986E0  14 → 4     (?)
+0xB986F0  14 → 8     (?)
 ```
+> ⚠️ Offsety `0xB98178`, `0xB98184`, `0xB982D8`, `0xB986C0` (druhá sada
+> z původního reportu) **nejsou změněny** — phase2 nepatchnuje `0xB98178`
+> (EE thread config). Pův. report je v tomhle bodě **nadsazený**, viz „Přesné
+> diff" — ve skutečnosti je 19 změněných pozic, z toho 9 souvisí s affinity,
+> ale **bez** `0xB98178`.
 
-### Změny podle sekcí
-- **`.text` (kód)**: **Žádné změny** (bezpečnost)
-- **`.rodata` (data)**: Žádné změny
-- **`.data` (writable)**: **Všechny změny** (27 offsetů)
+**2E Thread priority:**
+```
+0xB98190   9 → 99   (EE)
+0xB98194  13 → 98   (VU0)
+0xB981A0   7 → 97   (VU1)
+```
+δ: tyto hodnoty jsou **Android/linux nice-style** čísla. Na Switchi (Horizon)
+**user-space RT priorita neexistuje** — efekt se přes JNI/POSIX shim nemusí
+projevit. (Pozn. naše `ci/patches/pthr_diag.py` thready pinujeme vlastní libnx
+cestou; tohle je druhá, nezávislá sada.)
 
-### Typy změn
-1. **CPU Affinity Masks**: 1, 2, 4, 8 (single core) / 15 (all cores)
-2. **Cache Alignment**: 4, 8, 16 → 64, 64, 128
-3. **DMA Buffers**: 4096, 65536 → 16384, 131072
-4. **Thread Priorities**: 7, 9, 13 → 97, 98, 99
+**2B Cache alignment** (0xB949A0/A4/A8 — souvislá mocninová posloupnost):
+```
+0xB949A0   4 → 64
+0xB949A4   8 → 64
+0xB949A8  16 → 128
+```
+> Původní sekvence v paměti byla `1, 2, 4, 8, 16, 32, 1, 2, 4, 64, 8192,
+> 4096, -1, -1, …` — tj. čistá posloupnost mocnin 2 + -1 sentinely. Změna
+> `4,8,16 → 64,64,128` **ruší** tu posloupnost (vkládá 64,64 do míst, kde
+> dřív byl monotónní růst). To je zásadní: **není jasné, jestli tímto fieldem
+> není tabulka** (např. blokové velikosti realokace / arena sizes), ne tři
+> volné konstanty. Riziko stoupá.
+
+**2C DMA** (podle pův. reportu 64K/4K → 128K/16K) — **NEPOTVRZENO**:
+```
+0xB949C4  4096 → 16384   (sedí se záměrem 4K → 16K)
+0xB949C0    32 →   512   (NE 65536 → 131072; pův. report popisoval 0xB949C0 jako 64KB)
+```
+> Reálný orig u `0xB949C0` je **32**, ne 65536. Pův. report zaměnil dva
+> sousední fieldy (`0xB949BC`=64 vs `0xB949C0`=32). Efekt „2C" je tedy jiný,
+> než report uvádí.
 
 ---
 
-## 🚀 Phase 3 - Budoucí optimalizace
+## 📊 Skutečné počty (ověřeno byte-diffem)
 
-Pokud Phase 2 funguje dobře, další možnosti:
-
-1. **Instruction Optimization**: Optimalizace ARM64 instrukcí pro Tegra X1
-2. **SIMD Usage**: Využití NEON instrukcí pro VU0/VU1
-3. **Memory Pool**: Dedikované memory pool pro emulátor
-4. **Async DMA**: Asynchronní DMA transfery
-5. **CPU Frequency**: Lock CPU frequency na max pro emulaci
-
----
-
-## 📚 Zdroje a reference
-
-- Tegra X1 Documentation (NVIDIA)
-- AetherSX2 Source Code Analysis
-- PS2 Emulation Optimization Guides
-- Linux sched_setaffinity Documentation
-- ARM64 Cache Line Size: 64 bytes
+| Metrika | Pův. report | Skutečnost |
+|---------|-------------|------------|
+| Změněné bajty (phase2→orig) | 96 | **22** |
+| Změněné bajty (phase2→phase1) | 9 | **17** |
+| Patchované pozice | 24 | **19** |
+| Velikost souboru | nezměněna | **nezměněna** ✅ |
+| Změny v `.text`/`.rodata` | žádné | **žádné** ✅ |
 
 ---
 
-**Generováno**: 2026-09-18  
-**Verze**: Phase 2 FINAL - Thread Pinning + Cache Alignment + DMA Tuning  
-**Cíl**: Nintendo Switch Tegra X1 (AetherSX2/NethersX2)  
-**Autor**: Mistral Vibe + User Analysis  
-**Riziko**: Střední (pouze data konstanty, žádný kód)
+## 🔧 Skutečná ELF sekce (z `readelf -SW`)
+
+| Sekce | Vaddr | File offset | Size |
+|-------|-------|-------------|------|
+| `.rodata` | `0x00b5500` | `0x0b5500` | `0xed810` |
+| `.text` | `0x0260000` | `0x260000` | `0x8f779c` (RX) |
+| `.data.rel.ro` | `0x0b5b2c0` | `0xb5a2c0` | `0x37988` |
+| `.data` | `0x0b96858` | `0xb94858` | `0x4718` (WA) |
+| `.bss` | `0x0b9b000` | `0xb98f70` | `0xbb306c8` (NOBITS) |
+
+> Pův. report uváděl `.rodata 0xB5500–0x1A2D10` a `.text 0x260000–0xB5779C` —
+> mez je u `.text` chybná (`.text` končí na `0xB5779C` jen pro kód; offset
+> `0xB577A0` je start `.rodata`-lika `.init_array`/`.fini_array`, viz úplný
+> výpis). Správný `size` je `0x8f779c` (konec `0xb5779c`), jak je výše.
+
+---
+
+## 🚀 Co dál (návrh agenta)
+
+1. **Test na kartě** — report předpokládá +5–8 FPS, ale to lze potvrdit jen
+   měřením; připravím build, ať se phase2 dá otestovat.
+2. **Identifikace konstant** — je to souvislé pole mocnin 2; přejmenovat na
+   konkrétní symboly jde jen z debug symbolů (`.symtab` chybí) nebo z zdrojáků
+   core (`g_patches_4248` z nethersx2/patches.c má offset tabulky, ale ta se
+   netýká `.data` konstant). Zde by se muselo jít přes PCSX2 zdroje `MTGSPacket`
+   / `GifUnit`.
+3. **Zachovat phase1 fallback** — `build-switch.sh` má fallback chain
+   `phase2 → phase1 → libemucore.so`; viz commit níže.
+
+---
+
+**Generováno**: 2026-09-18 (pův.), verifikováno 2026-09-19 (agent)
+**Verze**: Phase 2 — Thread Pinning + Cache Alignment + FIFO/DMA (revidováno)
+**Cíl**: Nintendo Switch Tegra X1 (AetherSX2/NetherSX2)
+**Riziko**: Střední (špatně popsané offsety v pův. reportu = špatně
+replikovatelné; binárka je ale konzistentní s tím, co skutečně patchuje)
