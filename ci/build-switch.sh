@@ -199,24 +199,41 @@ fetch_core() {
   local url apk
   mkdir -p "$dir"
   note "▶ stahuji $asset z $repo@$APK_TAG"
-  url=$(curl -s --max-time 60 "https://api.github.com/repos/$repo/releases/tags/$APK_TAG" \
-        | ASSET="$asset" python3 -c '
-import json,os,sys
-d=json.load(sys.stdin)
-want=os.environ["ASSET"]
-for a in d.get("assets",[]):
-    if a["name"]==want:
-        print(a["browser_download_url"]); break
-' 2>>"$WORK/logs/dl.log")
-  if [ -z "$url" ]; then
-    err "asset $asset nenalezen v $repo@$APK_TAG"
-    curl -s --max-time 60 "https://api.github.com/repos/$repo/releases/tags/$APK_TAG" \
-      | python3 -c 'import json,sys; d=json.load(sys.stdin); print("assets:", [a["name"] for a in d.get("assets",[])])' \
-      2>/dev/null | bash "$HERE/annotate.sh" error 1
-    die "asset pro build $build"
-  fi
+  # POZOR: api.github.com nesmí být první krok. Build 48 na něm umřel
+  # (vrátil odpověď bez assetů — "assets: []"), takže build skončil dřív, než
+  # se cokoli zkompilovalo. Kanonická URL releases/download/<tag>/<asset>
+  # vede na CDN přímo a API k tomu nepotřebuje.
   apk="$WORK/$build.apk"
-  curl -sSL --retry 3 --max-time 900 -o "$apk" "$url" 2>>"$WORK/logs/dl.log"
+  url="https://github.com/$repo/releases/download/$APK_TAG/$asset"
+  if curl -fSL --retry 3 --retry-all-errors --max-time 900 -o "$apk" "$url" \
+       2>>"$WORK/logs/dl.log"; then
+    note "✓ $asset staženo přímo (bez API)"
+  else
+    err "přímé stažení selhalo, zkouším API: $repo@$APK_TAG/$asset"
+    curl -sS -f --retry 3 --retry-all-errors --max-time 60 \
+      "https://api.github.com/repos/$repo/releases/tags/$APK_TAG" \
+      > "$WORK/api-$build.json" 2>>"$WORK/logs/dl.log"
+    url=$(ASSET="$asset" python3 - "$WORK/api-$build.json" 2>>"$WORK/logs/dl.log" <<'PYDL'
+import json, os, sys
+try:
+    d = json.load(open(sys.argv[1]))
+except Exception as exc:
+    print("API odpoved nejde precist:", exc, file=sys.stderr)
+    sys.exit(0)
+for a in d.get("assets", []):
+    if a.get("name") == os.environ["ASSET"]:
+        print(a["browser_download_url"])
+        break
+PYDL
+)
+    if [ -z "$url" ]; then
+      err "asset $asset nenalezen v $repo@$APK_TAG"
+      head -c 300 "$WORK/api-$build.json" 2>/dev/null | bash "$HERE/annotate.sh" error 1
+      die "asset pro build $build"
+    fi
+    curl -fSL --retry 3 --retry-all-errors --max-time 900 -o "$apk" "$url" \
+      2>>"$WORK/logs/dl.log"
+  fi
   [ -s "$apk" ] || { err "stažená APK je prázdná"; die "download $build"; }
   stat -c "::notice::APK $build = %s B" "$apk"
 

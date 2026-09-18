@@ -497,3 +497,8 @@ Co je kvůli tomu v buildu 46 nového (vše za běhu vypínatelné markerem na S
   sráží GPU na minimum. Proto ho build 48 vůbec nevolá (viz §9 bod 2) a takty
   se jen čtou. Uživatel má **Ultrahand governor na max**, takže jakýkoli
   zápis z naší strany by byl jednak zbytečný, jednak konflikt.
+17. 16. Dělat z `api.github.com` první krok stahování assetů. Build 48 na tom
+    umřel hned ve stage 4 (API vrátilo odpověď bez assetů → `assets: []` →
+    `die`), ačkoli kód i release byly v pořádku. Kanonická URL
+    `github.com/<repo>/releases/download/<tag>/<asset>` vede na CDN přímo a
+    API k ničemu nepotřebuje; API je teď jen fallback.

@@ -404,3 +404,10 @@ Co je v buildu 48:
 4. **Zápis taktů** zůstává jen jako opt-in přes `ci-clk.conf` a v dokumentaci
    je výslovně řečeno, že s governorem (Ultrahand/sys-clk) se používat nemá.
 
+**Build 48 poprvé spadl ve stage 4** (stahování jader): `api.github.com`
+vrátilo odpověď bez assetů a `fetch_core` na tom `die()`. Kód ani release
+v pořádku nebyly — stažení teď jde primárně přes kanonickou URL
+`github.com/<repo>/releases/download/<tag>/<asset>` (CDN, bez API),
+s `--retry 3 --retry-all-errors` a API jen jako fallback (s výpisem těla
+odpovědi, když selže i to).
+
