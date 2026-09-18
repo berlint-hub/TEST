@@ -1,16 +1,16 @@
---- start hry 1789717748 ---
+--- start hry 1789721741 ---
   priznaky: core=1 emu=1 zdrojaky=1 config=1
-  renderer      [renderer-decision] EmuCore/GS/Renderer=12 (global=14) -> nro=gl, GLDriver=nvc0
+  renderer      [renderer-decision] EmuCore/GS/Renderer=14 (global=14) -> nro=vk, GLDriver=nvc0
   game profil   sdmc:/switch/nethersx2/gamecfg/ps2-5d048644b5e2529532fe.ini = 162 B (klic=ps2-5d048644b5e2529532fe)
   core zdroj    romfs:/cores/emucore_4248.so = 12162984 B
   core cil      sdmc:/switch/nethersx2/cores/libemucore_4248.so = 12162984 B
-  emu zdroj     romfs:/emu/NetherSX2_nx_gl.nro = 7105411 B
-  emu cil       sdmc:/switch/nethersx2/.emu/NetherSX2_nx_gl.nro = 7105411 B
+  emu zdroj     romfs:/emu/NetherSX2_nx_vk.nro = 23088003 B
+  emu cil       sdmc:/switch/nethersx2/.emu/NetherSX2_nx_vk.nro = 23088003 B
   cores dir     sdmc:/switch/nethersx2/cores = 2 polozek
   .emu dir      sdmc:/switch/nethersx2/.emu = 2 polozek
-  volno na karte = 167618 MB
-  emu zdroj     prvnich 32 bajtu: 20 00 00 14 f0 00 00 00 48 4f 4d 45 42 52 45 57 4e 52 4f 30 00 00 00 00 00 e0 6b 00 00 00 00 00  ascii: .......HOMEBREWNRO0......k.....
-  emu cil       prvnich 32 bajtu: 20 00 00 14 f0 00 00 00 48 4f 4d 45 42 52 45 57 4e 52 4f 30 00 00 00 00 00 e0 6b 00 00 00 00 00  ascii: .......HOMEBREWNRO0......k.....
+  volno na karte = 166121 MB
+  emu zdroj     prvnich 32 bajtu: 20 00 00 14 f0 00 00 00 48 4f 4d 45 42 52 45 57 4e 52 4f 30 00 00 00 00 00 c0 5f 01 00 00 00 00  ascii: .......HOMEBREWNRO0......_.....
+  emu cil       prvnich 32 bajtu: 20 00 00 14 f0 00 00 00 48 4f 4d 45 42 52 45 57 4e 52 4f 30 00 00 00 00 00 c0 5f 01 00 00 00 00  ascii: .......HOMEBREWNRO0......_.....
   sonda sdmc:/switch/nethersx2/cores:
     fopen wb    = ok
     fwrite      = 4096 / 4096
@@ -25,19 +25,19 @@
     stat tmp    = 0 size=4096
     rename      = 0
     stat dst    = 0 size=4096
---- start hry 1789717883 ---
+--- start hry 1789721948 ---
   priznaky: core=1 emu=1 zdrojaky=1 config=1
-  renderer      [renderer-decision] EmuCore/GS/Renderer=12 (global=12) -> nro=gl, GLDriver=nvc0
-  game profil   sdmc:/switch/nethersx2/gamecfg/ps2-5d048644b5e2529532fe.ini = 162 B (klic=ps2-5d048644b5e2529532fe)
+  renderer      [renderer-decision] EmuCore/GS/Renderer=14 (global=14) -> nro=vk, GLDriver=nvc0
+  game profil   sdmc:/switch/nethersx2/gamecfg/ps2-ee80a5b0966856ca6b2e.ini = 242 B (klic=ps2-ee80a5b0966856ca6b2e)
   core zdroj    romfs:/cores/emucore_4248.so = 12162984 B
   core cil      sdmc:/switch/nethersx2/cores/libemucore_4248.so = 12162984 B
-  emu zdroj     romfs:/emu/NetherSX2_nx_gl.nro = 7105411 B
-  emu cil       sdmc:/switch/nethersx2/.emu/NetherSX2_nx_gl.nro = 7105411 B
+  emu zdroj     romfs:/emu/NetherSX2_nx_vk.nro = 23088003 B
+  emu cil       sdmc:/switch/nethersx2/.emu/NetherSX2_nx_vk.nro = 23088003 B
   cores dir     sdmc:/switch/nethersx2/cores = 2 polozek
   .emu dir      sdmc:/switch/nethersx2/.emu = 2 polozek
-  volno na karte = 167617 MB
-  emu zdroj     prvnich 32 bajtu: 20 00 00 14 f0 00 00 00 48 4f 4d 45 42 52 45 57 4e 52 4f 30 00 00 00 00 00 e0 6b 00 00 00 00 00  ascii: .......HOMEBREWNRO0......k.....
-  emu cil       prvnich 32 bajtu: 20 00 00 14 f0 00 00 00 48 4f 4d 45 42 52 45 57 4e 52 4f 30 00 00 00 00 00 e0 6b 00 00 00 00 00  ascii: .......HOMEBREWNRO0......k.....
+  volno na karte = 166120 MB
+  emu zdroj     prvnich 32 bajtu: 20 00 00 14 f0 00 00 00 48 4f 4d 45 42 52 45 57 4e 52 4f 30 00 00 00 00 00 c0 5f 01 00 00 00 00  ascii: .......HOMEBREWNRO0......_.....
+  emu cil       prvnich 32 bajtu: 20 00 00 14 f0 00 00 00 48 4f 4d 45 42 52 45 57 4e 52 4f 30 00 00 00 00 00 c0 5f 01 00 00 00 00  ascii: .......HOMEBREWNRO0......_.....
   sonda sdmc:/switch/nethersx2/cores:
     fopen wb    = ok
     fwrite      = 4096 / 4096
@@ -52,19 +52,73 @@
     stat tmp    = 0 size=4096
     rename      = 0
     stat dst    = 0 size=4096
---- start hry 1789718016 ---
+--- start hry 1789722306 ---
   priznaky: core=1 emu=1 zdrojaky=1 config=1
-  renderer      [renderer-decision] EmuCore/GS/Renderer=12 (global=13) -> nro=gl, GLDriver=nvc0
-  game profil   sdmc:/switch/nethersx2/gamecfg/ps2-5d048644b5e2529532fe.ini = 162 B (klic=ps2-5d048644b5e2529532fe)
+  renderer      [renderer-decision] EmuCore/GS/Renderer=14 (global=14) -> nro=vk, GLDriver=nvc0
+  game profil   sdmc:/switch/nethersx2/gamecfg/Fallout_-_Brotherhood_of_Steel__USA_.ini = CHYBI (klic=ps2-ee80a5b0966856ca6b2e) -> plati globalni hodnota
   core zdroj    romfs:/cores/emucore_4248.so = 12162984 B
   core cil      sdmc:/switch/nethersx2/cores/libemucore_4248.so = 12162984 B
-  emu zdroj     romfs:/emu/NetherSX2_nx_gl.nro = 7105411 B
-  emu cil       sdmc:/switch/nethersx2/.emu/NetherSX2_nx_gl.nro = 7105411 B
+  emu zdroj     romfs:/emu/NetherSX2_nx_vk.nro = 23088003 B
+  emu cil       sdmc:/switch/nethersx2/.emu/NetherSX2_nx_vk.nro = 23088003 B
   cores dir     sdmc:/switch/nethersx2/cores = 2 polozek
   .emu dir      sdmc:/switch/nethersx2/.emu = 2 polozek
-  volno na karte = 167617 MB
-  emu zdroj     prvnich 32 bajtu: 20 00 00 14 f0 00 00 00 48 4f 4d 45 42 52 45 57 4e 52 4f 30 00 00 00 00 00 e0 6b 00 00 00 00 00  ascii: .......HOMEBREWNRO0......k.....
-  emu cil       prvnich 32 bajtu: 20 00 00 14 f0 00 00 00 48 4f 4d 45 42 52 45 57 4e 52 4f 30 00 00 00 00 00 e0 6b 00 00 00 00 00  ascii: .......HOMEBREWNRO0......k.....
+  volno na karte = 166118 MB
+  emu zdroj     prvnich 32 bajtu: 20 00 00 14 f0 00 00 00 48 4f 4d 45 42 52 45 57 4e 52 4f 30 00 00 00 00 00 c0 5f 01 00 00 00 00  ascii: .......HOMEBREWNRO0......_.....
+  emu cil       prvnich 32 bajtu: 20 00 00 14 f0 00 00 00 48 4f 4d 45 42 52 45 57 4e 52 4f 30 00 00 00 00 00 c0 5f 01 00 00 00 00  ascii: .......HOMEBREWNRO0......_.....
+  sonda sdmc:/switch/nethersx2/cores:
+    fopen wb    = ok
+    fwrite      = 4096 / 4096
+    fflush=0 fsync=0(File exists) fclose=0
+    stat tmp    = 0 size=4096
+    rename      = 0
+    stat dst    = 0 size=4096
+  sonda sdmc:/switch/nethersx2/.emu:
+    fopen wb    = ok
+    fwrite      = 4096 / 4096
+    fflush=0 fsync=0(File exists) fclose=0
+    stat tmp    = 0 size=4096
+    rename      = 0
+    stat dst    = 0 size=4096
+--- start hry 1789722365 ---
+  priznaky: core=1 emu=1 zdrojaky=1 config=1
+  renderer      [renderer-decision] EmuCore/GS/Renderer=14 (global=14) -> nro=vk, GLDriver=nvc0
+  game profil   sdmc:/switch/nethersx2/gamecfg/Gran_Turismo_3_-_A-Spec__Europe__Australia___En_Fr_De_Es_It___v2_00_.ini = CHYBI (klic=ps2-5d048644b5e2529532fe) -> plati globalni hodnota
+  core zdroj    romfs:/cores/emucore_4248.so = 12162984 B
+  core cil      sdmc:/switch/nethersx2/cores/libemucore_4248.so = 12162984 B
+  emu zdroj     romfs:/emu/NetherSX2_nx_vk.nro = 23088003 B
+  emu cil       sdmc:/switch/nethersx2/.emu/NetherSX2_nx_vk.nro = 23088003 B
+  cores dir     sdmc:/switch/nethersx2/cores = 2 polozek
+  .emu dir      sdmc:/switch/nethersx2/.emu = 2 polozek
+  volno na karte = 166118 MB
+  emu zdroj     prvnich 32 bajtu: 20 00 00 14 f0 00 00 00 48 4f 4d 45 42 52 45 57 4e 52 4f 30 00 00 00 00 00 c0 5f 01 00 00 00 00  ascii: .......HOMEBREWNRO0......_.....
+  emu cil       prvnich 32 bajtu: 20 00 00 14 f0 00 00 00 48 4f 4d 45 42 52 45 57 4e 52 4f 30 00 00 00 00 00 c0 5f 01 00 00 00 00  ascii: .......HOMEBREWNRO0......_.....
+  sonda sdmc:/switch/nethersx2/cores:
+    fopen wb    = ok
+    fwrite      = 4096 / 4096
+    fflush=0 fsync=0(File exists) fclose=0
+    stat tmp    = 0 size=4096
+    rename      = 0
+    stat dst    = 0 size=4096
+  sonda sdmc:/switch/nethersx2/.emu:
+    fopen wb    = ok
+    fwrite      = 4096 / 4096
+    fflush=0 fsync=0(File exists) fclose=0
+    stat tmp    = 0 size=4096
+    rename      = 0
+    stat dst    = 0 size=4096
+--- start hry 1789722478 ---
+  priznaky: core=1 emu=1 zdrojaky=1 config=1
+  renderer      [renderer-decision] EmuCore/GS/Renderer=14 (global=14) -> nro=vk, GLDriver=nvc0
+  game profil   sdmc:/switch/nethersx2/gamecfg/Fallout_-_Brotherhood_of_Steel__USA_.ini = CHYBI (klic=ps2-ee80a5b0966856ca6b2e) -> plati globalni hodnota
+  core zdroj    romfs:/cores/emucore_4248.so = 12162984 B
+  core cil      sdmc:/switch/nethersx2/cores/libemucore_4248.so = 12162984 B
+  emu zdroj     romfs:/emu/NetherSX2_nx_vk.nro = 23088003 B
+  emu cil       sdmc:/switch/nethersx2/.emu/NetherSX2_nx_vk.nro = 23088003 B
+  cores dir     sdmc:/switch/nethersx2/cores = 2 polozek
+  .emu dir      sdmc:/switch/nethersx2/.emu = 2 polozek
+  volno na karte = 166117 MB
+  emu zdroj     prvnich 32 bajtu: 20 00 00 14 f0 00 00 00 48 4f 4d 45 42 52 45 57 4e 52 4f 30 00 00 00 00 00 c0 5f 01 00 00 00 00  ascii: .......HOMEBREWNRO0......_.....
+  emu cil       prvnich 32 bajtu: 20 00 00 14 f0 00 00 00 48 4f 4d 45 42 52 45 57 4e 52 4f 30 00 00 00 00 00 c0 5f 01 00 00 00 00  ascii: .......HOMEBREWNRO0......_.....
   sonda sdmc:/switch/nethersx2/cores:
     fopen wb    = ok
     fwrite      = 4096 / 4096
