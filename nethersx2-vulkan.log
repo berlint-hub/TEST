@@ -1,126 +1,40 @@
 NetherSX2 Vulkan diagnostic 1.3.0
-[1789725837.088] host main entered renderer=14
-[1789725837.094] storage ready disc=/Roms/PS2/Fallout - Brotherhood of Steel (USA).iso
-[1789725837.098] configuration core=/switch/nethersx2/cores/libemucore_4248.so bios_boot=0 fastmem=hybrid lsfg=0
-[1789725837.106] syscalls, input data, and SMC initialized
-[1789725837.110] heap ready mb=2904 so_base=0x49d2a00000 so_limit=268435456 screen=1280x720
-[1789725837.281] core image loaded base=0x49d2a00000 size=208453632
-[1789725837.285] core imports relocated and resolved
-[1789725837.316] core constructors completed
-[1789725837.320] starting core VM sequence
-[1789725839.058] vkCreateInstance begin api=4198400 app=NetherSX2 engine=NetherSX2 extensions=2
-[1789725839.063] instance extension[0]=VK_KHR_surface
-[1789725839.067] instance extension[1]=VK_KHR_android_surface
-[1789725839.072] vkCreateInstance end result=0 instance=0x491dcbc160 lsfg_prepared=0
-[1789725839.532] vkCreateViSurfaceNN window=0x7d0e0f3d78 result=0 surface=0x49485cad40
-[1789725839.539] vkCreateDevice begin physical=0x491dcbe740 queues=1 extensions=6 lsfg_pref=0
-[1789725839.549] vkCreateDevice end result=0 device=0x49495fb040 lsfg_capable=0 family=4294967295
-[1789725839.554] vkGetDeviceQueue family=0 index=0 queue=0x491dcd3be0
-[1789725839.558] vkGetDeviceQueue family=0 index=0 queue=0x491dcd3be0
-[1789725839.572] vkGetDeviceQueue family=0 index=0 queue=0x491dcd3be0
-[1789725839.746] vkCreateSwapchainKHR begin old=0x0 extent=1280x720 format=37 usage=0x10 images=3 mode=0
-[1789725839.754] vkCreateSwapchainKHR end result=0 swapchain=0x494eed66c0 compatible=0 actual_usage=0x10 actual_images=3 actual_mode=0
-[1789725839.758] vkGetSwapchainImagesKHR call=1 fill=0 result=0 count=3
-[1789725839.762] vkGetSwapchainImagesKHR call=2 fill=1 result=0 count=3
-[1789725839.919] core VM sequence returned vm_running=1
-[1789725842.331] vkAcquireNextImageKHR call=1 result=0 image=0 semaphore=0x494ef0fca0 fence=0x0
-[1789725842.336] vkQueueSubmit call=1 count=1 fence=0x49495d8540 result=0
-[1789725842.347] vkQueuePresentKHR enter call=1 waits=1 swaps=1 lsfg=0
-[1789725842.358] vkQueuePresentKHR call=1 swaps=1 result=0
-[1789725842.370] vkAcquireNextImageKHR call=2 result=0 image=1 semaphore=0x494fc889a0 fence=0x0
-[1789725842.561] vkQueueSubmit call=2 count=1 fence=0x49495d8880 result=0
-[1789725842.570] vkQueuePresentKHR enter call=2 waits=1 swaps=1 lsfg=0
-[1789725842.578] vkQueuePresentKHR call=2 swaps=1 result=0
-[1789725842.583] vkAcquireNextImageKHR call=3 result=0 image=2 semaphore=0x494fc88b20 fence=0x0
-[1789725842.592] vkQueueSubmit call=3 count=1 fence=0x49495d8bc0 result=0
-[1789725842.601] vkQueuePresentKHR enter call=3 waits=1 swaps=1 lsfg=0
-[1789725842.607] vkQueuePresentKHR call=3 swaps=1 result=0
-[1789725842.622] vkAcquireNextImageKHR call=4 result=0 image=0 semaphore=0x494ef0fca0 fence=0x0
-[1789725842.628] vkQueuePresentKHR enter call=4 waits=1 swaps=1 lsfg=0
-[1789725842.637] vkQueuePresentKHR call=4 swaps=1 result=0
-[1789725843.348] FPS 36.0 | 27.81 ms/frame | min 2.50 max 223.29 ms | 36 framu | lsfg=0 boost=1 | cpu=0 gpu=0 emc=0 MHz
-[1789725844.361] FPS 42.5 | 23.55 ms/frame | min 2.67 max 286.39 ms | 43 framu | lsfg=0 boost=1 | cpu=0 gpu=0 emc=0 MHz
-[1789725845.384] FPS 50.8 | 19.67 ms/frame | min 14.69 max 66.40 ms | 52 framu | lsfg=0 boost=1 | cpu=0 gpu=0 emc=0 MHz
-[1789725846.396] FPS 54.3 | 18.41 ms/frame | min 1.63 max 71.51 ms | 55 framu | lsfg=0 boost=1 | cpu=0 gpu=0 emc=0 MHz
-[1789725847.397] FPS 59.9 | 16.68 ms/frame | min 4.90 max 33.71 ms | 60 framu | lsfg=0 boost=1 | cpu=0 gpu=0 emc=0 MHz
-[1789725848.398] FPS 59.9 | 16.68 ms/frame | min 16.57 max 16.71 ms | 60 framu | lsfg=0 boost=1 | cpu=0 gpu=0 emc=0 MHz
-[1789725849.410] FPS 55.3 | 18.07 ms/frame | min 3.40 max 54.35 ms | 56 framu | lsfg=0 boost=1 | cpu=0 gpu=0 emc=0 MHz
-[1789725850.417] FPS 61.6 | 16.24 ms/frame | min 3.27 max 28.85 ms | 62 framu | lsfg=0 boost=1 | cpu=0 gpu=0 emc=0 MHz
-[1789725851.418] FPS 59.9 | 16.68 ms/frame | min 15.33 max 18.77 ms | 60 framu | lsfg=0 boost=1 | cpu=0 gpu=0 emc=0 MHz
-[1789725852.419] FPS 59.9 | 16.68 ms/frame | min 14.82 max 18.71 ms | 60 framu | lsfg=0 boost=1 | cpu=0 gpu=0 emc=0 MHz
-[1789725853.420] FPS 59.9 | 16.68 ms/frame | min 15.40 max 18.72 ms | 60 framu | lsfg=0 boost=1 | cpu=0 gpu=0 emc=0 MHz
-[1789725854.421] FPS 59.9 | 16.68 ms/frame | min 15.39 max 18.73 ms | 60 framu | lsfg=0 boost=1 | cpu=0 gpu=0 emc=0 MHz
-[1789725855.422] FPS 59.9 | 16.68 ms/frame | min 8.38 max 27.00 ms | 60 framu | lsfg=0 boost=1 | cpu=0 gpu=0 emc=0 MHz
-[1789725856.423] FPS 59.9 | 16.68 ms/frame | min 15.12 max 18.74 ms | 60 framu | lsfg=0 boost=1 | cpu=0 gpu=0 emc=0 MHz
-[1789725857.424] FPS 59.9 | 16.68 ms/frame | min 15.19 max 18.69 ms | 60 framu | lsfg=0 boost=1 | cpu=0 gpu=0 emc=0 MHz
-[1789725858.425] FPS 59.9 | 16.68 ms/frame | min 15.20 max 18.66 ms | 60 framu | lsfg=0 boost=1 | cpu=0 gpu=0 emc=0 MHz
-[1789725859.426] FPS 59.9 | 16.68 ms/frame | min 15.18 max 18.68 ms | 60 framu | lsfg=0 boost=1 | cpu=0 gpu=0 emc=0 MHz
-[1789725860.427] FPS 59.9 | 16.68 ms/frame | min 15.11 max 18.75 ms | 60 framu | lsfg=0 boost=1 | cpu=0 gpu=0 emc=0 MHz
-[1789725861.428] FPS 59.9 | 16.68 ms/frame | min 15.21 max 18.65 ms | 60 framu | lsfg=0 boost=1 | cpu=0 gpu=0 emc=0 MHz
-[1789725862.429] FPS 59.9 | 16.68 ms/frame | min 15.18 max 18.68 ms | 60 framu | lsfg=0 boost=1 | cpu=0 gpu=0 emc=0 MHz
-[1789725863.430] FPS 59.9 | 16.68 ms/frame | min 15.15 max 18.72 ms | 60 framu | lsfg=0 boost=1 | cpu=0 gpu=0 emc=0 MHz
-[1789725864.431] FPS 59.9 | 16.68 ms/frame | min 15.18 max 18.68 ms | 60 framu | lsfg=0 boost=1 | cpu=0 gpu=0 emc=0 MHz
-[1789725865.432] FPS 59.9 | 16.68 ms/frame | min 15.12 max 18.74 ms | 60 framu | lsfg=0 boost=1 | cpu=0 gpu=0 emc=0 MHz
-[1789725866.433] FPS 59.9 | 16.68 ms/frame | min 16.67 max 16.70 ms | 60 framu | lsfg=0 boost=1 | cpu=0 gpu=0 emc=0 MHz
-[1789725867.434] FPS 59.9 | 16.68 ms/frame | min 7.73 max 24.79 ms | 60 framu | lsfg=0 boost=1 | cpu=0 gpu=0 emc=0 MHz
-[1789725868.435] FPS 59.9 | 16.68 ms/frame | min 16.67 max 16.70 ms | 60 framu | lsfg=0 boost=1 | cpu=0 gpu=0 emc=0 MHz
-[1789725869.436] FPS 59.9 | 16.69 ms/frame | min 12.61 max 19.42 ms | 60 framu | lsfg=0 boost=1 | cpu=0 gpu=0 emc=0 MHz
-[1789725870.437] FPS 59.9 | 16.68 ms/frame | min 13.05 max 20.29 ms | 60 framu | lsfg=0 boost=1 | cpu=0 gpu=0 emc=0 MHz
-[1789725871.438] FPS 59.9 | 16.68 ms/frame | min 7.49 max 25.13 ms | 60 framu | lsfg=0 boost=1 | cpu=0 gpu=0 emc=0 MHz
-[1789725872.445] FPS 59.6 | 16.77 ms/frame | min 10.75 max 22.61 ms | 60 framu | lsfg=0 boost=1 | cpu=0 gpu=0 emc=0 MHz
-[1789725873.457] FPS 60.3 | 16.59 ms/frame | min 7.61 max 24.67 ms | 61 framu | lsfg=0 boost=1 | cpu=0 gpu=0 emc=0 MHz
-[1789725874.458] FPS 59.9 | 16.68 ms/frame | min 16.52 max 16.85 ms | 60 framu | lsfg=0 boost=1 | cpu=0 gpu=0 emc=0 MHz
-[1789725875.459] FPS 59.9 | 16.68 ms/frame | min 14.31 max 19.06 ms | 60 framu | lsfg=0 boost=1 | cpu=0 gpu=0 emc=0 MHz
-[1789725876.460] FPS 59.9 | 16.68 ms/frame | min 11.42 max 23.50 ms | 60 framu | lsfg=0 boost=1 | cpu=0 gpu=0 emc=0 MHz
-[1789725877.461] FPS 59.9 | 16.68 ms/frame | min 14.22 max 19.13 ms | 60 framu | lsfg=0 boost=1 | cpu=0 gpu=0 emc=0 MHz
-[1789725878.462] FPS 59.9 | 16.68 ms/frame | min 16.68 max 16.69 ms | 60 framu | lsfg=0 boost=1 | cpu=0 gpu=0 emc=0 MHz
-[1789725879.463] FPS 59.9 | 16.68 ms/frame | min 16.67 max 16.69 ms | 60 framu | lsfg=0 boost=1 | cpu=0 gpu=0 emc=0 MHz
-[1789725880.464] FPS 59.9 | 16.68 ms/frame | min 4.24 max 24.13 ms | 60 framu | lsfg=0 boost=1 | cpu=0 gpu=0 emc=0 MHz
-[1789725881.465] FPS 59.9 | 16.68 ms/frame | min 7.92 max 24.93 ms | 60 framu | lsfg=0 boost=1 | cpu=0 gpu=0 emc=0 MHz
-[1789725882.466] FPS 59.9 | 16.68 ms/frame | min 10.01 max 23.36 ms | 60 framu | lsfg=0 boost=1 | cpu=0 gpu=0 emc=0 MHz
-[1789725883.467] FPS 59.9 | 16.68 ms/frame | min 9.46 max 23.90 ms | 60 framu | lsfg=0 boost=1 | cpu=0 gpu=0 emc=0 MHz
-[1789725884.468] FPS 59.9 | 16.68 ms/frame | min 9.94 max 23.42 ms | 60 framu | lsfg=0 boost=1 | cpu=0 gpu=0 emc=0 MHz
-[1789725885.469] FPS 59.9 | 16.68 ms/frame | min 8.95 max 24.42 ms | 60 framu | lsfg=0 boost=1 | cpu=0 gpu=0 emc=0 MHz
-[1789725886.470] FPS 59.9 | 16.68 ms/frame | min 10.02 max 23.35 ms | 60 framu | lsfg=0 boost=1 | cpu=0 gpu=0 emc=0 MHz
-[1789725887.471] FPS 59.9 | 16.68 ms/frame | min 9.45 max 23.91 ms | 60 framu | lsfg=0 boost=1 | cpu=0 gpu=0 emc=0 MHz
-[1789725888.472] FPS 59.9 | 16.68 ms/frame | min 10.75 max 22.62 ms | 60 framu | lsfg=0 boost=1 | cpu=0 gpu=0 emc=0 MHz
-[1789725889.473] FPS 59.9 | 16.68 ms/frame | min 9.76 max 23.60 ms | 60 framu | lsfg=0 boost=1 | cpu=0 gpu=0 emc=0 MHz
-[1789725890.474] FPS 59.9 | 16.68 ms/frame | min 10.07 max 23.30 ms | 60 framu | lsfg=0 boost=1 | cpu=0 gpu=0 emc=0 MHz
-[1789725891.474] FPS 59.9 | 16.68 ms/frame | min 9.99 max 23.37 ms | 60 framu | lsfg=0 boost=1 | cpu=0 gpu=0 emc=0 MHz
-[1789725892.476] FPS 59.9 | 16.68 ms/frame | min 9.77 max 23.59 ms | 60 framu | lsfg=0 boost=1 | cpu=0 gpu=0 emc=0 MHz
-[1789725893.477] FPS 59.9 | 16.68 ms/frame | min 9.55 max 23.82 ms | 60 framu | lsfg=0 boost=1 | cpu=0 gpu=0 emc=0 MHz
-[1789725894.478] FPS 59.9 | 16.68 ms/frame | min 7.67 max 25.70 ms | 60 framu | lsfg=0 boost=1 | cpu=0 gpu=0 emc=0 MHz
-[1789725895.479] FPS 59.9 | 16.68 ms/frame | min 9.73 max 23.63 ms | 60 framu | lsfg=0 boost=1 | cpu=0 gpu=0 emc=0 MHz
-[1789725896.480] FPS 59.9 | 16.68 ms/frame | min 2.95 max 23.13 ms | 60 framu | lsfg=0 boost=1 | cpu=0 gpu=0 emc=0 MHz
-[1789725897.481] FPS 59.9 | 16.68 ms/frame | min 10.04 max 23.33 ms | 60 framu | lsfg=0 boost=1 | cpu=0 gpu=0 emc=0 MHz
-[1789725898.482] FPS 59.9 | 16.68 ms/frame | min 16.52 max 16.85 ms | 60 framu | lsfg=0 boost=1 | cpu=0 gpu=0 emc=0 MHz
-[1789725899.518] FPS 43.4 | 23.03 ms/frame | min 10.09 max 55.25 ms | 45 framu | lsfg=0 boost=1 | cpu=0 gpu=0 emc=0 MHz
-[1789725900.534] FPS 58.1 | 17.22 ms/frame | min 4.25 max 23.46 ms | 59 framu | lsfg=0 boost=1 | cpu=0 gpu=0 emc=0 MHz
-[1789725901.537] FPS 31.9 | 31.36 ms/frame | min 8.77 max 64.02 ms | 32 framu | lsfg=0 boost=1 | cpu=0 gpu=0 emc=0 MHz
-[1789725902.557] FPS 28.4 | 35.16 ms/frame | min 8.86 max 62.56 ms | 29 framu | lsfg=0 boost=1 | cpu=0 gpu=0 emc=0 MHz
-[1789725903.602] FPS 27.8 | 36.03 ms/frame | min 8.97 max 61.24 ms | 29 framu | lsfg=0 boost=1 | cpu=0 gpu=0 emc=0 MHz
-[1789725904.630] FPS 29.2 | 34.29 ms/frame | min 8.08 max 61.64 ms | 30 framu | lsfg=0 boost=1 | cpu=0 gpu=0 emc=0 MHz
-[1789725905.639] FPS 45.6 | 21.92 ms/frame | min 5.02 max 67.00 ms | 46 framu | lsfg=0 boost=1 | cpu=0 gpu=0 emc=0 MHz
-[1789725906.640] FPS 59.9 | 16.68 ms/frame | min 16.67 max 16.70 ms | 60 framu | lsfg=0 boost=1 | cpu=0 gpu=0 emc=0 MHz
-[1789725907.641] FPS 59.9 | 16.68 ms/frame | min 16.67 max 16.70 ms | 60 framu | lsfg=0 boost=1 | cpu=0 gpu=0 emc=0 MHz
-[1789725908.642] FPS 54.9 | 18.20 ms/frame | min 1.04 max 16.73 ms | 55 framu | lsfg=0 boost=1 | cpu=0 gpu=0 emc=0 MHz
-[1789725909.643] FPS 59.9 | 16.68 ms/frame | min 15.89 max 17.43 ms | 60 framu | lsfg=0 boost=1 | cpu=0 gpu=0 emc=0 MHz
-[1789725910.644] FPS 59.9 | 16.68 ms/frame | min 15.93 max 17.43 ms | 60 framu | lsfg=0 boost=1 | cpu=0 gpu=0 emc=0 MHz
-[1789725911.645] FPS 59.9 | 16.68 ms/frame | min 15.82 max 17.54 ms | 60 framu | lsfg=0 boost=1 | cpu=0 gpu=0 emc=0 MHz
-[1789725912.646] FPS 59.9 | 16.68 ms/frame | min 15.90 max 17.47 ms | 60 framu | lsfg=0 boost=1 | cpu=0 gpu=0 emc=0 MHz
-[1789725913.647] FPS 59.9 | 16.68 ms/frame | min 16.31 max 17.03 ms | 60 framu | lsfg=0 boost=1 | cpu=0 gpu=0 emc=0 MHz
-[1789725914.648] FPS 59.9 | 16.68 ms/frame | min 8.80 max 24.55 ms | 60 framu | lsfg=0 boost=1 | cpu=0 gpu=0 emc=0 MHz
-[1789725915.655] FPS 52.6 | 19.01 ms/frame | min 0.48 max 151.03 ms | 53 framu | lsfg=0 boost=1 | cpu=0 gpu=0 emc=0 MHz
-[1789725916.666] FPS 60.3 | 16.58 ms/frame | min 4.40 max 43.81 ms | 61 framu | lsfg=0 boost=1 | cpu=0 gpu=0 emc=0 MHz
-[1789725917.667] FPS 59.9 | 16.68 ms/frame | min 16.67 max 16.70 ms | 60 framu | lsfg=0 boost=1 | cpu=0 gpu=0 emc=0 MHz
-[1789725918.668] FPS 59.9 | 16.68 ms/frame | min 16.67 max 16.70 ms | 60 framu | lsfg=0 boost=1 | cpu=0 gpu=0 emc=0 MHz
-[1789725919.669] FPS 59.9 | 16.68 ms/frame | min 16.67 max 16.70 ms | 60 framu | lsfg=0 boost=1 | cpu=0 gpu=0 emc=0 MHz
-[1789725920.672] FPS 52.9 | 18.92 ms/frame | min 0.20 max 96.68 ms | 53 framu | lsfg=0 boost=1 | cpu=0 gpu=0 emc=0 MHz
-[1789725921.672] FPS 45.0 | 22.22 ms/frame | min 16.66 max 33.35 ms | 45 framu | lsfg=0 boost=1 | cpu=0 gpu=0 emc=0 MHz
-[1789725922.689] FPS 44.3 | 22.59 ms/frame | min 16.66 max 33.34 ms | 45 framu | lsfg=0 boost=1 | cpu=0 gpu=0 emc=0 MHz
-[1789725923.705] FPS 43.3 | 23.11 ms/frame | min 16.66 max 33.34 ms | 44 framu | lsfg=0 boost=1 | cpu=0 gpu=0 emc=0 MHz
-[1789725924.705] FPS 42.0 | 23.81 ms/frame | min 16.66 max 33.34 ms | 42 framu | lsfg=0 boost=1 | cpu=0 gpu=0 emc=0 MHz
-[1789725925.722] FPS 41.3 | 24.21 ms/frame | min 16.66 max 33.34 ms | 42 framu | lsfg=0 boost=1 | cpu=0 gpu=0 emc=0 MHz
-[1789725926.722] FPS 41.0 | 24.39 ms/frame | min 16.66 max 33.34 ms | 41 framu | lsfg=0 boost=1 | cpu=0 gpu=0 emc=0 MHz
-[1789725927.722] FPS 41.0 | 24.39 ms/frame | min 16.66 max 33.34 ms | 41 framu | lsfg=0 boost=1 | cpu=0 gpu=0 emc=0 MHz
-[1789725928.739] FPS 41.3 | 24.20 ms/frame | min 16.66 max 33.34 ms | 42 framu | lsfg=0 boost=1 | cpu=0 gpu=0 emc=0 MHz
+[1789729758.089] host main entered renderer=14
+[1789729758.097] storage ready disc=/Roms/PS2/Fallout - Brotherhood of Steel (USA).iso
+[1789729758.102] configuration core=/switch/nethersx2/cores/libemucore_4248.so bios_boot=0 fastmem=hybrid lsfg=0
+[1789729758.113] syscalls, input data, and SMC initialized
+[1789729758.117] heap ready mb=2904 so_base=0x2109a00000 so_limit=268435456 screen=1280x720
+[1789729758.306] core image loaded base=0x2109a00000 size=208453632
+[1789729758.312] core imports relocated and resolved
+[1789729758.383] core constructors completed
+[1789729758.388] starting core VM sequence
+[1789729760.311] vkCreateInstance begin api=4198400 app=NetherSX2 engine=NetherSX2 extensions=2
+[1789729760.315] instance extension[0]=VK_KHR_surface
+[1789729760.320] instance extension[1]=VK_KHR_android_surface
+[1789729760.325] vkCreateInstance end result=0 instance=0x2054cbe160 lsfg_prepared=0
+[1789729761.001] vkCreateViSurfaceNN window=0x4229ba1db8 result=0 surface=0x207f5ccd40
+[1789729761.008] vkCreateDevice begin physical=0x2054cc0740 queues=1 extensions=6 lsfg_pref=0
+[1789729761.019] vkCreateDevice end result=0 device=0x20805fd040 lsfg_capable=0 family=4294967295
+[1789729761.024] vkGetDeviceQueue family=0 index=0 queue=0x2054cd5dc0
+[1789729761.028] vkGetDeviceQueue family=0 index=0 queue=0x2054cd5dc0
+[1789729761.043] vkGetDeviceQueue family=0 index=0 queue=0x2054cd5dc0
+[1789729761.215] vkCreateSwapchainKHR begin old=0x0 extent=1280x720 format=37 usage=0x10 images=3 mode=0
+[1789729761.222] vkCreateSwapchainKHR end result=0 swapchain=0x2085ed86c0 compatible=0 actual_usage=0x10 actual_images=3 actual_mode=0
+[1789729761.226] vkGetSwapchainImagesKHR call=1 fill=0 result=0 count=3
+[1789729761.230] vkGetSwapchainImagesKHR call=2 fill=1 result=0 count=3
+[1789729761.388] core VM sequence returned vm_running=1
+[1789729763.767] vkAcquireNextImageKHR call=1 result=0 image=0 semaphore=0x2086c8a9c0 fence=0x0
+[1789729763.775] vkQueueSubmit call=1 count=1 fence=0x2080604f20 result=0
+[1789729763.784] vkQueuePresentKHR enter call=1 waits=1 swaps=1 lsfg=0
+[1789729763.794] vkQueuePresentKHR call=1 swaps=1 result=0
+[1789729763.806] vkAcquireNextImageKHR call=2 result=0 image=1 semaphore=0x2086c8ab40 fence=0x0
+[1789729764.011] vkQueueSubmit call=2 count=1 fence=0x20805da8e0 result=0
+[1789729764.016] vkQueuePresentKHR enter call=2 waits=1 swaps=1 lsfg=0
+[1789729764.025] vkQueuePresentKHR call=2 swaps=1 result=0
+[1789729764.035] vkAcquireNextImageKHR call=3 result=0 image=2 semaphore=0x2086c8acc0 fence=0x0
+[1789729764.039] vkQueueSubmit call=3 count=1 fence=0x20805dac20 result=0
+[1789729764.050] vkQueuePresentKHR enter call=3 waits=1 swaps=1 lsfg=0
+[1789729764.061] vkQueuePresentKHR call=3 swaps=1 result=0
+[1789729764.069] vkAcquireNextImageKHR call=4 result=0 image=0 semaphore=0x2086c8a9c0 fence=0x0
+[1789729764.080] vkQueuePresentKHR enter call=4 waits=1 swaps=1 lsfg=0
+[1789729764.091] vkQueuePresentKHR call=4 swaps=1 result=0
