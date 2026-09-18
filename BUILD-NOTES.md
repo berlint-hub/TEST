@@ -832,3 +832,31 @@ uživatel chce. Takty řídí výhradně Ultrahand governor.
   Ověřeno greppem přes celý upstream port (`source/` i `launcher/source/`):
   `CpuBoostMode` se vyskytuje jen na těch šesti řádcích, které tenhle patch
   zakomentuje.
+
+### CI: ZELENO (ověřeno)
+
+Run **`35367770625`**, commit `dabbb7f`, `status=completed / conclusion=success`
+(job `NetherSX2.nro (GL + VK)` success, `mesa` skipped, `publikuj VK bundle`
+success). Release `nro-latest` = **„NetherSX2.nro (binarka build 57, run 60,
+Vulkan)"**, publikováno 2026-09-18T16:21:19Z, **71 598 215 B**,
+`sha256=8d44f3f4e9106ef6`, vnitřní `NetherSX2_nx_vk.nro` = 23 104 387 B.
+
+Anotace jobu (endpoint `check-runs/105674307145/annotations`, 23 položek =
+21 notice + 2 warning, **0 error**) potvrzují:
+
+* `launcher: appletSetCpuBoostMode zakomentovano (GPU neshazuje FastLoad)` —
+  nový patch prošel a post-grep nenašel aktivní volání (jinak by `die`
+  shodilo build),
+* `util.c: CPU boost vynechan (takty ridi sysmodul)`,
+* `ci-build.txt=57 (NSX_CI_BUILD, jde do nazvu release)`,
+* `VERDICT: OK NetherSX2.nro | log 5967 B`,
+* `nro=71598215`, `vk=23104387`, `upstream=f084dc1`.
+
+Velikost balíku je stejná jako u buildu 56 (71 598 215 B), ale `sha256` se
+liší (`8d44f3f4…` vs `a4af3b11…`) — změna je v launcheru uvnitř romfs,
+`NetherSX2_nx_vk.nro` samotné má shodnou velikost. **Rozlišuj buildy podle
+`sha256`, nikdy podle velikosti.**
+
+Co zbývá ověřit na kartě: jestli GPU po spuštění appky a hry zůstane na
+Ultrahand governoru (1400 MHz) místo na minimu, a jak to dopadne na FPS GT3
+(dosud 38,7–45,5 medianu podle oken).

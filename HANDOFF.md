@@ -8,10 +8,10 @@ během**, ne domněnka; kde se pochybuje, je to napsané.
 > **`VU-GS-OPTIMALIZACE.md`** (zadání, změřené FPS podle taktů, rozložení
 > threadů, hypotézy v pořadí, jak měřit). Tenhle HANDOFF pak čti jako
 > referenci — hlavně §8 (pasti), §9–§11 (výkon a takty).
-> Poslední build: **56** (`nro-latest`; build 51 = 71 594 119 B,
-> sha256 `9c719e25cb27b374`). Build 52 = pátrání po pádu při přehazování
-> = forenzní log; build 55 = výkon (thready na vlastní jádra + identita
-> threadů, §0c); **build 56 = sledování taktů celé venku (§0b)**.
+> Poslední build: **57** (`nro-latest`, run `35367770625` zelený, sha256 `8d44f3f4e9106ef6`). Build 52 = pátrání po pádu při přehazování
+> threadů, §0c); build 55 = výkon (thready na vlastní jádra + identita
+> threadů, §0c); **build 56 = sledování taktů celé venku (§0b)**;
+> **build 57 = CPU boost pryč i z launcheru (§0b) — GPU už nikdo neshazuje**.
 
 Cíl uživatele: reproducible CI, který vyrobí `.nro` s funkčním Vulkan
 rendererem, plus zpětná vazba z logů na kartě. Historie: build 37/38 našel
@@ -229,7 +229,7 @@ Stručně, co je hotové a co ne:
 | branch session | `arena/01a0b2a1-test` (nikdy nepushovat jinam; stará `arena/01a0aad9-test` už na remote není) |
 | poslední pushnutý commit | 204d405 docs: build 51 v tabulce (boost pryc, takty jen ke cteni) (a starší: build 51, log-analyzer, VU-GS plán) |
 | rolling release URL | `https://github.com/berlint-hub/TEST/releases/download/nro-latest/NetherSX2.nro` |
-| aktuální build | **56** (binárka; `NSX_CI_BUILD=56` v `ci/patches/ci_core_log.c`). Poslední úspěšný run **`35365370155`** (commit `5a8eb9c`, 2026-09-18 15:57 UTC): `NetherSX2.nro` = **71 598 215 B**, `sha256=a4af3b111c685e28`, uvnitř `NetherSX2_nx_vk.nro` = 23 104 387 B, upstream `f084dc1`, Mesa SDK z runu (job `mesa` skipped → běh ~2 min). Release se jmenuje **„binarka build 56, run 59"** — číslo binárky jde z `out/ci-build.txt`, run number je až druhé. **Sledování taktů je venku** (§0b), proto je `NetherSX2_nx_vk.nro` o 4 096 B menší než v buildu 55 (23 108 483 B). Binárku na kartě poznáš podle `[CI] session start build=56`. Předchozí: 55 = 71 602 311 B (`sha256` `ec0880d0488379e8` / `15256d1c0ed0142e` / `1ef0d66c85a3d7b0` / `48b2889875e2145f` — čtyři běhy, stejná velikost, různé otisky: build není bitově deterministický, **rozlišuj podle `sha256`**), 54 = 71 598 215 B (run `35348818842`; stejná velikost jako 56, jiný obsah!), 51 = 71 594 119 B, `sha256=9c719e25cb27b374` |
+| aktuální build | **57** (binárka; `NSX_CI_BUILD=57` v `ci/patches/ci_core_log.c`). Poslední úspěšný run **`35367770625`** (commit `dabbb7f`, 2026-09-18 16:19–16:21 UTC): `NetherSX2.nro` = **71 598 215 B**, `sha256=8d44f3f4e9106ef6`, uvnitř `NetherSX2_nx_vk.nro` = 23 104 387 B (identická velikost jako v 56 — měnil se jen launcher v romfs), upstream `f084dc1`, Mesa SDK z runu (job `mesa` skipped → běh ~2 min). Release se jmenuje „**binarka build 57, run 60, Vulkan**“. Anotace jobu potvrzují `launcher: appletSetCpuBoostMode zakomentovano (GPU neshazuje FastLoad)`, `util.c: CPU boost vynechan`, `ci-build.txt=57`, `VERDICT: OK`, 0 error anotací (21 notice + 2 warning). Binárku na kartě poznáš podle `[CI] session start build=57`. Předchozí: 56 = 71 598 215 B (`sha256` `a4af3b111c685e28`, run `35365370155`; stejné B jako 54 i 57 — **rozlišuj podle `sha256`**), 55 = 71 602 311 B (`sha256` `48b2889875e2145f` a 3 další běhy — build není bitově deterministický), 51 = 71 594 119 B, `sha256=9c719e25cb27b374` |
 | v balíku | build 43: jen `NetherSX2_nx_vk.nro` **23 088 003 B** (LTO + cache v loaderu; build 42 měl 23 124 867 B). GL binárka se nestaví (`VK_ONLY=1`) — zpět ji vrátíš přepnutím `VK_ONLY: 0` v `mesa-vk.yml`; kód i GL FPS měřidlo zůstávají |
 | pozor na velikosti | buildy 34–37 maj **identickou** velikost (stránkový zarovnání segmentů) — rozlišuj podle `sha256` (35 = `b3a06739…`, 36 = `f6ea45cb…`, 37 = `c2d6aa7d…`). Build 38 povyrostl na 78 724 195 B, protože se konečně zkompilovala diagnostika |
 | generovaný loader | 766 forwarderů, `libnsxvkloader.a` = 554 390 B |
