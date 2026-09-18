@@ -377,3 +377,30 @@ Navíc: patchery `ci_core_log.c` a `vk.c` už nejsou heredocy v
 `build-switch.sh`, ale soubory v `ci/patches/` — v Python řetězcích se
 pletla zpětná lomítka a build 45 kvůli tomu spadl (`stray '\' in program`).
 
+---
+
+## Build 48 — CPU boost je pryč (ať si takty řídí governor)
+
+Uživatel: *„Dej ten clock boost pryč, shazuje mi to systém, a navíc používám
+Ultrahand, co má svůj governor na takty, který mám nastaven na max."*
+
+Přesně proto: port volal `appletSetCpuBoostMode(FastLoad)` a `FastLoad` podle
+libnx znamená „Boost CPU. **Additionally, throttle GPU to minimum**" — CPU
+1785 MHz a GPU 76 MHz. Dva pány na takty (emulátor a governor) se perou;
+uživateli to shazovalo systém.
+
+Co je v buildu 48:
+
+1. **`ci/patches/util_no_boost.py`** vyprázdnil `cpu_boost()` v `source/util.c`
+   — je to **jediné** místo v celém portu, kde se takty nastavují (ověřeno
+   i GitHub code searchem: `CpuBoostMode` je jen v `util.c`). Tím zmizely
+   všechny `appletSetCpuBoostMode` volání: žádný boost na startu, žádné
+   shazování po 60 framech.
+2. **Žádné markery keep-boost už nejsou** (`ci-keepboost.enabled`,
+   `ci-noboost.enabled` i celý `NSX_KEEP_BOOST` blok v log modulu jsou pryč).
+3. **FPS řádka** už nenese `boost=`: `FPS 31.6 | 31.65 ms/frame | min … max …
+   ms | N framu | lsfg=0 | cpu=1785 gpu=460 emc=1600 MHz` — takty jsou jen
+   ke čtení, takže je vidět, co reálně drží systém.
+4. **Zápis taktů** zůstává jen jako opt-in přes `ci-clk.conf` a v dokumentaci
+   je výslovně řečeno, že s governorem (Ultrahand/sys-clk) se používat nemá.
+

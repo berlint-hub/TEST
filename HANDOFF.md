@@ -428,19 +428,20 @@ Co je kvůli tomu v buildu 46 nového (vše za běhu vypínatelné markerem na S
    `ci-rawlog.enabled` (úplně bez dedupu) nebo smazat `ci-logging.enabled`.
    **Pozor:** naše vlastní řádky (`[VK]`, `[GL]`, `[CI]`, `[nsx-vk]`) dedup
    obchází a flushe hned — nesmí zmizet FPS měřidlo.
-2. **`NSX_KEEP_BOOST` — POZOR, default je teď „nedržet".** Port si po
-   **60 framech** (≈2 s) sám shodí `FastLoad` boost (`source/main.c` ~2053)
-   a to je dobře, protože podle libnx `ApmCpuBoostMode_FastLoad` znamená
-   „Boost CPU. **Additionally, throttle GPU to minimum**" — tedy CPU 1785
-   a GPU 76 MHz. Build 46 boost držel celou hru, uživatel na kartě videl
-   „GPU na minimu" a GT3 spadl z 31,6 na 29,1 FPS (medián). Držení je proto
-   opt-in: marker `ci-keepboost.enabled` (a NSX_CLK k tomu vrátí GPU na
-   normální takt). FPS řádka hlásí `boost=0/1`.
-3. **FPS řádka s takty** (build 46 má `clkrst` API, ověřeno compile probem
-   v CI): `FPS 31.6 | 31.65 ms/frame | min … max … ms | N framu | lsfg=0
-   boost=1 | cpu=1785 gpu=768 emc=1600 MHz`. Když se `cpu` nehýbe z 1020, boost
-   nefunguje; když je CPU na 1785 a FPS stojí, je bottleneck jinde než v CPU.
-   `min`/`max` ms ukazují stutter.
+2. **CPU boost je úplně vypnutý (build 48).** Port volal
+   `appletSetCpuBoostMode(FastLoad)` na startu a po 60 framech `Normal`.
+   FastLoad podle libnx znamená „Boost CPU. **Additionally, throttle GPU to
+   minimum**" = CPU 1785 + **GPU 76 MHz**; uživatel na kartě videl „GPU na
+   minimu" a GT3 spadlo z 31,6 na 29,1 FPS. Navíc mu to shazovalo systém:
+   **má Ultrahand s vlastním governorem taktů na max** a boost se s ním
+   pere. `ci/patches/util_no_boost.py` proto `cpu_boost()` vyprázdnil (je to
+   jediné místo v portu, kde se takty nastavují — ověřeno code searchem).
+   Do taktů se nešahá; jen se čtou.
+3. **FPS řádka s takty** (od buildu 48): `FPS 31.6 | 31.65 ms/frame | min …
+   max … ms | N framu | lsfg=0 | cpu=1785 gpu=768 emc=1600 MHz`. Takty hlásí,
+   co reálně drží systém (u uživatele governor z Ultrahandu na max) — když
+   CPU stojí na 1785 a FPS stojí, je bottleneck jinde než v CPU. `min`/`max`
+   ms ukazují stutter.
 4. **Rozložení threadů na jádra** (`PTHRDIAG`, jen diagnostika):
    `[CI] cores: mask=0x… -> hot=0x… ee=N work=a,b bg=c`, pak řádek za každý
    emulační thread (`[CI] thread EE/VM -> core=N (vyhrazene)`, `[CI] thread #k
@@ -486,9 +487,13 @@ Co je kvůli tomu v buildu 46 nového (vše za běhu vypínatelné markerem na S
   `cpu=1785 gpu=460 emc=1600` (MHz, co tam není se nechá být). Aplikuje se
   jednou na startu emulace, každý zápis se loguje (před/po + Result).
   Okno/handheld: GPU 460 je strop handheldu, 768 oficiální docked.
+  **Když má uživatel vlastní governor taktů (Ultrahand / sys-clk), tenhle
+  marker nepoužívat** — dva pány na takty se perou. Uživatel ho na kartě
+  nemá a mít nemá.
 * **Režim APM** se taky loguje (`[CI] apm: mode=… handheld=0x… docked=0x…`):
   `0x9222000A` (handheld) / `0x92220009` (docked) = FastLoad, tj. CPU nahoru
   a GPU na minimum. Když to v logu je, boost je aktivní.
 * **Známá past:** `appletSetCpuBoostMode(FastLoad)` NENÍ jen „CPU nahoru" —
-  sráží GPU. Chceš-li CPU 1785 *a* rozumnou GPU, drž FastLoad a přepiš GPU
-  přes `ci-clk.conf` (přesně to dělá `ci-keepboost.enabled` + NSX_CLK).
+  sráží GPU na minimum. Proto ho build 48 vůbec nevolá (viz §9 bod 2) a takty
+  se jen čtou. Uživatel má **Ultrahand governor na max**, takže jakýkoli
+  zápis z naší strany by byl jednak zbytečný, jednak konflikt.

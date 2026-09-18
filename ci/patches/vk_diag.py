@@ -89,17 +89,15 @@ fps_patch = fps_anchor + r"""#ifdef NETHERSX2_VK_DIAGNOSTIC
        * soubor nebyl. */
       extern void ci_clk_boot(void) __attribute__((weak));
       extern int ci_clk_read(unsigned *, unsigned *, unsigned *) __attribute__((weak));
-      extern int ci_get_cpu_boost_state(void) __attribute__((weak));
       unsigned nsx_cpu = 0, nsx_gpu = 0, nsx_emc = 0;
       if (ci_clk_boot) ci_clk_boot();
       if (ci_clk_read) ci_clk_read(&nsx_cpu, &nsx_gpu, &nsx_emc);
       vk_diag_note("FPS %.1f | %.2f ms/frame | min %.2f max %.2f ms | %u framu"
-                   " | lsfg=%d boost=%d | cpu=%u gpu=%u emc=%u MHz",
+                   " | lsfg=%d | cpu=%u gpu=%u emc=%u MHz",
                    (double)nsx_fps_window_frames / nsx_secs,
                    nsx_secs * 1000.0 / (double)nsx_fps_window_frames,
                    nsx_fps_window_min / 1e6, nsx_fps_window_max / 1e6,
                    nsx_fps_window_frames, vk_lsfg_is_enabled(),
-                   ci_get_cpu_boost_state ? ci_get_cpu_boost_state() : -1,
                    nsx_cpu, nsx_gpu, nsx_emc);
       nsx_fps_window_start = nsx_now;
       nsx_fps_window_min = 0;

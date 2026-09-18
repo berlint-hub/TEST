@@ -21,8 +21,6 @@
 #define CI_LOG_PATH  "/switch/nethersx2/nethersx2-core.log"
 #define CI_MARK_PATH "/switch/nethersx2/ci-logging.enabled"
 #define CI_RAWLOG_MARK   "/switch/nethersx2/ci-rawlog.enabled"
-#define CI_KEEPBOOST_MARK "/switch/nethersx2/ci-keepboost.enabled"
-#define CI_NOBOOST_MARK   "/switch/nethersx2/ci-noboost.enabled"
 #define CI_CLK_CONF  "/switch/nethersx2/ci-clk.conf"
 
 /* libnx pojmenovává režimy takhle: ApmPerformanceMode_Invalid/Normal/Boost
@@ -32,9 +30,6 @@
 #define CI_APM_HANDHELD  ((ApmPerformanceMode)0)
 #define CI_APM_DOCKED    ((ApmPerformanceMode)1)
 #define CI_OPMODE_DOCKED ((AppletOperationMode)1)
-
-/* definováno níž (NSX_KEEP_BOOST); ci_on() se na to ptá hned na startu */
-int ci_keep_cpu_boost(void);
 
 static int ci_enabled = -1;
 
@@ -74,12 +69,12 @@ static int ci_on(void) {
         else
           fprintf(stdout, "[CI] stderr smerovan do core logu: SELHAL (errno=%d)\n",
                   stderr_err);
-        /* FastLoad boost sráží GPU na minimum (viz NSX_CLK níž) — čí je to
-         * rozhodnutí, musí být vidět hned na začátku logu. */
-        fprintf(stdout, "[CI] cpu boost: %s\n",
-                ci_keep_cpu_boost() ?
-                  "drzeny (FastLoad; GPU jinak spadne na minimum — NSX_CLK ji vraci)" :
-                  "upstream (po 60 framech se shodi, GPU zustane normalni)");
+        /* Takhle se to musí poznat z logu jedním pohledem: taktům se
+         * nešahá (util.c má vypnutý CPU boost), jen se čtou. */
+        fprintf(stdout, "[CI] boost: NEPOUZIVAME (appletSetCpuBoostMode je "
+                        "vynechany ve util.c; takty ridi sysmodul/governor)\n");
+        fprintf(stdout, "[CI] takty: jen cteni; zapis jedine kdyz na karte "
+                        "existuje ci-clk.conf\n");
       }
     }
   }
@@ -229,32 +224,17 @@ static void ci_emit(const char *line) {
   ci_maybe_flush();
 }
 
-/* ---- NSX_KEEP_BOOST ------------------------------------------------------
- * Port pouští CPU boost (ApmCpuBoostMode_FastLoad) na startu a po 60
- * prezentovaných framech ho shodí. Držet ho ale NENÍ zadarmo: podle libnx
- * FastLoad znamená „Boost CPU. Additionally, throttle GPU to minimum" —
- * uživatel na kartě (build 46) opravdu videl GPU na minimu (76 MHz).
- * Build 46 ho držel celou hru a GT3 jel 29,1 FPS oproti 31,6 bez držení,
- * takže default je zpátky upstream chování.
- *
- * Marker /switch/nethersx2/ci-keepboost.enabled boost drží (a NSX_CLK k tomu
- * vrací GPU na normální takt); /switch/nethersx2/ci-noboost.enabled drží
- * upstream chování i kdyby ten první marker omylem zůstal na kartě.
+/* ---- NSX_NO_BOOST --------------------------------------------------------
+ * Port zapínal CPU boost (appletSetCpuBoostMode(FastLoad)) na startu a po
+ * 60 framech ho shazoval. FastLoad ale podle libnx znamená „Boost CPU.
+ * Additionally, throttle GPU to minimum“ — CPU 1785 MHz a GPU 76 MHz.
+ * Uživatel na kartě viděl právě „GPU na minimu“ a hru to zpomalilo (GT3 29,1
+ * vs 31,6 FPS); hlavně se to však pere se sysmoduly, které řídí takty
+ * (Ultrahand governor / sys-clk) a shazovalo mu systém. Patch
+ * ci/patches/util_no_boost.py proto cpu_boost() ve util.c vyprázdnil a tenhle
+ * build takty vůbec nenastavuje — jen je čte (NSX_CLK) a zapíše jedině na
+ * explicitní požadavek z ci-clk.conf.
  */
-int ci_keep_cpu_boost(void) {
-  static int cached = -1;
-  if (cached < 0) {
-    struct stat st;
-    cached = (stat(CI_KEEPBOOST_MARK, &st) == 0) ? 1 : 0;
-    if (stat(CI_NOBOOST_MARK, &st) == 0)
-      cached = 0;
-  }
-  return cached;
-}
-
-static int ci_boost_state = 1;   /* co jsme naposled nastavili (1 = FastLoad) */
-void ci_set_cpu_boost_state(int on) { ci_boost_state = on; }
-int  ci_get_cpu_boost_state(void) { return ci_boost_state; }
 
 /* ---- NSX_CLK: takty CPU/GPU/EMC -----------------------------------------
  * Dvě věci, které se z karty špatně dohledávají:
@@ -449,25 +429,13 @@ static void ci_clk_set_mhz(int which, unsigned mhz, const char *why) {
 }
 #endif
 
-/* Boost držíme? Pak FastLoad srazil GPU na minimum a musíme ji vrátit. */
-static void ci_clk_restore_gpu(void) {
-#if CI_SWITCH
-  unsigned gpu = 460;                      /* max handheld (bez nabíječky) */
-  if (appletGetOperationMode() == CI_OPMODE_DOCKED)
-    gpu = 768;                             /* oficiální docked takt */
-  ci_clk_set_mhz(1, gpu, "GPU zpet z boost modu (FastLoad ji srazi na 76 MHz)");
-#endif
-}
-
-/* Markery: ci-keepboost.enabled (držet CPU boost + vrátit GPU) a ci-clk.conf. */
+/* Jednorázově: diagnostika taktů + (opt-in) zápis z ci-clk.conf. */
 void ci_clk_boot(void) {
   static int done;
   if (done)
     return;
   done = 1;
   ci_clk_diag();
-  if (ci_keep_cpu_boost())
-    ci_clk_restore_gpu();
 #if CI_SWITCH
   {
     FILE *f = fopen(CI_CLK_CONF, "r");

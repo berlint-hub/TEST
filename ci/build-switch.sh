@@ -673,15 +673,14 @@ PKGLIBS
       #   NetherSX2 Vulkan diagnostic       = VK diagnostika je vůbec zapnutá
       #   diag soubor nethersx2-vulkan.log  = diag se zrcadlí i do core logu
       #   MESA_SHADER_CACHE_DIR             = cache u emulátoru, ne v rootu SD
-      #   [CI] clk:                         = čtení taktů (clkrst) je v binárce
-      #   ci-keepboost.enabled              = marker pro držení CPU boostu
+      #   [CI] clk: / [CI] boost: / [CI] takty: = takty se čtou, boost je vynechaný
       vkbin="$SRC/NetherSX2_nx_vk.nro"
       vkmiss=""
       for marker in "NVK_I_WANT_A_BROKEN_VULKAN_DRIVER" "nsx-vk" \
                     "NetherSX2 Vulkan diagnostic" "diag soubor nethersx2-vulkan.log" \
-                    "MESA_SHADER_CACHE_DIR" "FPS %.1f" "boost=%d" \
-                    "[CI] clk:" "ci-keepboost.enabled" "ci-clk.conf" \
-                    "[CI] cores:" "cpu boost"; do
+                    "MESA_SHADER_CACHE_DIR" "FPS %.1f" \
+                    "[CI] clk:" "[CI] boost:" "[CI] takty:" "ci-clk.conf" \
+                    "[CI] cores:"; do
         # -F: markery maj v sobě [ ] a v regexu by to byla znaková třída
         grep -qaF -- "$marker" "$vkbin" || vkmiss="$vkmiss [$marker]"
       done
@@ -751,6 +750,16 @@ then
   key "vk: main.c -> NVK_I_WANT_A_BROKEN_VULKAN_DRIVER=1"
 else
   err "vk: patch main.c pro NVK env neprošel — NVK zas vrátí 0 zařízení s VK_SUCCESS"
+fi
+
+# ------------------------------------------- 7a2. žádný CPU boost (util.c)
+# appletSetCpuBoostMode(FastLoad) = CPU 1785 MHz **a GPU na minimum** (libnx),
+# což na Switchi s governorem (Ultrahand) shazovalo systém; takty necháváme
+# sysmodulu a jen je čteme (NSX_CLK v ci_core_log.c).
+if python3 "$HERE/patches/util_no_boost.py" "$SRC/source/util.c"; then
+  key "util.c: CPU boost vynechan (takty ridi sysmodul)"
+else
+  die "util.c: patch bez boostu neprosel"
 fi
 
 # ---------------------------------------------------- 7b. log capture pro core
@@ -849,58 +858,7 @@ else:
     for k in keys[1:]:
         text = text.replace('prefs_set_string("Logging/%s", "0");' % k,
                             'prefs_set_string("Logging/%s", ci_log ? "1" : "0");' % k, 1)
-    print("main.c: Logging/* respektuje marker")
-
-# ---- NSX_KEEP_BOOST -------------------------------------------------------
-# Port zapne CPU boost (FastLoad) na startu a po 60 prezentovaných framech ho
-# shodí. Držet ho ale NENÍ zdarma: ApmCpuBoostMode_FastLoad podle libnx
-# znamená „boosti CPU, a k tomu srazí GPU na minimum" (CPU 1785 / GPU 76).
-# Build 46 ho držel celou hru a uživatel na kartě videl právě „GPU na minimu"
-# (a GT3 spadl z 31,6 na 29,1 FPS). Default je proto upstream; držení zapíná
-# marker ci-keepboost.enabled (a NSX_CLK k tomu vrátí GPU na normální takt).
-# Rozhoduje ci_keep_cpu_boost() v ci_core_log.c, stav jde do FPS řádky.
-boost_edits = [
-    ("  cpu_boost(1);\n",
-     "  cpu_boost(1);\n"
-     "  { extern void ci_set_cpu_boost_state(int); ci_set_cpu_boost_state(1); }\n"),
-    ("      if (boosting && frame_count >= cpu_boost_present_limit) {\n"
-     "        // Cover startup without holding the CPU boost into gameplay.\n"
-     "        cpu_boost(0);\n"
-     "        boosting = 0;\n"
-     "      }",
-     "      if (boosting && frame_count >= cpu_boost_present_limit) {\n"
-     "        /* NSX_KEEP_BOOST: port tu boost shazuje (ApmCpuBoostMode_Normal =\n"
-     "           nižší CPU takt). Pro CPU-bound hry je to ztráta hned po dvou\n"
-     "           sekundách, takže defaultně držíme; marker ci-noboost.enabled\n"
-     "           vrátí upstream chování (a je to vidět v logu). */\n"
-     "        extern int ci_keep_cpu_boost(void);\n"
-     "        extern void ci_set_cpu_boost_state(int);\n"
-     "        if (ci_keep_cpu_boost()) {\n"
-     "          ci_set_cpu_boost_state(1);\n"
-     "          fprintf(stdout, \"[CI] cpu boost DRZIM (FastLoad) — GPU spadne na minimum; \"\n"
-     "                          \"NSX_CLK ji vraci (ci-keepboost.enabled)\\n\");\n"
-     "          fflush(stdout);\n"
-     "        } else {\n"
-     "          cpu_boost(0);\n"
-     "          ci_set_cpu_boost_state(0);\n"
-     "          fprintf(stdout, \"[CI] cpu boost shozen (upstream chovani; GPU zustava)\\n\");\n"
-     "          fflush(stdout);\n"
-     "        }\n"
-     "        boosting = 0;\n"
-     "      }"),
-]
-bhit = 0
-for find, repl in boost_edits:
-    # Pozor: kontrola idempotence nesmí záviset na přesném textu hlášky (ta se
-    # občas upraví) — hledá se proto stabilní jméno funkce.
-    if "ci_keep_cpu_boost" in text:
-        bhit += 1          # už patchnuto
-    elif find in text:
-        text = text.replace(find, repl, 1)
-        bhit += 1
-print("main.c: cpu boost patch %d/%d" % (bhit, len(boost_edits)))
-if bhit != len(boost_edits):
-    failed = 1
+    print("main.c: Logging/* respektuje marker (boost resi util.c)")
 
 open(path, "w", encoding="utf-8", errors="surrogateescape").write(text)
 sys.exit(failed)
