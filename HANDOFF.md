@@ -403,6 +403,13 @@ jádra ani BIOS se v repozitáři nenachází a nesmí — stahujou se v CI z
     závorky a v základním grepu je to znaková třída, takže to hlásí „chybí
     marker", i když v binárce je (falešný poplach buildu 46). Používej
     `grep -qaF --`.
+15. Vymýšlet názvy enumů podle sebe: `ApmPerformanceMode_Handheld` ani
+    `AppletOperationMode_Docked` v libnx **nejsou** (jsou `_Normal`/`_Boost`
+    a `_Handheld`/`_Console`) — build 47 na tom spadl. A hlavně: `PcvModule_*`
+    (0/1/56) vs `PcvModuleId_*` (0x4000000x) jsou dvě různé služby; záměna
+    projde kompilací a na kartě se projeví jako nuly (přesně to byl build 46).
+    Od buildu 47 to hlídá syntax kontrola v CI (`-Werror=enum-conversion`,
+    `-Werror=implicit-function-declaration`).
 
 ## 9. Ladění výkonu na kartě (build 46)
 
