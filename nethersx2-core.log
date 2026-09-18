@@ -1,0 +1,15 @@
+[CI] log capture ON, NVK_I_WANT_A_BROKEN_VULKAN_DRIVER=1
+[CI] stderr smerovan do core logu: SELHAL (errno=5)
+[CI] boost: NEPOUZIVAME (appletSetCpuBoostMode je vynechany ve util.c; takty ridi sysmodul/governor)
+[CI] session start build=57 ts=1789749020 pid=-1
+[4][NativeLibrary] EmuFolders::DataRoot is '/switch/nethersx2'
+[4][NativeLibrary] EmuFolders::Cache is '/switch/nethersx2/cache'
+[4][NativeLibrary] EmuFolders::Resources is 'file:///android_asset'
+[4][NativeLibrary] EmuFolders::Settings is '/switch/nethersx2'
+[CI] cores: mask=0xf -> hot=0x7 ee=0 work=1,2 bg=3
+[CI] pin: zapnuty (default; ci-nopin.enabled ho vypne)
+[CI] pin: mode=auto (default; /switch/nethersx2/ci-pin.conf neexistuje) -> work #1 a #2 exkluzivne na svem jadre, zbytek pool
+[CI] pin: work #1 -> core=1 EXKLUSIVNE (zadny presun mezi jadry)
+[CI] thread #1 (work: MTGS/VU1/worker) -> core=1
+[CI] emulator nro: VK build (GS_RENDERER=14), NVK_I_WANT_A_BROKEN_VULKAN_DRIVER=1
+[CI] session end (CRASH)
