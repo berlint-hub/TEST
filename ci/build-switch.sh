@@ -193,7 +193,7 @@ done
 
 # --------------------------------------------------------------- 4. jádra z APK
 fetch_core() {
-  local repo="$1" build="$2"
+  local repo="$1" build="$2" mode="${3:-both}"   # both | so | assets
   local dir="$CORES_DIR/NetherSX2-v2.2n-$build"
   local asset="NetherSX2-v2.2n-$build.apk"
   local url apk
@@ -237,26 +237,32 @@ PYDL
   [ -s "$apk" ] || { err "stažená APK je prázdná"; die "download $build"; }
   stat -c "::notice::APK $build = %s B" "$apk"
 
-  python3 - "$apk" "$dir" <<'PY' 2>>"$WORK/logs/unzip.log"
+  MODE="$mode" python3 - "$apk" "$dir" <<'PY' 2>>"$WORK/logs/unzip.log"
 import os,sys,zipfile
 apk,dir_=sys.argv[1:3]
+mode=os.environ.get("MODE","both")
 z=zipfile.ZipFile(apk)
 names=z.namelist()
 so='lib/arm64-v8a/libemucore.so'
-if so not in names:
-    print(f"::error::v APK není {so}; .so: {[n for n in names if n.endswith('.so')][:5]}")
-    sys.exit(1)
-out=os.path.join(dir_,'lib','arm64-v8a','libemucore.so')
-os.makedirs(os.path.dirname(out),exist_ok=True)
-open(out,'wb').write(z.read(so))
-assets=[n for n in names if n.startswith('assets/') and not n.endswith('/')]
-for n in assets:
-    dst=os.path.join(dir_,n)
-    os.makedirs(os.path.dirname(dst),exist_ok=True)
-    open(dst,'wb').write(z.read(n))
+if mode in ("both","so"):
+    if so not in names:
+        print(f"::error::v APK není {so}; .so: {[n for n in names if n.endswith('.so')][:5]}")
+        sys.exit(1)
+    out=os.path.join(dir_,'lib','arm64-v8a','libemucore.so')
+    os.makedirs(os.path.dirname(out),exist_ok=True)
+    open(out,'wb').write(z.read(so))
+if mode in ("both","assets"):
+    assets=[n for n in names if n.startswith('assets/') and not n.endswith('/')]
+    for n in assets:
+        dst=os.path.join(dir_,n)
+        os.makedirs(os.path.dirname(dst),exist_ok=True)
+        open(dst,'wb').write(z.read(n))
 gi=os.path.join(dir_,'assets','GameIndex.yaml')
-ok=os.path.exists(gi)
-print(f"::notice::extracted {os.path.basename(dir_)}: libemucore.so {os.path.getsize(out)} B, {len(assets)} assets, GameIndex {'ANO' if ok else 'NE'}")
+ok=(mode!="assets") or os.path.exists(gi)
+print(f"::notice::extracted {os.path.basename(dir_)} (mode={mode}): "
+      f"libemucore.so {os.path.getsize(out) if (mode in ('both','so') and 'out' in dir()) else '—'} B, "
+      f"{len([n for n in names if n.startswith('assets/') and not n.endswith('/')]) if mode in ('both','assets') else '—'} assets, "
+      f"GameIndex {'ANO' if ok else 'NE'}")
 sys.exit(0 if ok else 2)
 PY
   case $? in
@@ -266,9 +272,16 @@ PY
   esac
 }
 
-note "=== stage 4: jádra ==="
-fetch_core Trixarian/NetherSX2-patch   4248
-fetch_core Trixarian/NetherSX2-classic 3668
+note "=== stage 4: jádra (4248 z repozitáře, 3668 vypnuto) ==="
+# Core dodává uživatel přímo v repu (libemucore.so = v2.2n-4248), proto ho
+# nestahujeme z APK. Z patch-release se berou jen assets (GameIndex + cheaty),
+# které jsou binárkou core nezávislé. Classic 3668 je vyřazený — balík jede
+# čistě na 4248.
+mkdir -p "$CORES_DIR/NetherSX2-v2.2n-4248/lib/arm64-v8a"
+cp -f "$ROOT/libemucore.so" "$CORES_DIR/NetherSX2-v2.2n-4248/lib/arm64-v8a/libemucore.so" \
+  || die "kopie libemucore.so z repozitáře"
+key "core: uživatelský libemucore.so (4248) ze zdrojáku, sha256=$(sha256sum "$ROOT/libemucore.so" | cut -c1-16)"
+fetch_core Trixarian/NetherSX2-patch 4248 assets
 
 # -------------------------------------------------------------------- 5. upstream
 note "=== stage 5: upstream ==="
@@ -1251,7 +1264,7 @@ fi
 # ------------------------------------------------------------------ 8. romfs
 note "=== stage 8: romfs bundling ==="
 mkdir -p "$SRC/launcher/romfs/cores" "$SRC/launcher/romfs/emu"
-for b in 4248 3668; do
+for b in 4248; do
   cp -f "$CORES_DIR/NetherSX2-v2.2n-$b/lib/arm64-v8a/libemucore.so" \
         "$SRC/launcher/romfs/cores/emucore_$b.so" || die "kopie jádra $b"
   rd="$SRC/launcher/romfs/res/$b"
@@ -1352,6 +1365,21 @@ if os.environ.get("VK_ONLY") == "1":
          '    if(backend!="14") storeSet(effective,"EmuCore/GS/Renderer","14");\n'
          '    const std::string renderer="vk";\n'),
     ]
+
+# -------------------------------------------------------------- CORE LOCK
+# Balík jede jen na jádře 4248 (uživatelský libemucore.so v repu; classic
+# 3668 je vyřazen). Dvě věci:
+#   * v Core version necháme jen "Patched (4248)" (jinak si to nikdo nezvolí),
+#   * spádovou normalizaci zúžíme na build="4248" — per-game profil na kartě
+#     může mít z dřívějška "3668" a ten by launcher poslal po neexistujícím
+#     romfs:/cores/emucore_3668.so -> "Could not extract emulator files".
+edits += [
+    ('if(build!="4248"&&build!="3668") build="4248";',
+     'if(build!="4248") build="4248";'),
+    ('{ {"Patched (4248)","4248"}, {"Classic (3668)","3668"} }',
+     '{ {"Patched (4248)","4248"} }'),
+]
+
 done = 0
 # Upgrade ze starších buildu: kdyby strom už měl starý (8-arg) ciLaunchDiag,
 # ten blok smaž a níž se vloží nový. Bez toho by v opakovaném běhu zůstal
@@ -1373,7 +1401,7 @@ print("main.cpp: patcheno %d/%d" % (done, n_edits))
 sys.exit(0 if done == n_edits else 1)
 PYEOF
   if [ $? -eq 0 ]; then
-    key "launcher: ensureEmu uvolněn, seek 0x0, fsync/abort/commit opravy, diagnostika"
+    key "launcher: ensureEmu uvolněn, seek 0x0, fsync/abort/commit opravy, diagnostika, core lock na 4248"
   else
     warn "launcher patch NEAPLIKOVÁN — upstream posunul řádky, .nro se chová jako upstream"
   fi
@@ -1563,13 +1591,25 @@ key "nro=$(stat -c %s "$OUT/NetherSX2.nro")"
 # Bez tohohle testu by nám uniklo třeba to, že romfs/emu zůstalo prázdný a
 # launcher by na kartě hlásil „Could not extract emulator files" — přesně
 # tu hlášku, se kterou sme tohle celý začínali.
-for n in emu/NetherSX2_nx_vk.nro emu/NetherSX2_nx_gl.nro cores/libemucore.so \
-         res/GameIndex.yaml; do
+for n in emu/NetherSX2_nx_vk.nro emu/NetherSX2_nx_gl.nro \
+         cores/emucore_4248.so cores/libemucore.so \
+         cores/emucore_3668.so res/GameIndex.yaml; do
   name=$(basename "$n")
   if grep -qa "$name" "$OUT/NetherSX2.nro"; then
-    note "  uvnitř .nro: $name"
+    # 3668 nesmí být součástí balíku — kdyby tu byl, grep po emucore_3668.so
+    # by mohl sednout na romfs tabulku jiného souboru; pojistka navíc je ta
+    # korektní a 3668 mlčí (viz níže eventualita, kterou vidíme na kartě).
+    if [ "$name" = "emucore_3668.so" ]; then
+      err "  V .nRO JE emucore_3668.so — core lock selhal, balík obsahuje classic"
+    else
+      note "  uvnitř .nro: $name"
+    fi
   elif [ "$VK_ONLY" = "1" ] && [ "$name" = "NetherSX2_nx_gl.nro" ]; then
     note "  v .nro chybí NetherSX2_nx_gl.nro — v pořádku, VK_ONLY=1"
+  elif [ "$name" = "libemucore.so" ] || [ "$name" = "emucore_3668.so" ]; then
+    # launcher/emulátor odkazují jen emucore_<b>.so; obecný název
+    # libemucore.so je v romfs jediné tehdy, kdyby se balil `.so` přímo.
+    note "  v .nro (jak má, nebalíme obecnej název): $name"
   else
     err "  V .nRO CHYBÍ $name — balík je nepoužitelný"
   fi

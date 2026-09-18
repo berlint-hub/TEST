@@ -38,6 +38,7 @@ printf '::notice::VERDICT: %s | log %s B\n' \
 
 # kolik staged souborů vlastně vzniklo, ať víme, do jaké fáze to došlo
 for probe in .ciwork/cores/NetherSX2-v2.2n-4248/lib/arm64-v8a/libemucore.so \
+             .ciwork/NetherSX2_nx/launcher/romfs/cores/emucore_4248.so \
              .ciwork/NetherSX2_nx/NetherSX2_nx_gl.nro \
              .ciwork/NetherSX2_nx/launcher/dependencies/build/_deps/libsmb2-build/lib/libsmb2.a; do
     if [ -f "$probe" ]; then
