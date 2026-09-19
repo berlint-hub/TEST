@@ -205,6 +205,31 @@ Porovnání s phase1 runem (build 71): phase1 po `thread #3` pokračuje na
 artefakt, neballí se. Pokud se phase2 má zachránit, je nutné **odstranit
 priority (2E)** — přednostně zkusit phase2 **bez** 2E (jen affinity+cache).
 
+## 🔁 Phase2 FIXED — k dispozici k testu (2026-09-19)
+
+Uživatel dodal `libemucore_phase2_fixed.so` (sha256
+`8475b248389fdd5d4f46c3f10b7454b84cafa19121f306ee2f8d902559ce1190`). Ověřeno
+byte-diffem, co „fixed" reálně dělá (oproti pádové phase2):
+
+| Vráceno na orig (fix) | Offsety | phase2 → fixed |
+|---|---|---|
+| Cache tabulka (2B) | `0xB949A0/A4/A8` | 64,64,128 → 4,8,16 |
+| Priority (2E) | `0xB98190/94/A0` | 99,98,97 → 9,13,7 |
+
+| Ponecháno (záměr) | Offsety | orig → fixed |
+|---|---|---|
+| FIFO | `0xB949AC` | 32 → 256 |
+| FIFO | `0xB949BC` | 16384 → 131072 |
+| FIFO | `0xB949C0` | 8192 → 131072 |
+| DMA-ish | `0xB949C4` | 4096 → 16384 |
+| Affinity | `0xB98180` | 4 → 2 |
+| Affinity | `0xB9819C` | 4 → 8 |
+| Affinity | `0xB982DC/E4/F4`, `0xB986C0/D0/E0/F0` | → 1/2/4/8 masky |
+
+Celkem fixed = orig + **16 bajtů** (vs 22 u phase2). Odpovídá doporučení
+„phase2 bez 2E a bez cache-alignmentu". Build jede na fixed variantě
+(fallback `fixed → phase1 → libemucore.so`); test na kartě rozhodne.
+
 ---
 
 **Generováno**: 2026-09-18 (pův.), verifikováno 2026-09-19 (agent), HW test 2026-09-19
