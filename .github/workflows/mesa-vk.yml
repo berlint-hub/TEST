@@ -1,6 +1,6 @@
 name: build / VK (nxvk Mesa -> NetherSX2_nx)
 
-# (CI trigger commit, arena/opencode-ci — affinity-auto core: libemucore.so 516077, bez phase*)
+# (CI trigger commit, arena/opencode-ci — affinity-auto core 516077, bez phase* variant; build 76: ISO path sdmc:/Roms/ps2)
 
 # (CI trigger commit, arena/01a0b5b2-test — retence releasů: nro-latest + 2 datovanné zálohy)
 

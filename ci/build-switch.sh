@@ -1412,6 +1412,11 @@ edits += [
      'if(build!="4248") build="4248";'),
     ('{ {"Patched (4248)","4248"}, {"Classic (3668)","3668"} }',
      '{ {"Patched (4248)","4248"} }'),
+    # (7) defaultní adresář her: upstream "sdmc:/switch/nethersx2/games",
+    #     uživatel chce sdmc:/Roms/ps2 (použije se, dokud si hráč cestu
+    #     nepřepíše v launcheru - GamePath bezpečí netkne).
+    ('static const char *DEF_GAMEDIR= "sdmc:/switch/nethersx2/games";',
+     'static const char *DEF_GAMEDIR= "sdmc:/Roms/ps2";'),
 ]
 
 done = 0
