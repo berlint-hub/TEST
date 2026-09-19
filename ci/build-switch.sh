@@ -273,24 +273,16 @@ PY
 }
 
 note "=== stage 4: jádra (4248 z repozitáře, 3668 vypnuto) ==="
-# Core dodává uživatel přímo v repu. Fallback chain od nejnovějšího:
-#   libemucore_phase2_fixed.so (phase2 fixed: FIFO/DMA + thread affinity;
-#                               priority a cache-alignment vraceny na orig)
-#   libemucore_phase1.so      (phase1: FIFO 32/64 -> 256/512 — ověřeno na HW)
-#   libemucore.so             (čistý upstream 4248)
-# POZOR: libemucore_phase2.so NEPOUŽÍVAT — crash při startu worker vlákna
-# MTGS/VU1 (viz PHASE2_REPORT.md, sekce "HW test"); fixed varianta to řeší.
-# Z patch-release se berou jen assets (GameIndex + cheaty), které jsou binárkou
-# core nezávislé. Classic 3668 je vyřazený — balík jede čistě na 4248.
-CORE_SO=""
-for c in "$ROOT/libemucore_phase2_fixed.so" "$ROOT/libemucore_phase1.so" "$ROOT/libemucore.so"; do
-  if [ -f "$c" ]; then
-    CORE_SO="$c"
-    break
-  fi
-done
-if [ -z "$CORE_SO" ]; then
-  err "v repozitáři chybí libemucore_phase2_fixed.so, _phase1.so i libemucore.so — core nemá co balit"
+# Core dodává uživatel přímo v repu. Bereme čistý affinity-auto core
+# (libemucore.so = hash 516077..., jen 8 B pach v .text FUN_00911ad0:
+# ldr wN,[xN,#0xe24] -> mov wN,#7, viz Android Cores). Phase* varianty
+# záměrně VYNEChÁVÁME — phase2 padal na startu MTGS/VU1, phase2_fixed byl
+# od jiného nástroje a neobstál, phase1 mění FIFO velikosti v .data.
+# Z patch-release se berou jen assets (GameIndex + cheaty), které jsou
+# binárkou core nezávislé. Classic 3668 je vyřazený — balík jede čistě na 4248.
+CORE_SO="$ROOT/libemucore.so"
+if [ ! -f "$CORE_SO" ]; then
+  err "v repozitáři chybí libemucore.so (affinity-auto 4248) — core nemá co balit"
   die "core .so v repu chybí"
 fi
 mkdir -p "$CORES_DIR/NetherSX2-v2.2n-4248/lib/arm64-v8a"
