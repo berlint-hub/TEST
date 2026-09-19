@@ -1340,6 +1340,15 @@ if [ -n "$VKSDK" ] && [ -f "$SRC/NetherSX2_nx_vk.nro" ]; then
   cp -f "$SRC/NetherSX2_nx_vk.nro" "$SRC/launcher/romfs/emu/NetherSX2_nx_vk.nro"
   note "romfs má oba rendery (GL + VK)"
 fi
+# Per-game profily (ci/gamecfg/*.ini) -> romfs:/gamecfg; launcher je při
+# prvním spuštění nového bundle vytáhne na sdmc:.../gamecfg (viz edit 8b).
+if [ -d "$HERE/gamecfg" ] && ls "$HERE"/gamecfg/*.ini >/dev/null 2>&1; then
+  mkdir -p "$SRC/launcher/romfs/gamecfg"
+  cp -f "$HERE"/gamecfg/*.ini "$SRC/launcher/romfs/gamecfg/"
+  note "romfs/gamecfg: přibaleny per-game profily"
+else
+  key "romfs/gamecfg: zadné per-game profily v ci/gamecfg"
+fi
 du -sh "$SRC/launcher/romfs" | bash "$HERE/annotate.sh" notice 1
 
 # --------------------------------- 8b. launcher: povolit extrakci + vlastní diagnostiku
@@ -1442,6 +1451,26 @@ edits += [
     #     nepřepíše v launcheru - GamePath bezpečí netkne).
     ('static const char *DEF_GAMEDIR= "sdmc:/switch/nethersx2/games";',
      'static const char *DEF_GAMEDIR= "sdmc:/Roms/ps2";'),
+
+    # (8) per-game profily (gamecfg/<klic>.ini): launcher je cte jen ze SD karty.
+    #     Pribalime je teda do romfs:/gamecfg a pri prvni instalaci noveho
+    #     bundle (zmena markeru .ci_installed, stejny princip jako resources)
+    #     je vyhrabeme ven. Marker zaruci, ze po restartu nesmazeme rucni
+    #     vyladeni, ktere si hrac v gamecfg/ udela.
+    ('  bool ok = extractTree(std::string("romfs:/res/") + build, RESOURCES_DIR, true);\n'
+     '  if(ok) writeAtomicText(RES_MARKER,marker+"\\n");',
+     '  bool ok = extractTree(std::string("romfs:/res/") + build, RESOURCES_DIR, true);\n'
+     '  if(ok) writeAtomicText(RES_MARKER,marker+"\\n");\n'
+     '  { const char *gcMarker = "sdmc:/switch/nethersx2/gamecfg/.ci_installed";\n'
+     '    char gcb[64] = {0};\n'
+     '    FILE *gcf = fopen(gcMarker,"r");\n'
+     '    if (gcf) { if (!fgets(gcb,sizeof(gcb),gcf)) gcb[0]=0; fclose(gcf); }\n'
+     '    if (trim(gcb) != marker) {\n'
+     '      mkdir(GAMECFG_DIR, 0777);\n'
+     '      extractTree(std::string("romfs:/gamecfg"), GAMECFG_DIR, true);\n'
+     '      writeAtomicText(gcMarker, marker+"\\n");\n'
+     '    }\n'
+     '  }'),
 ]
 
 done = 0
@@ -1539,7 +1568,7 @@ store_set = \
     storeSet(g_global,"SPU2/Interpolation","4");
     storeSet(g_global,"SPU2/SynchMode","0");
     storeSet(g_global,"Wrapper/CoreBuild","4248");
-    storeSet(g_global,"Wrapper/FastmemMode","full");
+    storeSet(g_global,"Wrapper/FastmemMode","hybrid");
     storeSet(g_global,"Wrapper/FastBoot","true");
     storeSet(g_global,"Wrapper/SystemLanguage","auto");
     storeSet(g_global,"Wrapper/LSFGEnabled","false");
