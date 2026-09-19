@@ -1445,6 +1445,154 @@ PYEOF
     warn "launcher patch NEAPLIKOVÁN — upstream posunul řádky, .nro se chová jako upstream"
   fi
 
+  # Zabudování výchozí konfigurace (optimalizovaný launcher.ini) do store
+  # launcheru. Hned po načtení sdmc:/switch/nethersx2/launcher.ini se g_global
+  # doplní těmito hodnotami -> každý start hry je poskládá do nethersx2.ini
+  # (EMU_INI). Per-game profily (gamecfg/<klíč>.ini) je i tak přepisují až na
+  # startu konkrétní hry. CoreBuild je schválně "4248" — balík 3668 neobsahuje.
+  python3 - "$LM" <<'PYEOF'
+import sys
+path = sys.argv[1]
+text = open(path, encoding="utf-8", errors="surrogateescape").read()
+
+marker = "/* NSX_CI_DEFAULTS:"
+if marker in text:
+    print("launcher defaults: uz patcheno (idempotentni)")
+    sys.exit(0)
+
+anchor = "  storeLoad(g_global,LAUNCHER_INI);"
+if anchor not in text:
+    print("launcher defaults: ANCHOR NENALEZEN")
+    sys.exit(1)
+
+store_set = \
+"""
+    storeSet(g_global,"Folders/Bios","/switch/nethersx2/bios");
+    storeSet(g_global,"Folders/Snapshots","/switch/nethersx2/snaps");
+    storeSet(g_global,"Folders/Savestates","/switch/nethersx2/states");
+    storeSet(g_global,"Folders/MemoryCards","/switch/nethersx2/memcards");
+    storeSet(g_global,"Folders/Cache","/switch/nethersx2/cache");
+    storeSet(g_global,"Folders/Textures","/switch/nethersx2/textures");
+    storeSet(g_global,"Folders/Covers","/switch/nethersx2/covers");
+    storeSet(g_global,"Folders/GameSettings","/switch/nethersx2/gamesettings");
+    storeSet(g_global,"Folders/InputProfiles","/switch/nethersx2/inputprofiles");
+    storeSet(g_global,"Folders/Cheats","/switch/nethersx2/cheats");
+    storeSet(g_global,"Folders/Logs","/switch/nethersx2/logs");
+    storeSet(g_global,"Folders/Resources","/switch/nethersx2/resources");
+    storeSet(g_global,"EmuCore/GS/Renderer","14");
+    storeSet(g_global,"EmuCore/GS/upscale_multiplier","1");
+    storeSet(g_global,"EmuCore/GS/AspectRatio","4:3");
+    storeSet(g_global,"EmuCore/GS/VsyncEnable","0");
+    storeSet(g_global,"EmuCore/GS/DisableThreadedPresentation","0");
+    storeSet(g_global,"EmuCore/GS/ThreadedPresentation","1");
+    storeSet(g_global,"EmuCore/GS/SkipDuplicateFrames","false");
+    storeSet(g_global,"EmuCore/GS/filter","2");
+    storeSet(g_global,"EmuCore/GS/MaxAnisotropy","0");
+    storeSet(g_global,"EmuCore/GS/OsdShowFPS","true");
+    storeSet(g_global,"EmuCore/GS/OsdShowMessages","true");
+    storeSet(g_global,"EmuCore/GS/EnableWideScreenPatches","true");
+    storeSet(g_global,"EmuCore/GS/EnableNoInterlacingPatches","true");
+    storeSet(g_global,"EmuCore/GS/accurate_blending_unit","1");
+    storeSet(g_global,"EmuCore/GS/deinterlace_mode","0");
+    storeSet(g_global,"EmuCore/GS/dithering_ps2","1");
+    storeSet(g_global,"EmuCore/GS/TriFilter","-1");
+    storeSet(g_global,"EmuCore/GS/mipmap_hw","true");
+    storeSet(g_global,"EmuCore/GS/CRCHackLevel","-1");
+    storeSet(g_global,"EmuCore/GS/texture_preloading","2");
+    storeSet(g_global,"EmuCore/GS/paltex","false");
+    storeSet(g_global,"EmuCore/GS/pcrtc_antiblur","1");
+    storeSet(g_global,"EmuCore/GS/TVShader","0");
+    storeSet(g_global,"EmuCore/GS/CASMode","0");
+    storeSet(g_global,"EmuCore/GS/ShadeBoost","0");
+    storeSet(g_global,"EmuCore/GS/LoadTextureReplacements","false");
+    storeSet(g_global,"EmuCore/GS/LoadTextureReplacementsAsync","true");
+    storeSet(g_global,"EmuCore/GS/SoftwareRendererFMV","false");
+    storeSet(g_global,"EmuCore/GS/HWDownloadMode","1");
+    storeSet(g_global,"EmuCore/GS/LSFGEnabled","false");
+    storeSet(g_global,"EmuCore/GS/LSFGFlowScale","0.25");
+    storeSet(g_global,"EmuCore/GS/LSFGPerformance","true");
+    storeSet(g_global,"SPU2/Interpolation","4");
+    storeSet(g_global,"SPU2/SynchMode","0");
+    storeSet(g_global,"Wrapper/CoreBuild","4248");
+    storeSet(g_global,"Wrapper/FastmemMode","hybrid");
+    storeSet(g_global,"Wrapper/FastBoot","true");
+    storeSet(g_global,"Wrapper/SystemLanguage","auto");
+    storeSet(g_global,"Wrapper/LSFGEnabled","false");
+    storeSet(g_global,"Wrapper/LSFGFlowScale","0.25");
+    storeSet(g_global,"Wrapper/LSFGPerformance","true");
+    storeSet(g_global,"EmuCore/EnableCheats","true");
+    storeSet(g_global,"EmuCore/EnablePatches","true");
+    storeSet(g_global,"EmuCore/EnableWideScreenPatches","true");
+    storeSet(g_global,"EmuCore/EnableNoInterlacingPatches","true");
+    storeSet(g_global,"EmuCore/Speedhacks/EECycleRate","0");
+    storeSet(g_global,"EmuCore/Speedhacks/EECycleSkip","0");
+    storeSet(g_global,"EmuCore/Speedhacks/fastCDVD","true");
+    storeSet(g_global,"EmuCore/Speedhacks/IntcStat","true");
+    storeSet(g_global,"EmuCore/Speedhacks/WaitLoop","true");
+    storeSet(g_global,"EmuCore/Speedhacks/vuFlagHack","true");
+    storeSet(g_global,"EmuCore/Speedhacks/vuThread","true");
+    storeSet(g_global,"EmuCore/Speedhacks/vu1Instant","true");
+    storeSet(g_global,"EmuCore/CPU/FPU.DenormalsAreZero","1");
+    storeSet(g_global,"EmuCore/CPU/FPU.FlushToZero","1");
+    storeSet(g_global,"EmuCore/CPU/FPU.Roundmode","0");
+    storeSet(g_global,"EmuCore/CPU/AffinityControlMode","0");
+    storeSet(g_global,"EmuCore/CPU/VU0.DenormalsAreZero","1");
+    storeSet(g_global,"EmuCore/CPU/VU0.FlushToZero","1");
+    storeSet(g_global,"EmuCore/CPU/VU0.Roundmode","0");
+    storeSet(g_global,"EmuCore/CPU/VU1.DenormalsAreZero","1");
+    storeSet(g_global,"EmuCore/CPU/VU1.FlushToZero","1");
+    storeSet(g_global,"EmuCore/CPU/VU1.Roundmode","0");
+    storeSet(g_global,"EmuCore/CPU/VU.Roundmode","0");
+    storeSet(g_global,"EmuCore/CPU/EnableVU0","1");
+    storeSet(g_global,"EmuCore/CPU/EnableVU1","1");
+    storeSet(g_global,"EmuCore/CPU/VU0ClampMode","0");
+    storeSet(g_global,"EmuCore/CPU/VU1ClampMode","0");
+    storeSet(g_global,"EmuCore/CPU/VUClampMode","0");
+    storeSet(g_global,"EmuCore/CPU/Recompiler/EnableVU0","1");
+    storeSet(g_global,"EmuCore/CPU/Recompiler/EnableVU1","1");
+    storeSet(g_global,"EmuCore/CPU/Recompiler/VU0ClampMode","0");
+    storeSet(g_global,"EmuCore/CPU/Recompiler/VU1ClampMode","0");
+    storeSet(g_global,"EmuCore/Gamefixes/FullVU0SyncHack","false");
+    storeSet(g_global,"EmuCore/Gamefixes/VUSyncHack","false");
+    storeSet(g_global,"EmuCore/Gamefixes/VuAddSubHack","false");
+    storeSet(g_global,"EmuCore/Gamefixes/FpuMulHack","false");
+    storeSet(g_global,"EmuCore/Gamefixes/FpuNegDivHack","false");
+    storeSet(g_global,"EmuCore/Gamefixes/SoftwareRendererFMVHack","false");
+    storeSet(g_global,"EmuCore/Gamefixes/SkipMPEGHack","false");
+    storeSet(g_global,"EmuCore/Gamefixes/GoemonTlbHack","false");
+    storeSet(g_global,"EmuCore/Gamefixes/EETimingHack","false");
+    storeSet(g_global,"EmuCore/Gamefixes/OPHFlagHack","false");
+    storeSet(g_global,"EmuCore/Gamefixes/GIFFIFOHack","false");
+    storeSet(g_global,"EmuCore/Gamefixes/DMABusyHack","false");
+    storeSet(g_global,"EmuCore/Gamefixes/VIF1StallHack","false");
+    storeSet(g_global,"EmuCore/Gamefixes/VIFFIFOHack","false");
+    storeSet(g_global,"EmuCore/Gamefixes/IbitHack","false");
+    storeSet(g_global,"EmuCore/Gamefixes/VUOverflowHack","false");
+    storeSet(g_global,"EmuCore/Gamefixes/BlitInternalFPSHack","false");
+    storeSet(g_global,"EmuCore/Gamefixes/XgKickHack","false");
+    storeSet(g_global,"EmuCore/Gamefixes/InstantDMAHack","false");
+    storeSet(g_global,"Achievements/Enabled","false");
+    storeSet(g_global,"Achievements/Username","");
+    storeSet(g_global,"Achievements/Token","");
+"""
+
+block = anchor + """\n  /* NSX_CI_DEFAULTS: vbudované optimalizované výchozí nastavení (launcher.ini).
+   * Jednou po načtení sdmc:/switch/nethersx2/launcher.ini; per-game profily
+   * (gamecfg/*.ini) je přepisují až na startu konkrétní hry. CoreBuild je
+   * schválně "4248" — balík 3668 neobsahuje. */
+  if(true){""" + store_set + """  }
+"""
+text = text.replace(anchor, block, 1)
+open(path, "w", encoding="utf-8", errors="surrogateescape").write(text)
+print("launcher defaults: %d klíčů zabudováno" % store_set.count("storeSet(g_global,"))
+sys.exit(0)
+PYEOF
+  if [ $? -eq 0 ]; then
+    key "launcher: výchozí nastavení zabudováno (NSX_CI_DEFAULTS)"
+  else
+    warn "launcher defaults patch selhal"
+  fi
+
   cat > "$SRC/launcher/source/ci_launch_diag.cpp" <<'LAUNCH_DIAG_CPP'
 #include <dirent.h>
 #include <sys/stat.h>
