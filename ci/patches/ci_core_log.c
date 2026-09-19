@@ -114,8 +114,9 @@ static int ci_on(void) {
        * začal psát — v logu z karty jsou proto řádky prokládaný/roztrhaný).
        * ts+pid umožní session rozeznat a řadit. Hned flush + fsync, aby
        * začátek session přežil i okamžitej pád.
-       * NSX_CI_BUILD: ručně zvedat s každým buildem — jediná jistá známka,
-       * která binárka na kartě běží (velikosti .nro se mezi buildy nemění). */
+       * NSX_CI_BUILD: nahrazuje ci/build-switch.sh za GITHUB_RUN_NUMBER —
+       * jediná jistá známka, která binárka na kartě běží (velikosti .nro se
+       * mezi buildy nemění). */
       fprintf(stdout, "[CI] session start build=%s ts=%ld pid=%d%s\n",
               NSX_CI_BUILD, (long)time(NULL), (int)getpid(),
               ci_raw_log() ? " rawlog=unbuffered" : "");

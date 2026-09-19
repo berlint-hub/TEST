@@ -827,7 +827,13 @@ fi
 mkdir -p "$SRC/source/hooks"
   # Obsah je v ci/patches/ci_core_log.c (dřív tu byl jako heredoc; v Python
   # řetězcích se pletly zpětné lomítka — build 45 kvůli tomu spadl).
-  cp "$HERE/patches/ci_core_log.c" "$SRC/source/hooks/ci_core_log.c" || die "kopie ci_core_log.c"
+  # NSX_CI_BUILD: dosad číslo buildu (= GITHUB_RUN_NUMBER v CI; release name
+  # v mesa-vk.yml ho používá stejně) místo placeholderu — build 54 měl ve
+  # zprávě natvrdo "build=54", logy proto lhaly i v novějších buildách.
+  nsx_ci_build="${GITHUB_RUN_NUMBER:-?}"
+  sed -e "s/@@NSX_CI_BUILD@@/${nsx_ci_build}/g" \
+      "$HERE/patches/ci_core_log.c" > "$SRC/source/hooks/ci_core_log.c" \
+      || die "kopie ci_core_log.c"
 
   # Rychlá compile kontrola našich C souborů PŘED make: build 47 spadl až po
   # pár minutách na názvu enumu, který se mezi verzemi libnx liší
