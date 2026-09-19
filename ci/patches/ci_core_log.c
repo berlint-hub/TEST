@@ -18,6 +18,14 @@
 #define CI_SWITCH 0   /* host build (testy parsování/ dedupu) switch API nemá */
 #endif
 
+/* NSX_CI_BUILD: číslo buildu (= GITHUB_RUN_NUMBER v CI). ci/build-switch.sh
+ * při kopírování do SRc dosadí placeholder @@NSX_CI_BUILD@@ za aktuální run
+ * number; výchozí placeholder tu necháváme, ať to kompiluje i bez substitute
+ * (lokální build) a syntax check na patches/*.c zbytek nerozbije. */
+#ifndef NSX_CI_BUILD
+#define NSX_CI_BUILD "@@NSX_CI_BUILD@@"
+#endif
+
 #define CI_LOG_PATH  "/switch/nethersx2/nethersx2-core.log"
 #define CI_MARK_PATH "/switch/nethersx2/ci-logging.enabled"
 #define CI_RAWLOG_MARK   "/switch/nethersx2/ci-rawlog.enabled"
@@ -106,10 +114,11 @@ static int ci_on(void) {
        * začal psát — v logu z karty jsou proto řádky prokládaný/roztrhaný).
        * ts+pid umožní session rozeznat a řadit. Hned flush + fsync, aby
        * začátek session přežil i okamžitej pád.
-       * NSX_CI_BUILD: ručně zvedat s každým buildem — jediná jistá známka,
-       * která binárka na kartě běží (velikosti .nro se mezi buildy nemění). */
-      fprintf(stdout, "[CI] session start build=54 ts=%ld pid=%d%s\n",
-              (long)time(NULL), (int)getpid(),
+       * NSX_CI_BUILD: nahrazuje ci/build-switch.sh za GITHUB_RUN_NUMBER —
+       * jediná jistá známka, která binárka na kartě běží (velikosti .nro se
+       * mezi buildy nemění). */
+      fprintf(stdout, "[CI] session start build=%s ts=%ld pid=%d%s\n",
+              NSX_CI_BUILD, (long)time(NULL), (int)getpid(),
               ci_raw_log() ? " rawlog=unbuffered" : "");
       fflush(stdout);
       fsync(fileno(stdout));

@@ -193,7 +193,7 @@ done
 
 # --------------------------------------------------------------- 4. jádra z APK
 fetch_core() {
-  local repo="$1" build="$2"
+  local repo="$1" build="$2" mode="${3:-both}"   # both | so | assets
   local dir="$CORES_DIR/NetherSX2-v2.2n-$build"
   local asset="NetherSX2-v2.2n-$build.apk"
   local url apk
@@ -237,26 +237,32 @@ PYDL
   [ -s "$apk" ] || { err "stažená APK je prázdná"; die "download $build"; }
   stat -c "::notice::APK $build = %s B" "$apk"
 
-  python3 - "$apk" "$dir" <<'PY' 2>>"$WORK/logs/unzip.log"
+  MODE="$mode" python3 - "$apk" "$dir" <<'PY' 2>>"$WORK/logs/unzip.log"
 import os,sys,zipfile
 apk,dir_=sys.argv[1:3]
+mode=os.environ.get("MODE","both")
 z=zipfile.ZipFile(apk)
 names=z.namelist()
 so='lib/arm64-v8a/libemucore.so'
-if so not in names:
-    print(f"::error::v APK není {so}; .so: {[n for n in names if n.endswith('.so')][:5]}")
-    sys.exit(1)
-out=os.path.join(dir_,'lib','arm64-v8a','libemucore.so')
-os.makedirs(os.path.dirname(out),exist_ok=True)
-open(out,'wb').write(z.read(so))
-assets=[n for n in names if n.startswith('assets/') and not n.endswith('/')]
-for n in assets:
-    dst=os.path.join(dir_,n)
-    os.makedirs(os.path.dirname(dst),exist_ok=True)
-    open(dst,'wb').write(z.read(n))
+if mode in ("both","so"):
+    if so not in names:
+        print(f"::error::v APK není {so}; .so: {[n for n in names if n.endswith('.so')][:5]}")
+        sys.exit(1)
+    out=os.path.join(dir_,'lib','arm64-v8a','libemucore.so')
+    os.makedirs(os.path.dirname(out),exist_ok=True)
+    open(out,'wb').write(z.read(so))
+if mode in ("both","assets"):
+    assets=[n for n in names if n.startswith('assets/') and not n.endswith('/')]
+    for n in assets:
+        dst=os.path.join(dir_,n)
+        os.makedirs(os.path.dirname(dst),exist_ok=True)
+        open(dst,'wb').write(z.read(n))
 gi=os.path.join(dir_,'assets','GameIndex.yaml')
-ok=os.path.exists(gi)
-print(f"::notice::extracted {os.path.basename(dir_)}: libemucore.so {os.path.getsize(out)} B, {len(assets)} assets, GameIndex {'ANO' if ok else 'NE'}")
+ok=(mode!="assets") or os.path.exists(gi)
+print(f"::notice::extracted {os.path.basename(dir_)} (mode={mode}): "
+      f"libemucore.so {os.path.getsize(out) if (mode in ('both','so') and 'out' in dir()) else '—'} B, "
+      f"{len([n for n in names if n.startswith('assets/') and not n.endswith('/')]) if mode in ('both','assets') else '—'} assets, "
+      f"GameIndex {'ANO' if ok else 'NE'}")
 sys.exit(0 if ok else 2)
 PY
   case $? in
@@ -266,9 +272,24 @@ PY
   esac
 }
 
-note "=== stage 4: jádra ==="
-fetch_core Trixarian/NetherSX2-patch   4248
-fetch_core Trixarian/NetherSX2-classic 3668
+note "=== stage 4: jádra (4248 z repozitáře, 3668 vypnuto) ==="
+# Core dodává uživatel přímo v repu. Bereme čistý affinity-auto core
+# (libemucore.so = hash 516077..., jen 8 B pach v .text FUN_00911ad0:
+# ldr wN,[xN,#0xe24] -> mov wN,#7, viz Android Cores). Phase* varianty
+# záměrně VYNEChÁVÁME — phase2 padal na startu MTGS/VU1, phase2_fixed byl
+# od jiného nástroje a neobstál, phase1 mění FIFO velikosti v .data.
+# Z patch-release se berou jen assets (GameIndex + cheaty), které jsou
+# binárkou core nezávislé. Classic 3668 je vyřazený — balík jede čistě na 4248.
+CORE_SO="$ROOT/libemucore.so"
+if [ ! -f "$CORE_SO" ]; then
+  err "v repozitáři chybí libemucore.so (affinity-auto 4248) — core nemá co balit"
+  die "core .so v repu chybí"
+fi
+mkdir -p "$CORES_DIR/NetherSX2-v2.2n-4248/lib/arm64-v8a"
+cp -f "$CORE_SO" "$CORES_DIR/NetherSX2-v2.2n-4248/lib/arm64-v8a/libemucore.so" \
+  || die "kopie core z repozitáře"
+key "core: $(basename "$CORE_SO") (4248) ze zdrojáku, sha256=$(sha256sum "$CORE_SO" | cut -c1-16)"
+fetch_core Trixarian/NetherSX2-patch 4248 assets
 
 # -------------------------------------------------------------------- 5. upstream
 note "=== stage 5: upstream ==="
@@ -278,6 +299,24 @@ if [ ! -d "$SRC/.git" ]; then
     https://github.com/NaGaa95/NetherSX2_nx.git "$SRC"
 fi
 key "upstream=$(git -C "$SRC" rev-parse --short HEAD)"
+
+# ------------------------------------------- 5b. vrstva: načítání + memory
+# Nevýkonové patche hostitelské „android-like" vrstvy (na základě logů z karty):
+#   * so_fastload.py  — velký stream buffer pro .so, BSS se nuluje jen v ocáscích
+#     PT_LOAD (ne celých 208 MB), so_flush_caches jede jen RX segmenty,
+#   * fh_buf.py       — velký buffer pro resource soubory (GameIndex.yaml).
+# Ani jeden nemění chování; při nesouladu anchoru jen varuj (vrstva se chová
+# jako upstream a build pokračuje).
+if python3 "$HERE/patches/so_fastload.py" "$SRC/source/so_util.c"; then
+  key "vrstva: so_util.c fastload (stream buffer + BSS-only zero + RX-only flush)"
+else
+  warn "vrstva: so_util.c fastload NEAPLIKOVÁN (upstream posunul kotvy)"
+fi
+if python3 "$HERE/patches/fh_buf.py" "$SRC/source/filehelper.c"; then
+  key "vrstva: filehelper.c resource stream buffer"
+else
+  warn "vrstva: filehelper.c buffer NEAPLIKOVÁN (upstream posunul kotvy)"
+fi
 
 # nepovinnej vstup: plochý vulkan/ SDK z ci/build-mesa-sdk.sh (artifact
 # 'mesa-sdk'). Bez něj se VK stage přeskočí — GL cesta to nepotřebuje.
@@ -788,7 +827,13 @@ fi
 mkdir -p "$SRC/source/hooks"
   # Obsah je v ci/patches/ci_core_log.c (dřív tu byl jako heredoc; v Python
   # řetězcích se pletly zpětné lomítka — build 45 kvůli tomu spadl).
-  cp "$HERE/patches/ci_core_log.c" "$SRC/source/hooks/ci_core_log.c" || die "kopie ci_core_log.c"
+  # NSX_CI_BUILD: dosad číslo buildu (= GITHUB_RUN_NUMBER v CI; release name
+  # v mesa-vk.yml ho používá stejně) místo placeholderu — build 54 měl ve
+  # zprávě natvrdo "build=54", logy proto lhaly i v novějších buildách.
+  nsx_ci_build="${GITHUB_RUN_NUMBER:-?}"
+  sed -e "s/@@NSX_CI_BUILD@@/${nsx_ci_build}/g" \
+      "$HERE/patches/ci_core_log.c" > "$SRC/source/hooks/ci_core_log.c" \
+      || die "kopie ci_core_log.c"
 
   # Rychlá compile kontrola našich C souborů PŘED make: build 47 spadl až po
   # pár minutách na názvu enumu, který se mezi verzemi libnx liší
@@ -902,6 +947,25 @@ if python3 "$HERE/patches/pthr_diag.py" "$SRC/source/pthr.c"; then
   key "diag: rozlozeni threadu na jadra je v logu (pthr.c)"
 else
   warn "pthr.c patch pro rozlozeni threadu neprosel — uvidime jen FPS radky"
+fi
+
+# ---------------------------------------- 7b3b. fixní pinning MTGS (core 1) + VU1 (core 2)
+# Hypotéza #1: MTGS a VU1 se ve work poolu střídají na jádrech 1–2 (round-robin).
+# Fixní pinning: MTGS -> work_list[0] (core 1), VU1 -> work_list[1] (core 2),
+# workers -> work_list[2+] round-robin. Respektuje ci-nopin.enabled.
+if python3 "$HERE/patches/pthr_pin_fixed.py" "$SRC/source/pthr.c"; then
+  key "opt: fixed MTGS(core1)/VU1(core2) pinning (pthr.c)"
+else
+  warn "pthr_pin_fixed.py neprosel — round-robin zůstává"
+fi
+
+# ---------------------------------------- 7b3c. MTVU marker ci-mtvu.conf (A/B test bez rebuildu)
+# Marker /switch/nethersx2/ci-mtvu.conf: 0=MTVU OFF, 1=ON (default).
+# Uživatel mění soubor na SD, restart hry → okamžitý test.
+if python3 "$HERE/patches/mtvu_marker.py" "$SRC/source/pthr.c"; then
+  key "opt: MTVU marker ci-mtvu.conf (pthr.c)"
+else
+  warn "mtvu_marker.py neprosel — MTVU bez markeru"
 fi
 
 # --------------------------------------------------------- 7b2. FPS měřidlo (GL)
@@ -1098,6 +1162,14 @@ VkResult_t vkEnumerateInstanceLayerProperties(uint32_t *pCount, void *pPropertie
 VKSHIM
   note "psán weak VK loader shim (instance version/layer/extension enumeration)"
 
+  # vrstva: rychlejší prezentace — CNTPCT místo clock_gettime() na každý present
+  # + source-rate klasifikace se měří jen při zapnutém LSFG (v logu lsfg=0).
+  if python3 "$HERE/patches/vk_fast_present.py" "$SRC/source/hooks/vk.c"; then
+    key "vk: fast present (cntpct bez SVC, klasifikace jen při LSFG)"
+  else
+    warn "vk: fast present NEAPLIKOVÁN (upstream posunul kotvy)"
+  fi
+
   # Patch je v ci/patches/vk_diag.py (dřív heredoc s Python řetězci, kde se
   # pletly zpětné lomítka — build 45 na tom spadl). Takty si patch bere
   # z ci_core_log.c přes slabé symboly, takže tu není žádný compile probe.
@@ -1251,7 +1323,7 @@ fi
 # ------------------------------------------------------------------ 8. romfs
 note "=== stage 8: romfs bundling ==="
 mkdir -p "$SRC/launcher/romfs/cores" "$SRC/launcher/romfs/emu"
-for b in 4248 3668; do
+for b in 4248; do
   cp -f "$CORES_DIR/NetherSX2-v2.2n-$b/lib/arm64-v8a/libemucore.so" \
         "$SRC/launcher/romfs/cores/emucore_$b.so" || die "kopie jádra $b"
   rd="$SRC/launcher/romfs/res/$b"
@@ -1267,6 +1339,15 @@ fi
 if [ -n "$VKSDK" ] && [ -f "$SRC/NetherSX2_nx_vk.nro" ]; then
   cp -f "$SRC/NetherSX2_nx_vk.nro" "$SRC/launcher/romfs/emu/NetherSX2_nx_vk.nro"
   note "romfs má oba rendery (GL + VK)"
+fi
+# Per-game profily (ci/gamecfg/*.ini) -> romfs:/gamecfg; launcher je při
+# prvním spuštění nového bundle vytáhne na sdmc:.../gamecfg (viz edit 8b).
+if [ -d "$HERE/gamecfg" ] && ls "$HERE"/gamecfg/*.ini >/dev/null 2>&1; then
+  mkdir -p "$SRC/launcher/romfs/gamecfg"
+  cp -f "$HERE"/gamecfg/*.ini "$SRC/launcher/romfs/gamecfg/"
+  note "romfs/gamecfg: přibaleny per-game profily"
+else
+  key "romfs/gamecfg: zadné per-game profily v ci/gamecfg"
 fi
 du -sh "$SRC/launcher/romfs" | bash "$HERE/annotate.sh" notice 1
 
@@ -1352,6 +1433,46 @@ if os.environ.get("VK_ONLY") == "1":
          '    if(backend!="14") storeSet(effective,"EmuCore/GS/Renderer","14");\n'
          '    const std::string renderer="vk";\n'),
     ]
+
+# -------------------------------------------------------------- CORE LOCK
+# Balík jede jen na jádře 4248 (uživatelský libemucore.so v repu; classic
+# 3668 je vyřazen). Dvě věci:
+#   * v Core version necháme jen "Patched (4248)" (jinak si to nikdo nezvolí),
+#   * spádovou normalizaci zúžíme na build="4248" — per-game profil na kartě
+#     může mít z dřívějška "3668" a ten by launcher poslal po neexistujícím
+#     romfs:/cores/emucore_3668.so -> "Could not extract emulator files".
+edits += [
+    ('if(build!="4248"&&build!="3668") build="4248";',
+     'if(build!="4248") build="4248";'),
+    ('{ {"Patched (4248)","4248"}, {"Classic (3668)","3668"} }',
+     '{ {"Patched (4248)","4248"} }'),
+    # (7) defaultní adresář her: upstream "sdmc:/switch/nethersx2/games",
+    #     uživatel chce sdmc:/Roms/ps2 (použije se, dokud si hráč cestu
+    #     nepřepíše v launcheru - GamePath bezpečí netkne).
+    ('static const char *DEF_GAMEDIR= "sdmc:/switch/nethersx2/games";',
+     'static const char *DEF_GAMEDIR= "sdmc:/Roms/ps2";'),
+
+    # (8) per-game profily (gamecfg/<klic>.ini): launcher je cte jen ze SD karty.
+    #     Pribalime je teda do romfs:/gamecfg a pri prvni instalaci noveho
+    #     bundle (zmena markeru .ci_installed, stejny princip jako resources)
+    #     je vyhrabeme ven. Marker zaruci, ze po restartu nesmazeme rucni
+    #     vyladeni, ktere si hrac v gamecfg/ udela.
+    ('  bool ok = extractTree(std::string("romfs:/res/") + build, RESOURCES_DIR, true);\n'
+     '  if(ok) writeAtomicText(RES_MARKER,marker+"\\n");',
+     '  bool ok = extractTree(std::string("romfs:/res/") + build, RESOURCES_DIR, true);\n'
+     '  if(ok) writeAtomicText(RES_MARKER,marker+"\\n");\n'
+     '  { const char *gcMarker = "sdmc:/switch/nethersx2/gamecfg/.ci_installed";\n'
+     '    char gcb[64] = {0};\n'
+     '    FILE *gcf = fopen(gcMarker,"r");\n'
+     '    if (gcf) { if (!fgets(gcb,sizeof(gcb),gcf)) gcb[0]=0; fclose(gcf); }\n'
+     '    if (trim(gcb) != marker) {\n'
+     '      mkdir(GAMECFG_DIR, 0777);\n'
+     '      extractTree(std::string("romfs:/gamecfg"), GAMECFG_DIR, true);\n'
+     '      writeAtomicText(gcMarker, marker+"\\n");\n'
+     '    }\n'
+     '  }'),
+]
+
 done = 0
 # Upgrade ze starších buildu: kdyby strom už měl starý (8-arg) ciLaunchDiag,
 # ten blok smaž a níž se vloží nový. Bez toho by v opakovaném běhu zůstal
@@ -1373,9 +1494,162 @@ print("main.cpp: patcheno %d/%d" % (done, n_edits))
 sys.exit(0 if done == n_edits else 1)
 PYEOF
   if [ $? -eq 0 ]; then
-    key "launcher: ensureEmu uvolněn, seek 0x0, fsync/abort/commit opravy, diagnostika"
+    key "launcher: ensureEmu uvolněn, seek 0x0, fsync/abort/commit opravy, diagnostika, core lock na 4248"
   else
     warn "launcher patch NEAPLIKOVÁN — upstream posunul řádky, .nro se chová jako upstream"
+  fi
+
+  # Zabudování výchozí konfigurace (optimalizovaný launcher.ini) do store
+  # launcheru. Hned po načtení sdmc:/switch/nethersx2/launcher.ini se g_global
+  # doplní těmito hodnotami -> každý start hry je poskládá do nethersx2.ini
+  # (EMU_INI). Per-game profily (gamecfg/<klíč>.ini) je i tak přepisují až na
+  # startu konkrétní hry. CoreBuild je schválně "4248" — balík 3668 neobsahuje.
+  python3 - "$LM" <<'PYEOF'
+import sys
+path = sys.argv[1]
+text = open(path, encoding="utf-8", errors="surrogateescape").read()
+
+marker = "/* NSX_CI_DEFAULTS:"
+if marker in text:
+    print("launcher defaults: uz patcheno (idempotentni)")
+    sys.exit(0)
+
+anchor = "  storeLoad(g_global,LAUNCHER_INI);"
+if anchor not in text:
+    print("launcher defaults: ANCHOR NENALEZEN")
+    sys.exit(1)
+
+store_set = \
+"""
+    storeSet(g_global,"Folders/Bios","/switch/nethersx2/bios");
+    storeSet(g_global,"Folders/Snapshots","/switch/nethersx2/snaps");
+    storeSet(g_global,"Folders/Savestates","/switch/nethersx2/states");
+    storeSet(g_global,"Folders/MemoryCards","/switch/nethersx2/memcards");
+    storeSet(g_global,"Folders/Cache","/switch/nethersx2/cache");
+    storeSet(g_global,"Folders/Textures","/switch/nethersx2/textures");
+    storeSet(g_global,"Folders/Covers","/switch/nethersx2/covers");
+    storeSet(g_global,"Folders/GameSettings","/switch/nethersx2/gamesettings");
+    storeSet(g_global,"Folders/InputProfiles","/switch/nethersx2/inputprofiles");
+    storeSet(g_global,"Folders/Cheats","/switch/nethersx2/cheats");
+    storeSet(g_global,"Folders/Logs","/switch/nethersx2/logs");
+    storeSet(g_global,"Folders/Resources","/switch/nethersx2/resources");
+    storeSet(g_global,"EmuCore/GS/Renderer","14");
+    storeSet(g_global,"EmuCore/GS/upscale_multiplier","1");
+    storeSet(g_global,"EmuCore/GS/AspectRatio","4:3");
+    storeSet(g_global,"EmuCore/GS/VsyncEnable","0");
+    storeSet(g_global,"EmuCore/GS/DisableThreadedPresentation","0");
+    storeSet(g_global,"EmuCore/GS/ThreadedPresentation","1");
+    storeSet(g_global,"EmuCore/GS/SkipDuplicateFrames","false");
+    storeSet(g_global,"EmuCore/GS/filter","2");
+    storeSet(g_global,"EmuCore/GS/MaxAnisotropy","0");
+    storeSet(g_global,"EmuCore/GS/OsdShowFPS","true");
+    storeSet(g_global,"EmuCore/GS/OsdShowMessages","true");
+    storeSet(g_global,"EmuCore/GS/EnableWideScreenPatches","true");
+    storeSet(g_global,"EmuCore/GS/EnableNoInterlacingPatches","true");
+    storeSet(g_global,"EmuCore/GS/accurate_blending_unit","1");
+    storeSet(g_global,"EmuCore/GS/deinterlace_mode","0");
+    storeSet(g_global,"EmuCore/GS/dithering_ps2","1");
+    storeSet(g_global,"EmuCore/GS/TriFilter","-1");
+    storeSet(g_global,"EmuCore/GS/mipmap_hw","true");
+    storeSet(g_global,"EmuCore/GS/CRCHackLevel","-1");
+    storeSet(g_global,"EmuCore/GS/texture_preloading","2");
+    storeSet(g_global,"EmuCore/GS/paltex","false");
+    storeSet(g_global,"EmuCore/GS/pcrtc_antiblur","1");
+    storeSet(g_global,"EmuCore/GS/TVShader","0");
+    storeSet(g_global,"EmuCore/GS/CASMode","0");
+    storeSet(g_global,"EmuCore/GS/ShadeBoost","0");
+    storeSet(g_global,"EmuCore/GS/LoadTextureReplacements","false");
+    storeSet(g_global,"EmuCore/GS/LoadTextureReplacementsAsync","true");
+    storeSet(g_global,"EmuCore/GS/SoftwareRendererFMV","false");
+    storeSet(g_global,"EmuCore/GS/HWDownloadMode","1");
+    storeSet(g_global,"EmuCore/GS/LSFGEnabled","false");
+    storeSet(g_global,"EmuCore/GS/LSFGFlowScale","0.25");
+    storeSet(g_global,"EmuCore/GS/LSFGPerformance","true");
+    storeSet(g_global,"SPU2/Interpolation","4");
+    storeSet(g_global,"SPU2/SynchMode","0");
+    storeSet(g_global,"Wrapper/CoreBuild","4248");
+    storeSet(g_global,"Wrapper/FastmemMode","hybrid");
+    storeSet(g_global,"Wrapper/FastBoot","true");
+    storeSet(g_global,"Wrapper/SystemLanguage","auto");
+    storeSet(g_global,"Wrapper/LSFGEnabled","false");
+    storeSet(g_global,"Wrapper/LSFGFlowScale","0.25");
+    storeSet(g_global,"Wrapper/LSFGPerformance","true");
+    storeSet(g_global,"EmuCore/EnableCheats","true");
+    storeSet(g_global,"EmuCore/EnablePatches","true");
+    storeSet(g_global,"EmuCore/EnableWideScreenPatches","true");
+    storeSet(g_global,"EmuCore/EnableNoInterlacingPatches","true");
+    storeSet(g_global,"EmuCore/Speedhacks/EECycleRate","0");
+    storeSet(g_global,"EmuCore/Speedhacks/EECycleSkip","0");
+    storeSet(g_global,"EmuCore/Speedhacks/fastCDVD","true");
+    storeSet(g_global,"EmuCore/Speedhacks/IntcStat","true");
+    storeSet(g_global,"EmuCore/Speedhacks/WaitLoop","true");
+    storeSet(g_global,"EmuCore/Speedhacks/vuFlagHack","true");
+    storeSet(g_global,"EmuCore/Speedhacks/vuThread","true");
+    storeSet(g_global,"EmuCore/Speedhacks/vu1Instant","true");
+    storeSet(g_global,"EmuCore/Speedhacks/MTGS","true");
+    storeSet(g_global,"EmuCore/CPU/FPU.DenormalsAreZero","1");
+    storeSet(g_global,"EmuCore/CPU/FPU.FlushToZero","1");
+    storeSet(g_global,"EmuCore/CPU/FPU.Roundmode","0");
+    storeSet(g_global,"EmuCore/CPU/AffinityControlMode","0");
+    storeSet(g_global,"EmuCore/CPU/VU0.DenormalsAreZero","1");
+    storeSet(g_global,"EmuCore/CPU/VU0.FlushToZero","1");
+    storeSet(g_global,"EmuCore/CPU/VU0.Roundmode","0");
+    storeSet(g_global,"EmuCore/CPU/VU1.DenormalsAreZero","1");
+    storeSet(g_global,"EmuCore/CPU/VU1.FlushToZero","1");
+    storeSet(g_global,"EmuCore/CPU/VU1.Roundmode","0");
+    storeSet(g_global,"EmuCore/CPU/VU.Roundmode","0");
+    storeSet(g_global,"EmuCore/CPU/EnableVU0","1");
+    storeSet(g_global,"EmuCore/CPU/EnableVU1","1");
+    storeSet(g_global,"EmuCore/CPU/VU0ClampMode","0");
+    storeSet(g_global,"EmuCore/CPU/VU1ClampMode","0");
+    storeSet(g_global,"EmuCore/CPU/VUClampMode","0");
+    storeSet(g_global,"EmuCore/CPU/Recompiler/EnableVU0","1");
+    storeSet(g_global,"EmuCore/CPU/Recompiler/EnableVU1","1");
+    storeSet(g_global,"EmuCore/CPU/Recompiler/VU0ClampMode","0");
+    storeSet(g_global,"EmuCore/CPU/Recompiler/VU1ClampMode","0");
+    storeSet(g_global,"EmuCore/GS/MTGS","true");
+    storeSet(g_global,"EmuCore/GS/ThreadedPresentation","0");
+    storeSet(g_global,"EmuCore/GS/DisableThreadedPresentation","1");
+    storeSet(g_global,"EmuCore/GS/SoftwareRendererFMV","true");
+    storeSet(g_global,"EmuCore/Gamefixes/FullVU0SyncHack","false");
+    storeSet(g_global,"EmuCore/Gamefixes/VUSyncHack","false");
+    storeSet(g_global,"EmuCore/Gamefixes/VuAddSubHack","false");
+    storeSet(g_global,"EmuCore/Gamefixes/FpuMulHack","false");
+    storeSet(g_global,"EmuCore/Gamefixes/FpuNegDivHack","false");
+    storeSet(g_global,"EmuCore/Gamefixes/SoftwareRendererFMVHack","false");
+    storeSet(g_global,"EmuCore/Gamefixes/SkipMPEGHack","false");
+    storeSet(g_global,"EmuCore/Gamefixes/GoemonTlbHack","false");
+    storeSet(g_global,"EmuCore/Gamefixes/EETimingHack","false");
+    storeSet(g_global,"EmuCore/Gamefixes/OPHFlagHack","false");
+    storeSet(g_global,"EmuCore/Gamefixes/GIFFIFOHack","false");
+    storeSet(g_global,"EmuCore/Gamefixes/DMABusyHack","false");
+    storeSet(g_global,"EmuCore/Gamefixes/VIF1StallHack","false");
+    storeSet(g_global,"EmuCore/Gamefixes/VIFFIFOHack","false");
+    storeSet(g_global,"EmuCore/Gamefixes/IbitHack","false");
+    storeSet(g_global,"EmuCore/Gamefixes/VUOverflowHack","false");
+    storeSet(g_global,"EmuCore/Gamefixes/BlitInternalFPSHack","false");
+    storeSet(g_global,"EmuCore/Gamefixes/XgKickHack","false");
+    storeSet(g_global,"EmuCore/Gamefixes/InstantDMAHack","false");
+    storeSet(g_global,"Achievements/Enabled","false");
+    storeSet(g_global,"Achievements/Username","");
+    storeSet(g_global,"Achievements/Token","");
+"""
+
+block = anchor + """\n  /* NSX_CI_DEFAULTS: vbudované optimalizované výchozí nastavení (launcher.ini).
+   * Jednou po načtení sdmc:/switch/nethersx2/launcher.ini; per-game profily
+   * (gamecfg/*.ini) je přepisují až na startu konkrétní hry. CoreBuild je
+   * schválně "4248" — balík 3668 neobsahuje. */
+  if(true){""" + store_set + """  }
+"""
+text = text.replace(anchor, block, 1)
+open(path, "w", encoding="utf-8", errors="surrogateescape").write(text)
+print("launcher defaults: %d klíčů zabudováno" % store_set.count("storeSet(g_global,"))
+sys.exit(0)
+PYEOF
+  if [ $? -eq 0 ]; then
+    key "launcher: výchozí nastavení zabudováno (NSX_CI_DEFAULTS)"
+  else
+    warn "launcher defaults patch selhal"
   fi
 
   cat > "$SRC/launcher/source/ci_launch_diag.cpp" <<'LAUNCH_DIAG_CPP'
@@ -1563,13 +1837,25 @@ key "nro=$(stat -c %s "$OUT/NetherSX2.nro")"
 # Bez tohohle testu by nám uniklo třeba to, že romfs/emu zůstalo prázdný a
 # launcher by na kartě hlásil „Could not extract emulator files" — přesně
 # tu hlášku, se kterou sme tohle celý začínali.
-for n in emu/NetherSX2_nx_vk.nro emu/NetherSX2_nx_gl.nro cores/libemucore.so \
-         res/GameIndex.yaml; do
+for n in emu/NetherSX2_nx_vk.nro emu/NetherSX2_nx_gl.nro \
+         cores/emucore_4248.so cores/libemucore.so \
+         cores/emucore_3668.so res/GameIndex.yaml; do
   name=$(basename "$n")
   if grep -qa "$name" "$OUT/NetherSX2.nro"; then
-    note "  uvnitř .nro: $name"
+    # 3668 nesmí být součástí balíku — kdyby tu byl, grep po emucore_3668.so
+    # by mohl sednout na romfs tabulku jiného souboru; pojistka navíc je ta
+    # korektní a 3668 mlčí (viz níže eventualita, kterou vidíme na kartě).
+    if [ "$name" = "emucore_3668.so" ]; then
+      err "  V .nRO JE emucore_3668.so — core lock selhal, balík obsahuje classic"
+    else
+      note "  uvnitř .nro: $name"
+    fi
   elif [ "$VK_ONLY" = "1" ] && [ "$name" = "NetherSX2_nx_gl.nro" ]; then
     note "  v .nro chybí NetherSX2_nx_gl.nro — v pořádku, VK_ONLY=1"
+  elif [ "$name" = "libemucore.so" ] || [ "$name" = "emucore_3668.so" ]; then
+    # launcher/emulátor odkazují jen emucore_<b>.so; obecný název
+    # libemucore.so je v romfs jediné tehdy, kdyby se balil `.so` přímo.
+    note "  v .nro (jak má, nebalíme obecnej název): $name"
   else
     err "  V .nRO CHYBÍ $name — balík je nepoužitelný"
   fi
