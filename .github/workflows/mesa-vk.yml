@@ -33,7 +33,7 @@ on:
   # první a trigger by zmizel bez jakýkoliv chyby. Main tu záměrně není:
   # každej build žere ~15 min runner minut z měsíční kvóty privátního repa.
   push:
-    branches: ["arena/**"]
+    branches: ["arena/opencode-ci"]
     paths:
       - ".github/workflows/mesa-vk.yml"
       - "ci/**"
