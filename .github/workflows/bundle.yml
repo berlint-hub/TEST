@@ -13,7 +13,7 @@ on:
   # GL balík (třeba otestovat patch v launcheru), pushnu commit s [gl].
   workflow_dispatch:
   push:
-    branches: ["arena/**"]
+    branches: ["arena/opencode-ci"]
     paths:
       - ".github/workflows/bundle.yml"
 
