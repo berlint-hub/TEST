@@ -943,6 +943,25 @@ else
   warn "pthr.c patch pro rozlozeni threadu neprosel — uvidime jen FPS radky"
 fi
 
+# ---------------------------------------- 7b3b. fixní pinning MTGS (core 1) + VU1 (core 2)
+# Hypotéza #1: MTGS a VU1 se ve work poolu střídají na jádrech 1–2 (round-robin).
+# Fixní pinning: MTGS -> work_list[0] (core 1), VU1 -> work_list[1] (core 2),
+# workers -> work_list[2+] round-robin. Respektuje ci-nopin.enabled.
+if python3 "$HERE/patches/pthr_pin_fixed.py" "$SRC/source/pthr.c"; then
+  key "opt: fixed MTGS(core1)/VU1(core2) pinning (pthr.c)"
+else
+  warn "pthr_pin_fixed.py neprosel — round-robin zůstává"
+fi
+
+# ---------------------------------------- 7b3c. MTVU marker ci-mtvu.conf (A/B test bez rebuildu)
+# Marker /switch/nethersx2/ci-mtvu.conf: 0=MTVU OFF, 1=ON (default).
+# Uživatel mění soubor na SD, restart hry → okamžitý test.
+if python3 "$HERE/patches/mtvu_marker.py" "$SRC/source/pthr.c"; then
+  key "opt: MTVU marker ci-mtvu.conf (pthr.c)"
+else
+  warn "mtvu_marker.py neprosel — MTVU bez markeru"
+fi
+
 # --------------------------------------------------------- 7b2. FPS měřidlo (GL)
 # VK větev má FPS řádky ve vk.c (viz 7d), jenže GL větev přes vk.c vůbec
 # neprezentuje — swapy jdou přes eglSwapBuffersHook v source/hooks/egl.c, kde
@@ -1514,7 +1533,7 @@ store_set = \
     storeSet(g_global,"SPU2/Interpolation","4");
     storeSet(g_global,"SPU2/SynchMode","0");
     storeSet(g_global,"Wrapper/CoreBuild","4248");
-    storeSet(g_global,"Wrapper/FastmemMode","hybrid");
+    storeSet(g_global,"Wrapper/FastmemMode","full");
     storeSet(g_global,"Wrapper/FastBoot","true");
     storeSet(g_global,"Wrapper/SystemLanguage","auto");
     storeSet(g_global,"Wrapper/LSFGEnabled","false");
@@ -1532,6 +1551,7 @@ store_set = \
     storeSet(g_global,"EmuCore/Speedhacks/vuFlagHack","true");
     storeSet(g_global,"EmuCore/Speedhacks/vuThread","true");
     storeSet(g_global,"EmuCore/Speedhacks/vu1Instant","true");
+    storeSet(g_global,"EmuCore/Speedhacks/MTGS","true");
     storeSet(g_global,"EmuCore/CPU/FPU.DenormalsAreZero","1");
     storeSet(g_global,"EmuCore/CPU/FPU.FlushToZero","1");
     storeSet(g_global,"EmuCore/CPU/FPU.Roundmode","0");
@@ -1552,6 +1572,10 @@ store_set = \
     storeSet(g_global,"EmuCore/CPU/Recompiler/EnableVU1","1");
     storeSet(g_global,"EmuCore/CPU/Recompiler/VU0ClampMode","0");
     storeSet(g_global,"EmuCore/CPU/Recompiler/VU1ClampMode","0");
+    storeSet(g_global,"EmuCore/GS/MTGS","true");
+    storeSet(g_global,"EmuCore/GS/ThreadedPresentation","0");
+    storeSet(g_global,"EmuCore/GS/DisableThreadedPresentation","1");
+    storeSet(g_global,"EmuCore/GS/SoftwareRendererFMV","true");
     storeSet(g_global,"EmuCore/Gamefixes/FullVU0SyncHack","false");
     storeSet(g_global,"EmuCore/Gamefixes/VUSyncHack","false");
     storeSet(g_global,"EmuCore/Gamefixes/VuAddSubHack","false");
