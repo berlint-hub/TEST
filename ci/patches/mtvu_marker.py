@@ -41,7 +41,7 @@ static int nsx_mtvu_enabled(void) {
     if (v < 0) v = 1;  /* default ON */
   }
   return v;
-}'),
+}'''),
 
     # 2. Podmíněné vytváření VU1 threadu (hledáme kde se vu1_thread vytváří)
     ('  vu1_thread = thread_create(vu1_main, NULL, 0x8000, 0x20);',
