@@ -904,6 +904,15 @@ else
   warn "pthr.c patch pro rozlozeni threadu neprosel — uvidime jen FPS radky"
 fi
 
+# NSX_CORE_LOAD — CPU% na kazdy emulacni thread (EE/MTGS/VU1/audio) pres
+# InfoType_ThreadTickCount (FW 13.0+), radka "[CI] load:" 1x za sekundu.
+# Nezavisle na pthr_diag.py; kdyz selze, build pokracuje bez load %.
+if python3 "$HERE/patches/ci_load.py" "$SRC/source/pthr.c"; then
+  key "pthr: CPU% na thread (ee/vu/gs) je v logu ([CI] load)"
+else
+  warn "pthr.c patch CPU% na thread neprosel — bez [CI] load"
+fi
+
 # --------------------------------------------------------- 7b2. FPS měřidlo (GL)
 # VK větev má FPS řádky ve vk.c (viz 7d), jenže GL větev přes vk.c vůbec
 # neprezentuje — swapy jdou přes eglSwapBuffersHook v source/hooks/egl.c, kde
