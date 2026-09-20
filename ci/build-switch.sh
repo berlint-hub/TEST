@@ -789,6 +789,9 @@ mkdir -p "$SRC/source/hooks"
   # Obsah je v ci/patches/ci_core_log.c (dřív tu byl jako heredoc; v Python
   # řetězcích se pletly zpětné lomítka — build 45 kvůli tomu spadl).
   cp "$HERE/patches/ci_core_log.c" "$SRC/source/hooks/ci_core_log.c" || die "kopie ci_core_log.c"
+  # build 87: [CI] session start dostane shodne cislo buildu jako release title
+  # (na mainu prezila uz tezba stara konstanta 54).
+  sed -i "s/{RUNN}/${GITHUB_RUN_NUMBER:-?}/g" "$SRC/source/hooks/ci_core_log.c"
 
   # Rychlá compile kontrola našich C souborů PŘED make: build 47 spadl až po
   # pár minutách na názvu enumu, který se mezi verzemi libnx liší
@@ -1387,6 +1390,24 @@ PYEOF
     warn "launcher patch NEAPLIKOVÁN — upstream posunul řádky, .nro se chová jako upstream"
   fi
 
+  # build 87: logy do logs/, default složka her /Roms/PS2, exit->launcher,
+  # FrameLimit v launch profilu. Skripty mají vlastní kotvy; exit nenula = die.
+  if python3 "$HERE/patches/log_paths.py" "$SRC/source/hooks/vk.c" "$SRC/source/main.c"; then
+    key "logy: nethersx2-*.log teď v /switch/nethersx2/logs/"
+  else
+    warn "log_paths.py selhal — logy zůstanou v rootu"
+  fi
+  if python3 "$HERE/patches/launcher_fix.py" "$SRC/launcher/source/main.cpp"; then
+    key "/Roms/PS2 default, exit do launchere + FrameLimit=true v profilu"
+  else
+    warn "launcher_fix.py selhal — výchozí složka/exit/FPS cap bez změny"
+  fi
+  if python3 "$HERE/patches/emu_fix.py" "$SRC/source/main.c"; then
+    key "Exit game -> chain-back na launcher (fallback sdmc:/switch/NetherSX2.nro)"
+  else
+    warn "emu_fix.py selhal — Exit game pořád hází do HOME Menu"
+  fi
+
   cat > "$SRC/launcher/source/ci_launch_diag.cpp" <<'LAUNCH_DIAG_CPP'
 #include <dirent.h>
 #include <sys/stat.h>
@@ -1400,7 +1421,7 @@ PYEOF
 #include <string>
 
 namespace {
-constexpr const char *DIAG_LOG = "sdmc:/switch/nethersx2/launcher-diag.log";
+constexpr const char *DIAG_LOG = "sdmc:/switch/nethersx2/logs/launcher-diag.log";
 
 void hexHead(FILE *out, const char *label, const char *path) {
   FILE *f = std::fopen(path, "rb");
@@ -1476,6 +1497,7 @@ extern void ciLaunchDiag(const char *coreSource, const char *coreDestination,
                          const char *rendererNro, const char *glDriver,
                          const char *launchKey, const char *profilePath,
                          bool haveCore, bool haveEmulator, bool haveResources, bool configSaved) {
+  if (mkdir("sdmc:/switch/nethersx2/logs", 0755) != 0 && errno != EEXIST) { /* neni fatal */ }
   FILE *out = std::fopen(DIAG_LOG, "a");
   if (!out) return;   // launcher kvuli tomu nesmi spadnout
   std::fprintf(out, "--- start hry %lld ---\n", static_cast<long long>(std::time(nullptr)));

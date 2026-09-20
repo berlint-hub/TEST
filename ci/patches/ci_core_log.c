@@ -18,7 +18,8 @@
 #define CI_SWITCH 0   /* host build (testy parsování/ dedupu) switch API nemá */
 #endif
 
-#define CI_LOG_PATH  "/switch/nethersx2/nethersx2-core.log"
+#define CI_LOG_PATH  "/switch/nethersx2/logs/nethersx2-core.log"
+#define CI_LOG_DIR   "/switch/nethersx2/logs"
 #define CI_MARK_PATH "/switch/nethersx2/ci-logging.enabled"
 #define CI_RAWLOG_MARK   "/switch/nethersx2/ci-rawlog.enabled"
 #define CI_CLK_CONF  "/switch/nethersx2/ci-clk.conf"
@@ -51,6 +52,7 @@ static int ci_on(void) {
     struct stat st;
     ci_enabled = (stat(CI_MARK_PATH, &st) == 0) ? 1 : 0;
     if (ci_enabled) {
+      mkdir(CI_LOG_DIR, 0755);   /* build 87: logy v podslozce logs/ */
       /* NSX_LOG_QUIET vs. forenzní mód: default je 64 KiB buffer (na SD jen
        * když se naplní). Marker ci-rawlog.enabled (= surový log bez dedupu)
        * od buildu 52 navíc přepne stdout/stderr na NEBUFFEROVANÝ zápis —
@@ -108,7 +110,7 @@ static int ci_on(void) {
        * začátek session přežil i okamžitej pád.
        * NSX_CI_BUILD: ručně zvedat s každým buildem — jediná jistá známka,
        * která binárka na kartě běží (velikosti .nro se mezi buildy nemění). */
-      fprintf(stdout, "[CI] session start build=54 ts=%ld pid=%d%s\n",
+      fprintf(stdout, "[CI] session start build={RUNN} ts=%ld pid=%d%s\n",
               (long)time(NULL), (int)getpid(),
               ci_raw_log() ? " rawlog=unbuffered" : "");
       fflush(stdout);

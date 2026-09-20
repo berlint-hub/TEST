@@ -9,3 +9,7 @@
 .ciwork/
 out/
 dist/
+
+# Python bytecode z lokálního ladění patch skriptů
+__pycache__/
+*.pyc

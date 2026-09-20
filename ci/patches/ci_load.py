@@ -1,19 +1,21 @@
-﻿"""Patch source/pthr.c â€” per-thread CPU load (EE/MTGS/VU1/workers/audio).
+﻿"""Patch source/pthr.c — CPU% po JADRACH (NSX_CORE_LOAD).
 
-Co pĹ™idĂˇvĂˇ (NSX_CORE_LOAD):
-  1. registry threadĹŻ: kazdy thread prochazejici thread_trampoline se zaeviduje
-     se sekvenci #N (stejne cislo, jakym ho ocisluje pthr_diag "[CI] thread #N").
-     EE/BG thready si dropnou tag pres pthr_pin_ee_core / pthr_pin_bg_core.
-  2. monitor thread (spawnuty lenive z prvni registrace): kazdou sekundu precete
-     InfoType_ThreadTickCount (25, FW 13.0+) na kazdem zaregistrovanem threadu
-     a vypise  "[CI] load: <label>=<pct>% @m<h>"  do stdout.
+Build 86 použil InfoType_ThreadTickCount + Handle registrovaných threadů
+(registry trackujici kazdy emulacni thread). Na hardware to selhalo: v
+nethersx2-core.log byly jen "load: EE=0%@mf" a "BG=0%@mf" (9x resp 765x,
+vzdy 0%, vzdy @m = vsechny svcGetInfo s cizim handle vracely chybu).
 
-pct = podil system ticku (svcGetSystemTick) stravenych na threadu v okne 1 s â€”
-0..100, zola bez zavislosti na pinningu/afinitach. Na FW < 13.0 vypise jeden
-radku a skonci.
+Tohle je jiny zpusob, odolny vuci tem nezdarum citeni cizich handle:
+  * bez registry threadu, bez tagi,
+  * 4 sampler thready — kazdy se svcSetThreadCoreMask pripne na SVOJI jadro
+    a cte jen SVOJE InfoType_IdleTickCount (10),
+  * reporter (1x/s) pise  "[CI] load: c0=..% c1=..% c2=..% c3=..%"
+    (0..100 busy, 100 - idle/dt).
+Role->jadro se vezme z pthr_diag radku "[CI] thread #N (work: ..) -> core=K"
+na zacatku logu (na hlavni vetvi: ee=0, work je na 1,2, bg=3).
 
-PouĹľitĂ­: python3 ci/patches/ci_load.py <cesta k pthr.c>
-(aplikovat PO pthr_diag.py â€” kotvy jsou ale nezĂˇvislĂ©, snesou i opacne poradi)
+Pouziti: python3 ci/patches/ci_load.py <cesta k pthr.c>
+(aplikovat PO pthr_diag.py — kotvy jsou ale nezavisle na nem).
 """
 import sys
 
@@ -26,24 +28,17 @@ if "NSX_CORE_LOAD" in text:
 head = (
     '#include "util.h"\n'
     '\n'
-    '/* NSX_CORE_LOAD: per-thread CPU%% (InfoType_ThreadTickCount, FW 13.0+).\n'
-    ' * Definice jsou na konci souboru. */\n'
-    'static void nsx_load_reg(void);\n'
-    'static void nsx_load_tag(const char *tag);\n'
+    '/* NSX_CORE_LOAD: per-core CPU%% z InfoType_IdleTickCount. Definice na konci. */\n'
+    'static void nsx_core_probe_start(void);\n'
 )
 
 tramp_old = '  void *ret = s.start(s.arg);\n'
 
 tramp_new = (
-    '  /* NSX_CORE_LOAD: zaeviduj se (cislo sedi s pthr_diag "[CI] thread #N"). */\n'
-    '  nsx_load_reg();\n'
+    '  /* NSX_CORE_LOAD: z prvniho emulatecniho threadu nastartuj samplery. */\n'
+    '  nsx_core_probe_start();\n'
     '  void *ret = s.start(s.arg);\n'
 )
-
-eanchor = ('void pthr_pin_ee_core(void) {\n',
-           'void pthr_pin_ee_core(void) {\n  nsx_load_tag("EE");\n')
-bganchor = ('void pthr_pin_bg_core(void) {\n',
-            'void pthr_pin_bg_core(void) {\n  nsx_load_tag("BG");\n')
 
 tail_anchor = (
     'int pthread_attr_setstacksize_soloader(pthread_attr_t_bionic *attr, size_t stacksize) {\n'
@@ -56,138 +51,80 @@ tail_anchor = (
 tail = tail_anchor + (
     '\n'
     '/* ------------------------------------------------------------------ */\n'
-    '/* NSX_CORE_LOAD: vychej CPU%% na kazdym emulacnim threadu.            */\n'
+    '/* NSX_CORE_LOAD: CPU%% na jadre pres InfoType_IdleTickCount.           */\n'
     '/* ------------------------------------------------------------------ */\n'
-    '#define NSX_LOAD_MAX 16\n'
+    '#define NSX_CORE_SAMPLERS 4\n'
     '\n'
-    'typedef struct {\n'
-    '  Handle h;     /* thread handle (CUR_THREAD_HANDLE) */\n'
-    '  int       seq;      /* poradi vytvoreni (shodnuje se s pthr_diag #N) */\n'
-    '  u64       prev;     /* posledni InfoType_ThreadTickCount */\n'
-    '  char      tag[8];   /* "EE"/"BG"/"" (neznama role) */\n'
-    '} nsx_load_ent;\n'
+    'static volatile unsigned nsx_core_pct[NSX_CORE_SAMPLERS]; /* 0..100 busy */\n'
+    'static volatile int      nsx_core_started;\n'
+    'static volatile int      nsx_core_query_fail;\n'
     '\n'
-    'static Mutex           nsx_load_lock;\n'
-    'static nsx_load_ent    nsx_ents[NSX_LOAD_MAX];\n'
-    'static int             nsx_load_n;\n'
-    'static int             nsx_load_seq;\n'
-    'static int             nsx_load_mon_started;\n'
-    'static int             nsx_load_ok = -1;  /* 1 = funguje, 3 = FW < 13.0 */\n'
-    '\n'
-    'static void *nsx_load_monitor(void *unused);\n'
-    '\n'
-    'static void nsx_load_spawn(void) {\n'
-    '  if (nsx_load_mon_started)\n'
-    '    return;\n'
-    '  nsx_load_mon_started = 1;\n'
-    '  pthread_t mon;\n'
-    '  if (pthread_create(&mon, NULL, nsx_load_monitor, NULL) == 0)\n'
-    '    pthread_detach(mon);\n'
-    '}\n'
-    '\n'
-    'static int nsx_load_find(Handle h) {\n'
-    '  int i;\n'
-    '  for (i = 0; i < nsx_load_n; i++)\n'
-    '    if (nsx_ents[i].h == h)\n'
-    '      return i;\n'
-    '  return -1;\n'
-    '}\n'
-    '\n'
-    'static void nsx_load_reg(void) {\n'
-    '  Handle self = CUR_THREAD_HANDLE;\n'
-    '  mutexLock(&nsx_load_lock);\n'
-    '  if (nsx_load_find(self) < 0 && nsx_load_n < NSX_LOAD_MAX) {\n'
-    '    nsx_ents[nsx_load_n].h   = self;\n'
-    '    nsx_ents[nsx_load_n].seq = ++nsx_load_seq;\n'
-    '    nsx_ents[nsx_load_n].prev = 0;\n'
-    '    nsx_ents[nsx_load_n].tag[0] = 0;\n'
-    '    nsx_load_n++;\n'
-    '  }\n'
-    '  mutexUnlock(&nsx_load_lock);\n'
-    '  nsx_load_spawn();\n'
-    '}\n'
-    '\n'
-    'static void nsx_load_tag(const char *tag) {\n'
-    '  Handle self = CUR_THREAD_HANDLE;\n'
-    '  mutexLock(&nsx_load_lock);\n'
-    '  int i = nsx_load_find(self);\n'
-    '  if (i < 0 && nsx_load_n < NSX_LOAD_MAX) {\n'
-    '    /* thread mimo trampolinu (napr. audio mixer pres newlib pthread) */\n'
-    '    i = nsx_load_n++;\n'
-    '    nsx_ents[i].h    = self;\n'
-    '    nsx_ents[i].seq  = ++nsx_load_seq;\n'
-    '    nsx_ents[i].prev = 0;\n'
-    '    nsx_ents[i].tag[0] = 0;\n'
-    '  }\n'
-    '  if (i >= 0)\n'
-    '    snprintf(nsx_ents[i].tag, sizeof(nsx_ents[i].tag), "%s", tag);\n'
-    '  mutexUnlock(&nsx_load_lock);\n'
-    '}\n'
-    '\n'
-    'static void *nsx_load_monitor(void *unused) {\n'
-    '  (void)unused;\n'
-    '  u64 last = svcGetSystemTick();\n'
-    '  int primed = 0;\n'
+    '/* Na jadro `core` se pripne a kazdou sekundu precete jeho idle ticky.\n'
+    ' * IdleTickCount jde cist jen z aktualniho (vlastniho) jadra threadu —\n'
+    ' * proto jich bezi 4, kazdy na svem. */\n'
+    'static void *nsx_core_sampler(void *arg) {\n'
+    '  const int core = (int)(uintptr_t)arg;\n'
+    '  u64 prev = 0, last = svcGetSystemTick();\n'
+    '  if (core >= 0 && core < NSX_CORE_SAMPLERS)\n'
+    '    svcSetThreadCoreMask(CUR_THREAD_HANDLE, core, 1u << core);\n'
     '  for (;;) {\n'
     '    svcSleepThread(1000000000ULL);\n'
-    '    u64 now = svcGetSystemTick();\n'
-    '    u64 dt  = now - last;\n'
-    '    last    = now;\n'
-    '    if (dt == 0)\n'
-    '      continue;\n'
-    '\n'
-    '    mutexLock(&nsx_load_lock);\n'
-    '\n'
-    '    /* prvni pruchod: jen natankuj prev, bez tisku */\n'
-    '    if (!primed) {\n'
-    '      for (int i = 0; i < nsx_load_n; i++) {\n'
-    '        u64 ticks = 0;\n'
-    '        if (R_SUCCEEDED(svcGetInfo(&ticks, InfoType_ThreadTickCount,\n'
-    '                                  nsx_ents[i].h, (u64)TickCountInfo_Total)))\n'
-    '          nsx_ents[i].prev = ticks;\n'
-    '      }\n'
-    '      primed = 1;\n'
-    '      mutexUnlock(&nsx_load_lock);\n'
-    '      continue;\n'
+    '    const u64 now = svcGetSystemTick();\n'
+    '    const u64 dt  = now - last;\n'
+    '    last = now;\n'
+    '    u64 idle = 0;\n'
+    '    if (dt && R_SUCCEEDED(svcGetInfo(&idle, InfoType_IdleTickCount,\n'
+    '                                     CUR_PROCESS_HANDLE,\n'
+    '                                     (u64)core))) {   /* Core0..Core3 = 0..3 */\n'
+    '      const u64 d = (idle >= prev) ? (idle - prev) : 0;\n'
+    '      prev = idle;\n'
+    '      nsx_core_pct[core] =\n'
+    '        (d >= dt) ? 0u : (unsigned)(100u - (100ull * d) / dt);\n'
+    '    } else {\n'
+    '      nsx_core_query_fail = 1;   /* FW < 13.0, nebo chyba subsystemu */\n'
     '    }\n'
+    '  }\n'
+    '  return NULL;\n'
+    '}\n'
     '\n'
-    '    char buf[NSX_LOAD_MAX * 32 + 32];\n'
-    '    int off = snprintf(buf, sizeof(buf), "[CI] load:");\n'
-    '    int queried = 0, failed = 0;\n'
-    '    for (int i = 0; i < nsx_load_n && off < (int)sizeof(buf) - 24; i++) {\n'
-    '      u64 ticks = 0;\n'
-    '      if (R_SUCCEEDED(svcGetInfo(&ticks, InfoType_ThreadTickCount,\n'
-    '                                nsx_ents[i].h, (u64)TickCountInfo_Total)))\n'
-    '        queried++;\n'
-    '      else\n'
-    '        failed++;\n'
-    '      u64 d = (ticks >= nsx_ents[i].prev) ? (ticks - nsx_ents[i].prev) : 0;\n'
-    '      nsx_ents[i].prev = ticks;\n'
-    '      unsigned pct = (d >= dt) ? 100u : (unsigned)((100ull * d) / dt);\n'
-    '      s32 pcore = -1;\n'
-    '      u64 amask = 0;\n'
-    '      svcGetThreadCoreMask(&pcore, &amask, nsx_ents[i].h);\n'
-    '      char num[12];\n'
-    '      const char *label = (nsx_ents[i].tag[0]) ? nsx_ents[i].tag\n'
-    '                            : (snprintf(num, sizeof(num), "#%d", nsx_ents[i].seq), num);\n'
-    '      if (pcore >= 0 && pcore < 4)\n'
-    '        off += snprintf(buf + off, sizeof(buf) - (size_t)off,\n'
-    '                        " %s=%u%%@c%d", label, pct, pcore);\n'
-    '      else\n'
-    '        off += snprintf(buf + off, sizeof(buf) - (size_t)off,\n'
-    '                        " %s=%u%%@m%llx", label, pct, (unsigned long long)(amask & 0xf));\n'
-    '    }\n'
-    '    mutexUnlock(&nsx_load_lock);\n'
-    '\n'
-    '    if (nsx_load_ok < 0)\n'
-    '      nsx_load_ok = (queried == 0 && failed > 0) ? 3 : 1;\n'
-    '    if (nsx_load_ok == 3) {\n'
-    '      fprintf(stdout, "[CI] load: ThreadTickCount nedostupnej (FW 13.0+)\\n");\n'
+    'static void *nsx_core_report(void *unused) {\n'
+    '  (void)unused;\n'
+    '  unsigned last[NSX_CORE_SAMPLERS] = { 0, 0, 0, 0 };\n'
+    '  int silent = 0;\n'
+    '  for (;;) {\n'
+    '    svcSleepThread(1000000000ULL);\n'
+    '    if (nsx_core_query_fail && !silent) {\n'
+    '      fprintf(stdout, "[CI] load: IdleTickCount nedostupne (FW 13.0+?) — bez per-core %%\\n");\n'
     '      fflush(stdout);\n'
-    '      return NULL;\n'
+    '      silent = 1;\n'
+    '      continue;\n'
     '    }\n'
+    '    if (!silent && (!last[0] && !last[1] && !last[2] && !last[3]))\n'
+    '      fprintf(stdout, "[CI] load: per-core busy%% (InfoType_IdleTickCount); role->core viz radky thread #N\\n");\n'
+    '    char buf[96];\n'
+    '    int off = snprintf(buf, sizeof(buf), "[CI] load:");\n'
+    '    for (int i = 0; i < NSX_CORE_SAMPLERS && off < (int)sizeof(buf) - 24; i++)\n'
+    '      off += snprintf(buf + off, sizeof(buf) - (size_t)off,\n'
+    '                      " c%d=%u%%", i, nsx_core_pct[i]);\n'
+    '    memcpy(last, (unsigned[]){ nsx_core_pct[0], nsx_core_pct[1],\n'
+    '                                nsx_core_pct[2], nsx_core_pct[3] },\n'
+    '           sizeof(last));\n'
     '    fprintf(stdout, "%s\\n", buf);\n'
     '    fflush(stdout);\n'
+    '  }\n'
+    '  return NULL;\n'
+    '}\n'
+    '\n'
+    '/* Startuje jednou: 4 samplery (kazdy na svem jadre) + 1 reporter. */\n'
+    'static void nsx_core_probe_start(void) {\n'
+    '  if (__sync_bool_compare_and_swap(&nsx_core_started, 0, 1)) {\n'
+    '    pthread_t t;\n'
+    '    for (int i = 0; i < NSX_CORE_SAMPLERS; i++)\n'
+    '      if (pthread_create(&t, NULL, nsx_core_sampler,\n'
+    '                         (void *)(uintptr_t)i) == 0)\n'
+    '        pthread_detach(t);\n'
+    '    if (pthread_create(&t, NULL, nsx_core_report, NULL) == 0)\n'
+    '      pthread_detach(t);\n'
     '  }\n'
     '}\n'
 )
@@ -195,15 +132,13 @@ tail = tail_anchor + (
 edits = [
     ('#include "util.h"\n', head),
     (tramp_old, tramp_new),
-    (eanchor[0], eanchor[1]),
-    (bganchor[0], bganchor[1]),
     (tail_anchor, tail),
 ]
 
 missing = []
 for old, new in edits:
     if old not in text:
-        missing.append(old.splitlines()[0][:70])
+        missing.append(old.splitlines()[0][:72])
     text = text.replace(old, new, 1)
 
 if missing:
