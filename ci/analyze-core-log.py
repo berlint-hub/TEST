@@ -9,6 +9,8 @@ Co vypíše:
   * FPS podle kombinace taktů (cpu/gpu/emc) — tj. jak moc hra stojí na taktech,
   * okna se stutterem (nejdelší frame),
   * rozložení emulačních threadů na jádra + kolik jader proces dostal,
+  * load (busy% per jádro z [CI] load: — build 87+; >=90 % = kandidát na
+    bottleneck), v --full i propojení s FPS okny,
   * kolik řádků logu spolkl dedup (a jaké vzory).
 
 Proč to je v repu: v CI i na kartě se pořád dokola potřebuje totéž a ruční
@@ -28,6 +30,10 @@ ISO_RE = re.compile(r"isoFile open ok: (.+?)\.iso", re.M)
 CORES_RE = re.compile(r"\[CI\] cores: mask=0x([0-9a-f]+) -> hot=0x([0-9a-f]+) ee=(\d+) work=([\d,]*) bg=(\d+)", re.M)
 THREAD_RE = re.compile(r"\[CI\] thread (?:#(\d+) \(work: ([^)]+)\)|(EE/VM|bg[^)]*)) -> core=(\d+)", re.M)
 DEDUP_RE = re.compile(r"\[CI\] \.\.\. vzor se opakoval (\d+)x.*?: (.*)$", re.M)
+# Build 87+: "[CI] load: c0=..% c1=..% c2=..% c3=..%" (InfoType_IdleTickCount,
+# busy% per jádro). Role->jádro viz "[CI] thread #N -> core=" podle pinningu.
+LOAD_RE = re.compile(r"\[CI\] load:((?:\s+c\d+=\d+%)+)", re.M)
+LOAD_TOKEN_RE = re.compile(r"c(\d)=(\d+)%")
 
 
 def sessions(lines):
@@ -87,6 +93,30 @@ def main():
                   f"{worst[3]} ms (okno {worst[0]} FPS)")
             print(f"    lsfg: {'zapnuto' if any(r[5] == '1' for r in rows) else 'vypnuto'}")
             all_rows += rows
+        # load: busy% per jádro (build 87+, čte se z load counteru jader)
+        bycore = defaultdict(list)
+        for m in LOAD_RE.finditer(txt):
+            for c, p in LOAD_TOKEN_RE.findall(m.group(1)):
+                bycore[int(c)].append(int(p))
+        if bycore:
+            view = " ".join(f"c{k}=med{statistics.median(v):.0f} "
+                            f"(p10 {pct(v,0.10):.0f}/max {max(v)})"
+                            for k, v in sorted(bycore.items()))
+            print(f"    load (busy%): {view}")
+            # Kolik % času je jádro nad 90 % = podezření na bottleneck v daném
+            # vlákně (EE na core0, MTGS/worker + VU1 na core1/2, audio na core3).
+            for k, v in sorted(bycore.items()):
+                hot = sum(1 for x in v if x >= 90) * 100.0 / len(v)
+                if hot >= 10:
+                    print(f"      -> jádro c{k} je >=90 % busy v {hot:.0f} % času "
+                          f"(zde hledej bottleneck)")
+        # --full: propojení FPS oken s load řádkami (každé ~1/s, jdou za sebou)
+        if args.full and rows and bycore:
+            print("    -- full: FPS | busy% per core (c0..c3)")
+            samples = list(zip(*bycore.values()))
+            for n, (r, sample) in enumerate(zip(rows, samples), 1):
+                load = " ".join(f"c{k}={p}%" for k, p in zip(sorted(bycore), sample))
+                print(f"      okno {n:>4}: {r[0]:>5} FPS | {load}")
         # dedup
         dd = DEDUP_RE.findall(txt)
         if dd:
