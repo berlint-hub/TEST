@@ -1,19 +1,19 @@
-"""Patch source/pthr.c — per-thread CPU load (EE/MTGS/VU1/workers/audio).
+﻿"""Patch source/pthr.c â€” per-thread CPU load (EE/MTGS/VU1/workers/audio).
 
-Co přidává (NSX_CORE_LOAD):
-  1. registry threadů: kazdy thread prochazejici thread_trampoline se zaeviduje
+Co pĹ™idĂˇvĂˇ (NSX_CORE_LOAD):
+  1. registry threadĹŻ: kazdy thread prochazejici thread_trampoline se zaeviduje
      se sekvenci #N (stejne cislo, jakym ho ocisluje pthr_diag "[CI] thread #N").
      EE/BG thready si dropnou tag pres pthr_pin_ee_core / pthr_pin_bg_core.
   2. monitor thread (spawnuty lenive z prvni registrace): kazdou sekundu precete
      InfoType_ThreadTickCount (25, FW 13.0+) na kazdem zaregistrovanem threadu
      a vypise  "[CI] load: <label>=<pct>% @m<h>"  do stdout.
 
-pct = podil system ticku (svcGetSystemTick) stravenych na threadu v okne 1 s —
+pct = podil system ticku (svcGetSystemTick) stravenych na threadu v okne 1 s â€”
 0..100, zola bez zavislosti na pinningu/afinitach. Na FW < 13.0 vypise jeden
 radku a skonci.
 
-Použití: python3 ci/patches/ci_load.py <cesta k pthr.c>
-(aplikovat PO pthr_diag.py — kotvy jsou ale nezávislé, snesou i opacne poradi)
+PouĹľitĂ­: python3 ci/patches/ci_load.py <cesta k pthr.c>
+(aplikovat PO pthr_diag.py â€” kotvy jsou ale nezĂˇvislĂ©, snesou i opacne poradi)
 """
 import sys
 
@@ -61,7 +61,7 @@ tail = tail_anchor + (
     '#define NSX_LOAD_MAX 16\n'
     '\n'
     'typedef struct {\n'
-    '  pthread_t t;\n'
+    '  Handle h;     /* thread handle (CUR_THREAD_HANDLE) */\n'
     '  int       seq;      /* poradi vytvoreni (shodnuje se s pthr_diag #N) */\n'
     '  u64       prev;     /* posledni InfoType_ThreadTickCount */\n'
     '  char      tag[8];   /* "EE"/"BG"/"" (neznama role) */\n'
@@ -85,19 +85,19 @@ tail = tail_anchor + (
     '    pthread_detach(mon);\n'
     '}\n'
     '\n'
-    'static int nsx_load_find(pthread_t t) {\n'
+    'static int nsx_load_find(Handle h) {\n'
     '  int i;\n'
     '  for (i = 0; i < nsx_load_n; i++)\n'
-    '    if (nsx_ents[i].t == t)\n'
+    '    if (nsx_ents[i].h == h)\n'
     '      return i;\n'
     '  return -1;\n'
     '}\n'
     '\n'
     'static void nsx_load_reg(void) {\n'
-    '  pthread_t self = pthread_self();\n'
+    '  Handle self = CUR_THREAD_HANDLE;\n'
     '  mutexLock(&nsx_load_lock);\n'
     '  if (nsx_load_find(self) < 0 && nsx_load_n < NSX_LOAD_MAX) {\n'
-    '    nsx_ents[nsx_load_n].t   = self;\n'
+    '    nsx_ents[nsx_load_n].h   = self;\n'
     '    nsx_ents[nsx_load_n].seq = ++nsx_load_seq;\n'
     '    nsx_ents[nsx_load_n].prev = 0;\n'
     '    nsx_ents[nsx_load_n].tag[0] = 0;\n'
@@ -108,13 +108,13 @@ tail = tail_anchor + (
     '}\n'
     '\n'
     'static void nsx_load_tag(const char *tag) {\n'
-    '  pthread_t self = pthread_self();\n'
+    '  Handle self = CUR_THREAD_HANDLE;\n'
     '  mutexLock(&nsx_load_lock);\n'
     '  int i = nsx_load_find(self);\n'
     '  if (i < 0 && nsx_load_n < NSX_LOAD_MAX) {\n'
     '    /* thread mimo trampolinu (napr. audio mixer pres newlib pthread) */\n'
     '    i = nsx_load_n++;\n'
-    '    nsx_ents[i].t    = self;\n'
+    '    nsx_ents[i].h    = self;\n'
     '    nsx_ents[i].seq  = ++nsx_load_seq;\n'
     '    nsx_ents[i].prev = 0;\n'
     '    nsx_ents[i].tag[0] = 0;\n'
@@ -143,7 +143,7 @@ tail = tail_anchor + (
     '      for (int i = 0; i < nsx_load_n; i++) {\n'
     '        u64 ticks = 0;\n'
     '        if (R_SUCCEEDED(svcGetInfo(&ticks, InfoType_ThreadTickCount,\n'
-    '                                  nsx_ents[i].t, (u64)TickCountInfo_Total)))\n'
+    '                                  nsx_ents[i].h, (u64)TickCountInfo_Total)))\n'
     '          nsx_ents[i].prev = ticks;\n'
     '      }\n'
     '      primed = 1;\n'
@@ -157,7 +157,7 @@ tail = tail_anchor + (
     '    for (int i = 0; i < nsx_load_n && off < (int)sizeof(buf) - 24; i++) {\n'
     '      u64 ticks = 0;\n'
     '      if (R_SUCCEEDED(svcGetInfo(&ticks, InfoType_ThreadTickCount,\n'
-    '                                nsx_ents[i].t, (u64)TickCountInfo_Total)))\n'
+    '                                nsx_ents[i].h, (u64)TickCountInfo_Total)))\n'
     '        queried++;\n'
     '      else\n'
     '        failed++;\n'
@@ -166,7 +166,7 @@ tail = tail_anchor + (
     '      unsigned pct = (d >= dt) ? 100u : (unsigned)((100ull * d) / dt);\n'
     '      s32 pcore = -1;\n'
     '      u64 amask = 0;\n'
-    '      svcGetThreadCoreMask(&pcore, &amask, nsx_ents[i].t);\n'
+    '      svcGetThreadCoreMask(&pcore, &amask, nsx_ents[i].h);\n'
     '      char num[12];\n'
     '      const char *label = (nsx_ents[i].tag[0]) ? nsx_ents[i].tag\n'
     '                            : (snprintf(num, sizeof(num), "#%d", nsx_ents[i].seq), num);\n'
