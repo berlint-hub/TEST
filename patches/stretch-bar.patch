@@ -1,8 +1,16 @@
 diff --git a/src/game/display.cc b/src/game/display.cc
-index c5df11c..6b546a3 100644
+index c5df11c..8214c7a 100644
 --- a/src/game/display.cc
 +++ b/src/game/display.cc
-@@ -116,8 +116,15 @@ int display_init()
+@@ -14,6 +14,7 @@
+ #include "plib/gnw/input.h"
+ #include "plib/gnw/memory.h"
+ #include "plib/gnw/rect.h"
++#include "plib/gnw/svga.h"
+ #include "plib/gnw/text.h"
+ 
+ namespace fallout {
+@@ -116,8 +117,15 @@ int display_init()
  
          art_ptr_unlock(backgroundFrmHandle);
  
@@ -19,7 +27,7 @@ index c5df11c..6b546a3 100644
              DISPLAY_MONITOR_Y,
              DISPLAY_MONITOR_WIDTH,
              DISPLAY_MONITOR_HALF_HEIGHT,
-@@ -138,7 +145,7 @@ int display_init()
+@@ -138,7 +146,7 @@ int display_init()
          }
  
          dn_bid = win_register_button(interfaceWindow,
@@ -28,7 +36,7 @@ index c5df11c..6b546a3 100644
              DISPLAY_MONITOR_Y + DISPLAY_MONITOR_HALF_HEIGHT,
              DISPLAY_MONITOR_WIDTH,
              DISPLAY_MONITOR_HEIGHT - DISPLAY_MONITOR_HALF_HEIGHT,
-@@ -305,20 +312,23 @@ void display_redraw()
+@@ -305,20 +313,23 @@ void display_redraw()
          return;
      }
  
