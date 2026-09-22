@@ -1,0 +1,486 @@
+diff --git a/src/game/display.cc b/src/game/display.cc
+index c5df11c..6b546a3 100644
+--- a/src/game/display.cc
++++ b/src/game/display.cc
+@@ -116,8 +116,15 @@ int display_init()
+ 
+         art_ptr_unlock(backgroundFrmHandle);
+ 
++        int displayMonitorX = DISPLAY_MONITOR_X * screenGetWidth() / INTERFACE_BAR_WIDTH;
++
++        disp_rect.ulx = displayMonitorX;
++        disp_rect.uly = DISPLAY_MONITOR_Y;
++        disp_rect.lrx = displayMonitorX + DISPLAY_MONITOR_WIDTH - 1;
++        disp_rect.lry = DISPLAY_MONITOR_Y + DISPLAY_MONITOR_HEIGHT - 1;
++
+         up_bid = win_register_button(interfaceWindow,
+-            DISPLAY_MONITOR_X,
++            displayMonitorX,
+             DISPLAY_MONITOR_Y,
+             DISPLAY_MONITOR_WIDTH,
+             DISPLAY_MONITOR_HALF_HEIGHT,
+@@ -138,7 +145,7 @@ int display_init()
+         }
+ 
+         dn_bid = win_register_button(interfaceWindow,
+-            DISPLAY_MONITOR_X,
++            displayMonitorX,
+             DISPLAY_MONITOR_Y + DISPLAY_MONITOR_HALF_HEIGHT,
+             DISPLAY_MONITOR_WIDTH,
+             DISPLAY_MONITOR_HEIGHT - DISPLAY_MONITOR_HALF_HEIGHT,
+@@ -305,20 +312,23 @@ void display_redraw()
+         return;
+     }
+ 
+-    buf += intface_full_wid * DISPLAY_MONITOR_Y + DISPLAY_MONITOR_X;
++    int destWidth = screenGetWidth();
++    int displayMonitorX = DISPLAY_MONITOR_X * destWidth / INTERFACE_BAR_WIDTH;
++
++    buf += destWidth * DISPLAY_MONITOR_Y + displayMonitorX;
+     buf_to_buf(disp_buf,
+         DISPLAY_MONITOR_WIDTH,
+         DISPLAY_MONITOR_HEIGHT,
+         DISPLAY_MONITOR_WIDTH,
+         buf,
+-        intface_full_wid);
++        destWidth);
+ 
+     int oldFont = text_curr();
+     text_font(DISPLAY_MONITOR_FONT);
+ 
+     for (int index = 0; index < max_disp_ptr; index++) {
+         int stringIndex = (disp_curr + max_ptr + index - max_disp_ptr) % max_ptr;
+-        text_to_buf(buf + index * intface_full_wid * text_height(), disp_str[stringIndex], DISPLAY_MONITOR_WIDTH, intface_full_wid, colorTable[992]);
++        text_to_buf(buf + index * destWidth * text_height(), disp_str[stringIndex], DISPLAY_MONITOR_WIDTH, destWidth, colorTable[992]);
+ 
+         // Even though the display monitor is rectangular, it's graphic is not.
+         // To give a feel of depth it's covered by some metal canopy and
+diff --git a/src/game/intface.cc b/src/game/intface.cc
+index 9a726db..28fbc1a 100644
+--- a/src/game/intface.cc
++++ b/src/game/intface.cc
+@@ -384,7 +384,16 @@ static unsigned char* inventoryButtonDown;
+ // This buffer is initialized once and does not change throughout the game.
+ //
+ // 0x59B994
+-static unsigned char movePointBackground[90 * 5];
++static unsigned char* movePointBackground;
++static int movePointBackgroundWidth;
++
++// Scales an interface bar X coordinate from the original 640px wide layout
++// to the current screen width, so the bar stretches to fill the whole
++// width of the display.
++static int intface_scale_x(int x)
++{
++    return x * screenGetWidth() / INTERFACE_BAR_WIDTH;
++}
+ 
+ // 0x4531F0
+ int intface_init()
+@@ -399,10 +408,10 @@ int intface_init()
+ 
+     insideInit = 1;
+ 
+-    int interfaceBarWindowX = (screenGetWidth() - INTERFACE_BAR_WIDTH) / 2;
++    int interfaceBarWindowX = 0;
+     int interfaceBarWindowY = screenGetHeight() - INTERFACE_BAR_HEIGHT;
+ 
+-    interfaceWindow = win_add(interfaceBarWindowX, interfaceBarWindowY, INTERFACE_BAR_WIDTH, INTERFACE_BAR_HEIGHT, colorTable[0], WINDOW_HIDDEN);
++    interfaceWindow = win_add(interfaceBarWindowX, interfaceBarWindowY, screenGetWidth(), INTERFACE_BAR_HEIGHT, colorTable[0], WINDOW_HIDDEN);
+     if (interfaceWindow == -1) {
+         // NOTE: Uninline.
+         return intface_fatal_error(-1);
+@@ -421,9 +430,24 @@ int intface_init()
+         return intface_fatal_error(-1);
+     }
+ 
+-    buf_to_buf(backgroundFrmData, INTERFACE_BAR_WIDTH, INTERFACE_BAR_HEIGHT, INTERFACE_BAR_WIDTH, interfaceBuffer, 640);
++    // Horizontally stretch the 640px wide bar background to fill the full
++    // screen width.
++    for (int y = 0; y < INTERFACE_BAR_HEIGHT; y++) {
++        for (int x = 0; x < screenGetWidth(); x++) {
++            interfaceBuffer[y * screenGetWidth() + x] = backgroundFrmData[y * INTERFACE_BAR_WIDTH + x * INTERFACE_BAR_WIDTH / screenGetWidth()];
++        }
++    }
+     art_ptr_unlock(backgroundFrmHandle);
+ 
++    // Scale interface bar rects from the 640px layout to the current screen
++    // width.
++    itemButtonRect.ulx = intface_scale_x(itemButtonRect.ulx);
++    itemButtonRect.lrx = intface_scale_x(itemButtonRect.lrx);
++    endWindowRect.ulx = intface_scale_x(endWindowRect.ulx);
++    endWindowRect.lrx = intface_scale_x(endWindowRect.lrx);
++    movePointRect.ulx = intface_scale_x(movePointRect.ulx);
++    movePointRect.lrx = intface_scale_x(movePointRect.lrx);
++
+     fid = art_id(OBJ_TYPE_INTERFACE, 47, 0, 0, 0);
+     inventoryButtonUp = art_ptr_lock_data(fid, 0, 0, &inventoryButtonUpKey);
+     if (inventoryButtonUp == NULL) {
+@@ -438,7 +462,7 @@ int intface_init()
+         return intface_fatal_error(-1);
+     }
+ 
+-    inventoryButton = win_register_button(interfaceWindow, 211, 41, 32, 21, -1, -1, -1, KEY_LOWERCASE_I, inventoryButtonUp, inventoryButtonDown, NULL, 0);
++    inventoryButton = win_register_button(interfaceWindow, intface_scale_x(211), 41, 32, 21, -1, -1, -1, KEY_LOWERCASE_I, inventoryButtonUp, inventoryButtonDown, NULL, 0);
+     if (inventoryButton == -1) {
+         // NOTE: Uninline.
+         return intface_fatal_error(-1);
+@@ -460,7 +484,7 @@ int intface_init()
+         return intface_fatal_error(-1);
+     }
+ 
+-    optionsButton = win_register_button(interfaceWindow, 210, 62, 34, 34, -1, -1, -1, KEY_LOWERCASE_O, optionsButtonUp, optionsButtonDown, NULL, 0);
++    optionsButton = win_register_button(interfaceWindow, intface_scale_x(210), 62, 34, 34, -1, -1, -1, KEY_LOWERCASE_O, optionsButtonUp, optionsButtonDown, NULL, 0);
+     if (optionsButton == -1) {
+         // NOTE: Uninline.
+         return intface_fatal_error(-1);
+@@ -489,7 +513,7 @@ int intface_init()
+         return intface_fatal_error(-1);
+     }
+ 
+-    skilldexButton = win_register_button(interfaceWindow, 523, 7, 22, 21, -1, -1, -1, KEY_LOWERCASE_S, skilldexButtonUp, skilldexButtonDown, NULL, BUTTON_FLAG_TRANSPARENT);
++    skilldexButton = win_register_button(interfaceWindow, intface_scale_x(523), 7, 22, 21, -1, -1, -1, KEY_LOWERCASE_S, skilldexButtonUp, skilldexButtonDown, NULL, BUTTON_FLAG_TRANSPARENT);
+     if (skilldexButton == -1) {
+         // NOTE: Uninline.
+         return intface_fatal_error(-1);
+@@ -519,7 +543,7 @@ int intface_init()
+         return intface_fatal_error(-1);
+     }
+ 
+-    automapButton = win_register_button(interfaceWindow, 526, 40, 41, 19, -1, -1, -1, KEY_TAB, automapButtonUp, automapButtonDown, NULL, BUTTON_FLAG_TRANSPARENT);
++    automapButton = win_register_button(interfaceWindow, intface_scale_x(526), 40, 41, 19, -1, -1, -1, KEY_TAB, automapButtonUp, automapButtonDown, NULL, BUTTON_FLAG_TRANSPARENT);
+     if (automapButton == -1) {
+         // NOTE: Uninline.
+         return intface_fatal_error(-1);
+@@ -542,7 +566,7 @@ int intface_init()
+         return intface_fatal_error(-1);
+     }
+ 
+-    pipboyButton = win_register_button(interfaceWindow, 526, 78, 41, 19, -1, -1, -1, KEY_LOWERCASE_P, pipboyButtonUp, pipboyButtonDown, NULL, 0);
++    pipboyButton = win_register_button(interfaceWindow, intface_scale_x(526), 78, 41, 19, -1, -1, -1, KEY_LOWERCASE_P, pipboyButtonUp, pipboyButtonDown, NULL, 0);
+     if (pipboyButton == -1) {
+         // NOTE: Uninline.
+         return intface_fatal_error(-1);
+@@ -565,7 +589,7 @@ int intface_init()
+         return intface_fatal_error(-1);
+     }
+ 
+-    characterButton = win_register_button(interfaceWindow, 526, 59, 41, 19, -1, -1, -1, KEY_LOWERCASE_C, characterButtonUp, characterButtonDown, NULL, 0);
++    characterButton = win_register_button(interfaceWindow, intface_scale_x(526), 59, 41, 19, -1, -1, -1, KEY_LOWERCASE_C, characterButtonUp, characterButtonDown, NULL, 0);
+     if (characterButton == -1) {
+         // NOTE: Uninline.
+         return intface_fatal_error(-1);
+@@ -598,7 +622,7 @@ int intface_init()
+     memcpy(itemButtonUp, itemButtonUpBlank, sizeof(itemButtonUp));
+     memcpy(itemButtonDown, itemButtonDownBlank, sizeof(itemButtonDown));
+ 
+-    itemButton = win_register_button(interfaceWindow, 267, 26, 188, 67, -1, -1, -1, -20, itemButtonUp, itemButtonDown, NULL, BUTTON_FLAG_TRANSPARENT);
++    itemButton = win_register_button(interfaceWindow, intface_scale_x(267), 26, 188, 67, -1, -1, -1, -20, itemButtonUp, itemButtonDown, NULL, BUTTON_FLAG_TRANSPARENT);
+     if (itemButton == -1) {
+         // NOTE: Uninline.
+         return intface_fatal_error(-1);
+@@ -629,7 +653,7 @@ int intface_init()
+     }
+ 
+     // Swap hands button
+-    toggleButton = win_register_button(interfaceWindow, 218, 6, 22, 21, -1, -1, -1, KEY_LOWERCASE_B, toggleButtonUp, toggleButtonDown, NULL, BUTTON_FLAG_TRANSPARENT);
++    toggleButton = win_register_button(interfaceWindow, intface_scale_x(218), 6, 22, 21, -1, -1, -1, KEY_LOWERCASE_B, toggleButtonUp, toggleButtonDown, NULL, BUTTON_FLAG_TRANSPARENT);
+     if (toggleButton == -1) {
+         // NOTE: Uninline.
+         return intface_fatal_error(-1);
+@@ -666,7 +690,14 @@ int intface_init()
+         return intface_fatal_error(-1);
+     }
+ 
+-    buf_to_buf(interfaceBuffer + 640 * 14 + 316, 90, 5, 640, movePointBackground, 90);
++    movePointBackgroundWidth = intface_scale_x(90);
++    movePointBackground = (unsigned char*)mem_malloc(movePointBackgroundWidth * 5);
++    if (movePointBackground == NULL) {
++        // NOTE: Uninline.
++        return intface_fatal_error(-1);
++    }
++
++    buf_to_buf(interfaceBuffer + screenGetWidth() * 14 + intface_scale_x(316), movePointBackgroundWidth, 5, screenGetWidth(), movePointBackground, movePointBackgroundWidth);
+ 
+     if (construct_box_bar_win() == -1) {
+         // NOTE: Uninline.
+@@ -709,6 +740,11 @@ void intface_exit()
+     if (interfaceWindow != -1) {
+         display_exit();
+ 
++        if (movePointBackground != NULL) {
++            mem_free(movePointBackground);
++            movePointBackground = NULL;
++        }
++
+         if (moveLightRed != NULL) {
+             art_ptr_unlock(moveLightRedKey);
+             moveLightRed = NULL;
+@@ -1187,7 +1223,7 @@ void intface_update_move_points(int actionPoints, int bonusMove)
+         return;
+     }
+ 
+-    buf_to_buf(movePointBackground, 90, 5, 90, interfaceBuffer + 14 * 640 + 316, 640);
++    buf_to_buf(movePointBackground, movePointBackgroundWidth, 5, movePointBackgroundWidth, interfaceBuffer + screenGetWidth() * 14 + intface_scale_x(316), screenGetWidth());
+ 
+     if (actionPoints == -1) {
+         frmData = moveLightRed;
+@@ -1204,8 +1240,8 @@ void intface_update_move_points(int actionPoints, int bonusMove)
+             5,
+             5,
+             5,
+-            interfaceBuffer + 14 * 640 + 316 + circle * 9,
+-            640);
++            interfaceBuffer + screenGetWidth() * 14 + intface_scale_x(316 + circle * 9),
++            screenGetWidth());
+         circle++;
+     }
+ 
+@@ -1214,8 +1250,8 @@ void intface_update_move_points(int actionPoints, int bonusMove)
+             5,
+             5,
+             5,
+-            interfaceBuffer + 14 * 640 + 316 + circle * 9,
+-            640);
++            interfaceBuffer + screenGetWidth() * 14 + intface_scale_x(316 + circle * 9),
++            screenGetWidth());
+         circle++;
+     }
+ 
+@@ -1571,7 +1607,7 @@ void intface_end_window_open(bool animated)
+             if (elapsed_time(time) >= delay) {
+                 unsigned char* src = art_frame_data(art, frame, 0);
+                 if (src != NULL) {
+-                    buf_to_buf(src, 57, 58, 57, interfaceBuffer + 640 * 38 + 580, 640);
++                    buf_to_buf(src, 57, 58, 57, interfaceBuffer + screenGetWidth() * 38 + intface_scale_x(580), screenGetWidth());
+                     win_draw_rect(interfaceWindow, &endWindowRect);
+                 }
+ 
+@@ -1585,7 +1621,7 @@ void intface_end_window_open(bool animated)
+         }
+     } else {
+         unsigned char* src = art_frame_data(art, frameCount - 1, 0);
+-        buf_to_buf(src, 57, 58, 57, interfaceBuffer + 640 * 38 + 580, 640);
++        buf_to_buf(src, 57, 58, 57, interfaceBuffer + screenGetWidth() * 38 + intface_scale_x(580), screenGetWidth());
+         win_draw_rect(interfaceWindow, &endWindowRect);
+     }
+ 
+@@ -1629,9 +1665,9 @@ void intface_end_window_close(bool animated)
+ 
+             if (elapsed_time(time) >= delay) {
+                 unsigned char* src = art_frame_data(art, frame - 1, 0);
+-                unsigned char* dest = interfaceBuffer + 640 * 38 + 580;
++                unsigned char* dest = interfaceBuffer + screenGetWidth() * 38 + intface_scale_x(580);
+                 if (src != NULL) {
+-                    buf_to_buf(src, 57, 58, 57, dest, 640);
++                    buf_to_buf(src, 57, 58, 57, dest, screenGetWidth());
+                     win_draw_rect(interfaceWindow, &endWindowRect);
+                 }
+ 
+@@ -1644,9 +1680,9 @@ void intface_end_window_close(bool animated)
+             sharedFpsLimiter.throttle();
+         }
+     } else {
+-        unsigned char* dest = interfaceBuffer + 640 * 38 + 580;
++        unsigned char* dest = interfaceBuffer + screenGetWidth() * 38 + intface_scale_x(580);
+         unsigned char* src = art_frame_data(art, 0, 0);
+-        buf_to_buf(src, 57, 58, 57, dest, 640);
++        buf_to_buf(src, 57, 58, 57, dest, screenGetWidth());
+         win_draw_rect(interfaceWindow, &endWindowRect);
+     }
+ 
+@@ -1670,7 +1706,7 @@ void intface_end_buttons_enable()
+         }
+ 
+         gsound_play_sfx_file("icombat2");
+-        trans_buf_to_buf(lightsFrmData, 57, 58, 57, interfaceBuffer + 38 * 640 + 580, 640);
++        trans_buf_to_buf(lightsFrmData, 57, 58, 57, interfaceBuffer + screenGetWidth() * 38 + intface_scale_x(580), screenGetWidth());
+         win_draw_rect(interfaceWindow, &endWindowRect);
+ 
+         art_ptr_unlock(lightsFrmHandle);
+@@ -1693,7 +1729,7 @@ void intface_end_buttons_disable()
+         }
+ 
+         gsound_play_sfx_file("icombat1");
+-        trans_buf_to_buf(lightsFrmData, 57, 58, 57, interfaceBuffer + 38 * 640 + 580, 640);
++        trans_buf_to_buf(lightsFrmData, 57, 58, 57, interfaceBuffer + screenGetWidth() * 38 + intface_scale_x(580), screenGetWidth());
+         win_draw_rect(interfaceWindow, &endWindowRect);
+ 
+         art_ptr_unlock(lightsFrmHandle);
+@@ -2030,7 +2066,7 @@ static int intface_create_end_turn_button()
+         return -1;
+     }
+ 
+-    endTurnButton = win_register_button(interfaceWindow, 590, 43, 38, 22, -1, -1, -1, 32, endTurnButtonUp, endTurnButtonDown, NULL, 0);
++    endTurnButton = win_register_button(interfaceWindow, intface_scale_x(590), 43, 38, 22, -1, -1, -1, 32, endTurnButtonUp, endTurnButtonDown, NULL, 0);
+     if (endTurnButton == -1) {
+         return -1;
+     }
+@@ -2093,7 +2129,7 @@ static int intface_create_end_combat_button()
+         return -1;
+     }
+ 
+-    endCombatButton = win_register_button(interfaceWindow, 590, 65, 38, 22, -1, -1, -1, 13, endCombatButtonUp, endCombatButtonDown, NULL, 0);
++    endCombatButton = win_register_button(interfaceWindow, intface_scale_x(590), 65, 38, 22, -1, -1, -1, 13, endCombatButtonUp, endCombatButtonDown, NULL, 0);
+     if (endCombatButton == -1) {
+         return -1;
+     }
+@@ -2138,28 +2174,28 @@ static void intface_draw_ammo_lights(int x, int ratio)
+         ratio -= 1;
+     }
+ 
+-    unsigned char* dest = interfaceBuffer + 640 * 26 + x;
++    unsigned char* dest = interfaceBuffer + screenGetWidth() * 26 + intface_scale_x(x);
+ 
+     for (int index = 70; index > ratio; index--) {
+         *dest = 14;
+-        dest += 640;
++        dest += screenGetWidth();
+     }
+ 
+     while (ratio > 0) {
+         *dest = 196;
+-        dest += 640;
++        dest += screenGetWidth();
+ 
+         *dest = 14;
+-        dest += 640;
++        dest += screenGetWidth();
+ 
+         ratio -= 2;
+     }
+ 
+     if (!insideInit) {
+         Rect rect;
+-        rect.ulx = x;
++        rect.ulx = intface_scale_x(x);
+         rect.uly = 26;
+-        rect.lrx = x + 1;
++        rect.lrx = intface_scale_x(x) + 1;
+         rect.lry = 26 + 70;
+         win_draw_rect(interfaceWindow, &rect);
+     }
+@@ -2200,17 +2236,19 @@ static void intface_rotate_numbers(int x, int y, int previousValue, int value, i
+     }
+ 
+     unsigned char* numbers = numbersBuffer + offset;
+-    unsigned char* dest = interfaceBuffer + 640 * y;
++    unsigned char* dest = interfaceBuffer + screenGetWidth() * y;
+ 
+     unsigned char* downSrc = numbers + 90;
+     unsigned char* upSrc = numbers + 99;
+     unsigned char* minusSrc = numbers + 108;
+     unsigned char* plusSrc = numbers + 114;
+ 
+-    unsigned char* signDest = dest + x;
+-    unsigned char* hundredsDest = dest + x + 6;
+-    unsigned char* tensDest = dest + x + 6 + 9;
+-    unsigned char* onesDest = dest + x + 6 + 9 * 2;
++    int scaledX = intface_scale_x(x);
++
++    unsigned char* signDest = dest + scaledX;
++    unsigned char* hundredsDest = dest + scaledX + 6;
++    unsigned char* tensDest = dest + scaledX + 6 + 9;
++    unsigned char* onesDest = dest + scaledX + 6 + 9 * 2;
+ 
+     int normalizedSign;
+     int normalizedValue;
+@@ -2226,13 +2264,13 @@ static void intface_rotate_numbers(int x, int y, int previousValue, int value, i
+     int tens = (normalizedValue / 10) % 10;
+     int hundreds = normalizedValue / 100;
+ 
+-    buf_to_buf(numbers + 9 * hundreds, 9, 17, 360, hundredsDest, 640);
+-    buf_to_buf(numbers + 9 * tens, 9, 17, 360, tensDest, 640);
+-    buf_to_buf(numbers + 9 * ones, 9, 17, 360, onesDest, 640);
+-    buf_to_buf(normalizedSign >= 0 ? plusSrc : minusSrc, 6, 17, 360, signDest, 640);
++    buf_to_buf(numbers + 9 * hundreds, 9, 17, 360, hundredsDest, screenGetWidth());
++    buf_to_buf(numbers + 9 * tens, 9, 17, 360, tensDest, screenGetWidth());
++    buf_to_buf(numbers + 9 * ones, 9, 17, 360, onesDest, screenGetWidth());
++    buf_to_buf(normalizedSign >= 0 ? plusSrc : minusSrc, 6, 17, 360, signDest, screenGetWidth());
+ 
+     if (!insideInit) {
+-        Rect numbersRect = { x, y, x + 33, y + 17 };
++        Rect numbersRect = { scaledX, y, scaledX + 33, y + 17 };
+         win_draw_rect(interfaceWindow, &numbersRect);
+         if (delay != 0) {
+             int change = value - previousValue >= 0 ? 1 : -1;
+@@ -2243,7 +2281,7 @@ static void intface_rotate_numbers(int x, int y, int previousValue, int value, i
+                     v49 = 1;
+                 }
+ 
+-                buf_to_buf(upSrc, 9, 17, 360, onesDest, 640);
++                buf_to_buf(upSrc, 9, 17, 360, onesDest, screenGetWidth());
+                 mouse_info();
+                 gmouse_bk_process();
+                 renderPresent();
+@@ -2253,7 +2291,7 @@ static void intface_rotate_numbers(int x, int y, int previousValue, int value, i
+                 ones += v49;
+ 
+                 if (ones > 9 || ones < 0) {
+-                    buf_to_buf(upSrc, 9, 17, 360, tensDest, 640);
++                    buf_to_buf(upSrc, 9, 17, 360, tensDest, screenGetWidth());
+                     mouse_info();
+                     gmouse_bk_process();
+                     renderPresent();
+@@ -2263,7 +2301,7 @@ static void intface_rotate_numbers(int x, int y, int previousValue, int value, i
+                     tens += v49;
+                     ones -= 10 * v49;
+                     if (tens == 10 || tens == -1) {
+-                        buf_to_buf(upSrc, 9, 17, 360, hundredsDest, 640);
++                        buf_to_buf(upSrc, 9, 17, 360, hundredsDest, screenGetWidth());
+                         mouse_info();
+                         gmouse_bk_process();
+                         block_for_tocks(delay);
+@@ -2275,7 +2313,7 @@ static void intface_rotate_numbers(int x, int y, int previousValue, int value, i
+                             hundreds -= 10 * v49;
+                         }
+ 
+-                        buf_to_buf(downSrc, 9, 17, 360, hundredsDest, 640);
++                        buf_to_buf(downSrc, 9, 17, 360, hundredsDest, screenGetWidth());
+                         mouse_info();
+                         gmouse_bk_process();
+                         renderPresent();
+@@ -2283,12 +2321,12 @@ static void intface_rotate_numbers(int x, int y, int previousValue, int value, i
+                         win_draw_rect(interfaceWindow, &numbersRect);
+                     }
+ 
+-                    buf_to_buf(downSrc, 9, 17, 360, tensDest, 640);
++                    buf_to_buf(downSrc, 9, 17, 360, tensDest, screenGetWidth());
+                     block_for_tocks(delay);
+                     win_draw_rect(interfaceWindow, &numbersRect);
+                 }
+ 
+-                buf_to_buf(downSrc, 9, 17, 360, onesDest, 640);
++                buf_to_buf(downSrc, 9, 17, 360, onesDest, screenGetWidth());
+                 mouse_info();
+                 gmouse_bk_process();
+                 renderPresent();
+@@ -2297,11 +2335,11 @@ static void intface_rotate_numbers(int x, int y, int previousValue, int value, i
+ 
+                 previousValue += change;
+ 
+-                buf_to_buf(numbers + 9 * hundreds, 9, 17, 360, hundredsDest, 640);
+-                buf_to_buf(numbers + 9 * tens, 9, 17, 360, tensDest, 640);
+-                buf_to_buf(numbers + 9 * ones, 9, 17, 360, onesDest, 640);
++                buf_to_buf(numbers + 9 * hundreds, 9, 17, 360, hundredsDest, screenGetWidth());
++                buf_to_buf(numbers + 9 * tens, 9, 17, 360, tensDest, screenGetWidth());
++                buf_to_buf(numbers + 9 * ones, 9, 17, 360, onesDest, screenGetWidth());
+ 
+-                buf_to_buf(previousValue >= 0 ? plusSrc : minusSrc, 6, 17, 360, signDest, 640);
++                buf_to_buf(previousValue >= 0 ? plusSrc : minusSrc, 6, 17, 360, signDest, screenGetWidth());
+                 mouse_info();
+                 gmouse_bk_process();
+                 renderPresent();
+diff --git a/src/game/skilldex.cc b/src/game/skilldex.cc
+index 97aa225..397d7f6 100644
+--- a/src/game/skilldex.cc
++++ b/src/game/skilldex.cc
+@@ -226,7 +226,7 @@ static int skilldex_start()
+         return -1;
+     }
+ 
+-    int skilldexWindowX = (screenGetWidth() - INTERFACE_BAR_WIDTH) / 2 + INTERFACE_BAR_WIDTH - ginfo[SKILLDEX_FRM_BACKGROUND].width - SKILLDEX_WINDOW_RIGHT_MARGIN;
++    int skilldexWindowX = screenGetWidth() - ginfo[SKILLDEX_FRM_BACKGROUND].width - SKILLDEX_WINDOW_RIGHT_MARGIN;
+     int skilldexWindowY = screenGetHeight() - INTERFACE_BAR_HEIGHT - 1 - ginfo[SKILLDEX_FRM_BACKGROUND].height - SKILLDEX_WINDOW_BOTTOM_MARGIN;
+     skldxwin = win_add(skilldexWindowX,
+         skilldexWindowY,

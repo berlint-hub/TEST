@@ -1,0 +1,109 @@
+name: fallout-ce-switch / full-width interface bar
+
+# Build fallout-ce-switch (Switch port of Fallout CE) with the full-width
+# 16:9 interface bar patch applied, using the upstream devkitA64 build commands.
+#
+# - clones upstream fallout-ce-switch @ 43cf4ec (exact commit the patch is based on)
+# - applies patches/stretch-bar.patch
+# - builds the .nro/.nso in devkitpro/devkita64 container (same commands as
+#   upstream .github/workflows/ci-build.yml)
+# - uploads the binaries as artifact + draft release
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - Fallout
+
+permissions:
+  contents: write
+
+env:
+  UPSTREAM_ORIGIN: https://github.com/ryandeering/fallout-ce-switch.git
+  UPSTREAM_COMMIT: 43cf4ec13aba006d0c82dd7599b86f20ef11b22d
+
+jobs:
+  switch-build:
+    name: fallout-ce nro+naho
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout work repo (patches + this workflow)
+        uses: actions/checkout@v4
+
+      - name: Clone upstream @ pinned commit
+        run: |
+          git clone --filter=blob:none "$UPSTREAM_ORIGIN" upstream
+          git -C upstream checkout "$UPSTREAM_COMMIT"
+          echo "::notice::upstream commit $(git -C upstream rev-parse --short HEAD)"
+          test -f upstream/src/game/intface.cc && echo "::notice::intface.cc present"
+
+      - name: Apply full-width bar patch
+        run: |
+          git -C upstream apply --check ../patches/stretch-bar.patch
+          git -C upstream apply ../patches/stretch-bar.patch
+          echo "::notice::patch applied"
+          git -C upstream --no-pager diff --stat | tail -6
+
+      - name: Build in devkitA64 container
+        run: |
+          docker run --rm -v "$PWD/upstream":/workspace devkitpro/devkita64:latest bash -c "
+            cd /workspace &&
+            export DEVKITPRO=/opt/devkitpro &&
+            export DEVKITA64=/opt/devkitpro/devkitA64 &&
+            export PATH=\$DEVKITA64/bin:\$DEVKITPRO/tools/bin:\$PATH &&
+            mkdir -p build &&
+            cd build &&
+            cmake .. -DCMAKE_BUILD_TYPE=Debug -DCMAKE_TOOLCHAIN_FILE=../cmake/toolchain/switch.cmake -DNX=ON &&
+            make -j\$(nproc)
+          "
+
+      - name: Collect artifacts
+        run: |
+          set -e
+          mkdir -p out
+          ls -la upstream/build/
+          cp -f upstream/build/fallout-ce.nro out/fallout-ce.nro || true
+          cp -f upstream/build/fallout-ce.nso out/fallout-ce.nso || true
+          cp -f upstream/build/fallout-ce.elf out/fallout-ce.elf || true
+          stat -c '::notice::nro = %s B' out/fallout-ce.nro
+          echo "::notice::sha256 $(sha256sum out/fallout-ce.nro | cut -c1-64)"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: fallout-ce-16x9-bar
+          path: out/
+
+  draft:
+    name: draft release with .nro
+    needs: switch-build
+    if: always() && needs.switch-build.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: fallout-ce-16x9-bar
+          path: dist
+      - name: publish draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set +e
+          nro=$(find dist -name '*.nro' | head -1)
+          if [ -z "$nro" ]; then
+            echo "::error::no .nro in artifact"
+            exit 1
+          fi
+          cp -f "$nro" ./fallout-ce_16x9.nro
+          tag="fallout-ce-16x9-$(date -u +%Y%m%d-%H%M%S)"
+          gh release create "$tag" \
+            --title "fallout-ce-switch · full-width interface bar $tag" \
+            --notes "Dev build z branch Fallout (berlint-hub/TEST): upstream ryandeering/fallout-ce-switch @ 43cf4ec + patches/stretch-bar.patch (interface bar roztažená přes celou šířku v 16:9)." \
+            --draft ./fallout-ce_16x9.nro
+          rc=$?
+          if [ $rc -eq 0 ]; then
+            echo "::notice::DRAFT RELEASE: $tag"
+          else
+            echo "::warning::gh release rc=$rc — stejné .nro je v artifactu 'fallout-ce-16x9-bar'"
+          fi
