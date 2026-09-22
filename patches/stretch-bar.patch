@@ -64,7 +64,7 @@ index c5df11c..aea9a5d 100644
          // Even though the display monitor is rectangular, it's graphic is not.
          // To give a feel of depth it's covered by some metal canopy and
 diff --git a/src/game/intface.cc b/src/game/intface.cc
-index 9a726db..939c5b2 100644
+index 9a726db..b4c22e9 100644
 --- a/src/game/intface.cc
 +++ b/src/game/intface.cc
 @@ -384,7 +384,66 @@ static unsigned char* inventoryButtonDown;
@@ -148,29 +148,59 @@ index 9a726db..939c5b2 100644
      if (interfaceWindow == -1) {
          // NOTE: Uninline.
          return intface_fatal_error(-1);
-@@ -421,9 +480,37 @@ int intface_init()
+@@ -421,9 +480,67 @@ int intface_init()
          return intface_fatal_error(-1);
      }
  
 -    buf_to_buf(backgroundFrmData, INTERFACE_BAR_WIDTH, INTERFACE_BAR_HEIGHT, INTERFACE_BAR_WIDTH, interfaceBuffer, 640);
 +    // Horizontally stretch the 640px wide bar background to fill the full
 +    // screen width. Plaques are sampled 1:1. The flat metal bands between
-+    // them are filled with a flat color sampled from the middle of the
-+    // source band (same row, so vertical shading is preserved) instead of
-+    // magnifying the dithered pixels, which would produce visible stripes.
++    // them are filled with the prevailing tone of the source band (median
++    // of its columns in the same row, so vertical shading is preserved)
++    // instead of magnifying the dithered pixels, which would produce
++    // visible stripes. The median also filters out narrow features (frame
++    // edges, rivets) so they do not smear across the filled band.
 +    const int barExtra = screenGetWidth() - INTERFACE_BAR_WIDTH;
 +    const int barGap1DestEnd = 240 + (14 + barExtra * 14 / 44);
 +    const int barItemBoxDestEnd = barGap1DestEnd + (478 - 254);
 +    const int barRightBlockDestStart = screenGetWidth() - (640 - 508);
 +    for (int y = 0; y < INTERFACE_BAR_HEIGHT; y++) {
-+        for (int x = 0; x < screenGetWidth(); x++) {
-+            int backgroundX = intface_inv_scale_x(x);
-+            if (x > 240 && x < barGap1DestEnd) {
-+                backgroundX = 247;
-+            } else if (x > barItemBoxDestEnd && x < barRightBlockDestStart) {
-+                backgroundX = 493;
++        unsigned char gap1Samples[14];
++        for (int i = 0; i < 14; i++) {
++            gap1Samples[i] = backgroundFrmData[y * INTERFACE_BAR_WIDTH + 240 + i];
++        }
++        for (int i = 1; i < 14; i++) {
++            unsigned char v = gap1Samples[i];
++            int j = i - 1;
++            while (j >= 0 && gap1Samples[j] > v) {
++                gap1Samples[j + 1] = gap1Samples[j];
++                j--;
 +            }
-+            interfaceBuffer[y * screenGetWidth() + x] = backgroundFrmData[y * INTERFACE_BAR_WIDTH + backgroundX];
++            gap1Samples[j + 1] = v;
++        }
++        unsigned char gap2Samples[30];
++        for (int i = 0; i < 30; i++) {
++            gap2Samples[i] = backgroundFrmData[y * INTERFACE_BAR_WIDTH + 478 + i];
++        }
++        for (int i = 1; i < 30; i++) {
++            unsigned char v = gap2Samples[i];
++            int j = i - 1;
++            while (j >= 0 && gap2Samples[j] > v) {
++                gap2Samples[j + 1] = gap2Samples[j];
++                j--;
++            }
++            gap2Samples[j + 1] = v;
++        }
++        const unsigned char gap1Fill = gap1Samples[7];
++        const unsigned char gap2Fill = gap2Samples[15];
++        for (int x = 0; x < screenGetWidth(); x++) {
++            if (x > 240 && x < barGap1DestEnd) {
++                interfaceBuffer[y * screenGetWidth() + x] = gap1Fill;
++            } else if (x > barItemBoxDestEnd && x < barRightBlockDestStart) {
++                interfaceBuffer[y * screenGetWidth() + x] = gap2Fill;
++            } else {
++                interfaceBuffer[y * screenGetWidth() + x] = backgroundFrmData[y * INTERFACE_BAR_WIDTH + intface_inv_scale_x(x)];
++            }
 +        }
 +    }
      art_ptr_unlock(backgroundFrmHandle);
@@ -187,7 +217,7 @@ index 9a726db..939c5b2 100644
      fid = art_id(OBJ_TYPE_INTERFACE, 47, 0, 0, 0);
      inventoryButtonUp = art_ptr_lock_data(fid, 0, 0, &inventoryButtonUpKey);
      if (inventoryButtonUp == NULL) {
-@@ -438,7 +525,7 @@ int intface_init()
+@@ -438,7 +555,7 @@ int intface_init()
          return intface_fatal_error(-1);
      }
  
@@ -196,7 +226,7 @@ index 9a726db..939c5b2 100644
      if (inventoryButton == -1) {
          // NOTE: Uninline.
          return intface_fatal_error(-1);
-@@ -460,7 +547,7 @@ int intface_init()
+@@ -460,7 +577,7 @@ int intface_init()
          return intface_fatal_error(-1);
      }
  
@@ -205,7 +235,7 @@ index 9a726db..939c5b2 100644
      if (optionsButton == -1) {
          // NOTE: Uninline.
          return intface_fatal_error(-1);
-@@ -489,7 +576,7 @@ int intface_init()
+@@ -489,7 +606,7 @@ int intface_init()
          return intface_fatal_error(-1);
      }
  
@@ -214,7 +244,7 @@ index 9a726db..939c5b2 100644
      if (skilldexButton == -1) {
          // NOTE: Uninline.
          return intface_fatal_error(-1);
-@@ -519,7 +606,7 @@ int intface_init()
+@@ -519,7 +636,7 @@ int intface_init()
          return intface_fatal_error(-1);
      }
  
@@ -223,7 +253,7 @@ index 9a726db..939c5b2 100644
      if (automapButton == -1) {
          // NOTE: Uninline.
          return intface_fatal_error(-1);
-@@ -542,7 +629,7 @@ int intface_init()
+@@ -542,7 +659,7 @@ int intface_init()
          return intface_fatal_error(-1);
      }
  
@@ -232,7 +262,7 @@ index 9a726db..939c5b2 100644
      if (pipboyButton == -1) {
          // NOTE: Uninline.
          return intface_fatal_error(-1);
-@@ -565,7 +652,7 @@ int intface_init()
+@@ -565,7 +682,7 @@ int intface_init()
          return intface_fatal_error(-1);
      }
  
@@ -241,7 +271,7 @@ index 9a726db..939c5b2 100644
      if (characterButton == -1) {
          // NOTE: Uninline.
          return intface_fatal_error(-1);
-@@ -598,7 +685,7 @@ int intface_init()
+@@ -598,7 +715,7 @@ int intface_init()
      memcpy(itemButtonUp, itemButtonUpBlank, sizeof(itemButtonUp));
      memcpy(itemButtonDown, itemButtonDownBlank, sizeof(itemButtonDown));
  
@@ -250,7 +280,7 @@ index 9a726db..939c5b2 100644
      if (itemButton == -1) {
          // NOTE: Uninline.
          return intface_fatal_error(-1);
-@@ -629,7 +716,7 @@ int intface_init()
+@@ -629,7 +746,7 @@ int intface_init()
      }
  
      // Swap hands button
@@ -259,7 +289,7 @@ index 9a726db..939c5b2 100644
      if (toggleButton == -1) {
          // NOTE: Uninline.
          return intface_fatal_error(-1);
-@@ -666,7 +753,14 @@ int intface_init()
+@@ -666,7 +783,14 @@ int intface_init()
          return intface_fatal_error(-1);
      }
  
@@ -275,7 +305,7 @@ index 9a726db..939c5b2 100644
  
      if (construct_box_bar_win() == -1) {
          // NOTE: Uninline.
-@@ -709,6 +803,11 @@ void intface_exit()
+@@ -709,6 +833,11 @@ void intface_exit()
      if (interfaceWindow != -1) {
          display_exit();
  
@@ -287,7 +317,7 @@ index 9a726db..939c5b2 100644
          if (moveLightRed != NULL) {
              art_ptr_unlock(moveLightRedKey);
              moveLightRed = NULL;
-@@ -1187,7 +1286,7 @@ void intface_update_move_points(int actionPoints, int bonusMove)
+@@ -1187,7 +1316,7 @@ void intface_update_move_points(int actionPoints, int bonusMove)
          return;
      }
  
@@ -296,7 +326,7 @@ index 9a726db..939c5b2 100644
  
      if (actionPoints == -1) {
          frmData = moveLightRed;
-@@ -1204,8 +1303,8 @@ void intface_update_move_points(int actionPoints, int bonusMove)
+@@ -1204,8 +1333,8 @@ void intface_update_move_points(int actionPoints, int bonusMove)
              5,
              5,
              5,
@@ -307,7 +337,7 @@ index 9a726db..939c5b2 100644
          circle++;
      }
  
-@@ -1214,8 +1313,8 @@ void intface_update_move_points(int actionPoints, int bonusMove)
+@@ -1214,8 +1343,8 @@ void intface_update_move_points(int actionPoints, int bonusMove)
              5,
              5,
              5,
@@ -318,7 +348,7 @@ index 9a726db..939c5b2 100644
          circle++;
      }
  
-@@ -1571,7 +1670,7 @@ void intface_end_window_open(bool animated)
+@@ -1571,7 +1700,7 @@ void intface_end_window_open(bool animated)
              if (elapsed_time(time) >= delay) {
                  unsigned char* src = art_frame_data(art, frame, 0);
                  if (src != NULL) {
@@ -327,7 +357,7 @@ index 9a726db..939c5b2 100644
                      win_draw_rect(interfaceWindow, &endWindowRect);
                  }
  
-@@ -1585,7 +1684,7 @@ void intface_end_window_open(bool animated)
+@@ -1585,7 +1714,7 @@ void intface_end_window_open(bool animated)
          }
      } else {
          unsigned char* src = art_frame_data(art, frameCount - 1, 0);
@@ -336,7 +366,7 @@ index 9a726db..939c5b2 100644
          win_draw_rect(interfaceWindow, &endWindowRect);
      }
  
-@@ -1629,9 +1728,9 @@ void intface_end_window_close(bool animated)
+@@ -1629,9 +1758,9 @@ void intface_end_window_close(bool animated)
  
              if (elapsed_time(time) >= delay) {
                  unsigned char* src = art_frame_data(art, frame - 1, 0);
@@ -348,7 +378,7 @@ index 9a726db..939c5b2 100644
                      win_draw_rect(interfaceWindow, &endWindowRect);
                  }
  
-@@ -1644,9 +1743,9 @@ void intface_end_window_close(bool animated)
+@@ -1644,9 +1773,9 @@ void intface_end_window_close(bool animated)
              sharedFpsLimiter.throttle();
          }
      } else {
@@ -360,7 +390,7 @@ index 9a726db..939c5b2 100644
          win_draw_rect(interfaceWindow, &endWindowRect);
      }
  
-@@ -1670,7 +1769,7 @@ void intface_end_buttons_enable()
+@@ -1670,7 +1799,7 @@ void intface_end_buttons_enable()
          }
  
          gsound_play_sfx_file("icombat2");
@@ -369,7 +399,7 @@ index 9a726db..939c5b2 100644
          win_draw_rect(interfaceWindow, &endWindowRect);
  
          art_ptr_unlock(lightsFrmHandle);
-@@ -1693,7 +1792,7 @@ void intface_end_buttons_disable()
+@@ -1693,7 +1822,7 @@ void intface_end_buttons_disable()
          }
  
          gsound_play_sfx_file("icombat1");
@@ -378,7 +408,7 @@ index 9a726db..939c5b2 100644
          win_draw_rect(interfaceWindow, &endWindowRect);
  
          art_ptr_unlock(lightsFrmHandle);
-@@ -2030,7 +2129,7 @@ static int intface_create_end_turn_button()
+@@ -2030,7 +2159,7 @@ static int intface_create_end_turn_button()
          return -1;
      }
  
@@ -387,7 +417,7 @@ index 9a726db..939c5b2 100644
      if (endTurnButton == -1) {
          return -1;
      }
-@@ -2093,7 +2192,7 @@ static int intface_create_end_combat_button()
+@@ -2093,7 +2222,7 @@ static int intface_create_end_combat_button()
          return -1;
      }
  
@@ -396,7 +426,7 @@ index 9a726db..939c5b2 100644
      if (endCombatButton == -1) {
          return -1;
      }
-@@ -2138,28 +2237,28 @@ static void intface_draw_ammo_lights(int x, int ratio)
+@@ -2138,28 +2267,28 @@ static void intface_draw_ammo_lights(int x, int ratio)
          ratio -= 1;
      }
  
@@ -431,7 +461,7 @@ index 9a726db..939c5b2 100644
          rect.lry = 26 + 70;
          win_draw_rect(interfaceWindow, &rect);
      }
-@@ -2200,17 +2299,19 @@ static void intface_rotate_numbers(int x, int y, int previousValue, int value, i
+@@ -2200,17 +2329,19 @@ static void intface_rotate_numbers(int x, int y, int previousValue, int value, i
      }
  
      unsigned char* numbers = numbersBuffer + offset;
@@ -456,7 +486,7 @@ index 9a726db..939c5b2 100644
  
      int normalizedSign;
      int normalizedValue;
-@@ -2226,13 +2327,13 @@ static void intface_rotate_numbers(int x, int y, int previousValue, int value, i
+@@ -2226,13 +2357,13 @@ static void intface_rotate_numbers(int x, int y, int previousValue, int value, i
      int tens = (normalizedValue / 10) % 10;
      int hundreds = normalizedValue / 100;
  
@@ -475,7 +505,7 @@ index 9a726db..939c5b2 100644
          win_draw_rect(interfaceWindow, &numbersRect);
          if (delay != 0) {
              int change = value - previousValue >= 0 ? 1 : -1;
-@@ -2243,7 +2344,7 @@ static void intface_rotate_numbers(int x, int y, int previousValue, int value, i
+@@ -2243,7 +2374,7 @@ static void intface_rotate_numbers(int x, int y, int previousValue, int value, i
                      v49 = 1;
                  }
  
@@ -484,7 +514,7 @@ index 9a726db..939c5b2 100644
                  mouse_info();
                  gmouse_bk_process();
                  renderPresent();
-@@ -2253,7 +2354,7 @@ static void intface_rotate_numbers(int x, int y, int previousValue, int value, i
+@@ -2253,7 +2384,7 @@ static void intface_rotate_numbers(int x, int y, int previousValue, int value, i
                  ones += v49;
  
                  if (ones > 9 || ones < 0) {
@@ -493,7 +523,7 @@ index 9a726db..939c5b2 100644
                      mouse_info();
                      gmouse_bk_process();
                      renderPresent();
-@@ -2263,7 +2364,7 @@ static void intface_rotate_numbers(int x, int y, int previousValue, int value, i
+@@ -2263,7 +2394,7 @@ static void intface_rotate_numbers(int x, int y, int previousValue, int value, i
                      tens += v49;
                      ones -= 10 * v49;
                      if (tens == 10 || tens == -1) {
@@ -502,7 +532,7 @@ index 9a726db..939c5b2 100644
                          mouse_info();
                          gmouse_bk_process();
                          block_for_tocks(delay);
-@@ -2275,7 +2376,7 @@ static void intface_rotate_numbers(int x, int y, int previousValue, int value, i
+@@ -2275,7 +2406,7 @@ static void intface_rotate_numbers(int x, int y, int previousValue, int value, i
                              hundreds -= 10 * v49;
                          }
  
@@ -511,7 +541,7 @@ index 9a726db..939c5b2 100644
                          mouse_info();
                          gmouse_bk_process();
                          renderPresent();
-@@ -2283,12 +2384,12 @@ static void intface_rotate_numbers(int x, int y, int previousValue, int value, i
+@@ -2283,12 +2414,12 @@ static void intface_rotate_numbers(int x, int y, int previousValue, int value, i
                          win_draw_rect(interfaceWindow, &numbersRect);
                      }
  
@@ -526,7 +556,7 @@ index 9a726db..939c5b2 100644
                  mouse_info();
                  gmouse_bk_process();
                  renderPresent();
-@@ -2297,11 +2398,11 @@ static void intface_rotate_numbers(int x, int y, int previousValue, int value, i
+@@ -2297,11 +2428,11 @@ static void intface_rotate_numbers(int x, int y, int previousValue, int value, i
  
                  previousValue += change;
  
