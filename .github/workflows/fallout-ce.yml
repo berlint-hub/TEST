@@ -40,7 +40,7 @@ jobs:
 
       - name: Apply full-width bar patch
         run: |
-          if [ -s ../patches/stretch-bar.patch ]; then
+          if [ -s patches/stretch-bar.patch ]; then
             git -C upstream apply --check ../patches/stretch-bar.patch
             git -C upstream apply ../patches/stretch-bar.patch
             echo "::notice::patch applied"
