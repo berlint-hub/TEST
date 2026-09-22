@@ -1,0 +1,64 @@
+diff --git a/src/game/map.cc b/src/game/map.cc
+index 737c258..236c7b3 100644
+--- a/src/game/map.cc
++++ b/src/game/map.cc
+@@ -279,7 +279,7 @@ int iso_init()
+     // NOTE: Uninline.
+     square_init();
+ 
+-    display_win = win_add(0, 0, screenGetWidth(), screenGetHeight() - INTERFACE_BAR_HEIGHT, 256, 10);
++    display_win = win_add(0, 0, screenGetWidth(), screenGetHeight(), 256, 10);
+     if (display_win == -1) {
+         debug_printf("win_add failed in iso_init\n");
+         return -1;
+@@ -303,14 +303,14 @@ int iso_init()
+ 
+     debug_printf(">art_init\t\t");
+ 
+-    if (tile_init(square, SQUARE_GRID_WIDTH, SQUARE_GRID_HEIGHT, HEX_GRID_WIDTH, HEX_GRID_HEIGHT, display_buf, scr_size.lrx - scr_size.ulx + 1, scr_size.lry - scr_size.uly - 99, scr_size.lrx - scr_size.ulx + 1, map_display_draw) != 0) {
++    if (tile_init(square, SQUARE_GRID_WIDTH, SQUARE_GRID_HEIGHT, HEX_GRID_WIDTH, HEX_GRID_HEIGHT, display_buf, scr_size.lrx - scr_size.ulx + 1, scr_size.lry - scr_size.uly + 1, scr_size.lrx - scr_size.ulx + 1, map_display_draw) != 0) {
+         debug_printf("tile_init failed in iso_init\n");
+         return -1;
+     }
+ 
+     debug_printf(">tile_init\t\t");
+ 
+-    if (obj_init(display_buf, scr_size.lrx - scr_size.ulx + 1, scr_size.lry - scr_size.uly - 99, scr_size.lrx - scr_size.ulx + 1) != 0) {
++    if (obj_init(display_buf, scr_size.lrx - scr_size.ulx + 1, scr_size.lry - scr_size.uly + 1, scr_size.lrx - scr_size.ulx + 1) != 0) {
+         debug_printf("obj_init failed in iso_init\n");
+         return -1;
+     }
+@@ -750,7 +750,7 @@ int map_scroll(int dx, int dy)
+ 
+     int width = scr_size.lrx - scr_size.ulx + 1;
+     int pitch = width;
+-    int height = scr_size.lry - scr_size.uly - 99;
++    int height = scr_size.lry - scr_size.uly + 1;
+ 
+     if (screenDx != 0) {
+         width -= 32;
+@@ -772,7 +772,7 @@ int map_scroll(int dx, int dy)
+     if (screenDy < 0) {
+         r1.lry = r1.uly - screenDy;
+         src = display_buf + pitch * (height - 1);
+-        dest = display_buf + pitch * (scr_size.lry - scr_size.uly - 100);
++        dest = display_buf + pitch * (scr_size.lry - scr_size.uly);
+         if (screenDx < 0) {
+             dest -= screenDx;
+         } else {
+diff --git a/src/game/tile.cc b/src/game/tile.cc
+index 97968b2..d7fbe9b 100644
+--- a/src/game/tile.cc
++++ b/src/game/tile.cc
+@@ -2076,9 +2076,9 @@ void tile_update_bounds_rect()
+     // Scroll blockers where placed for 640x480 resolution, which means visible
+     // rect is half of than amount in each direction.
+     tile_bounds_rect.ulx -= 640 / 2;
+-    tile_bounds_rect.uly -= (480 - 100) / 2;
++    tile_bounds_rect.uly -= 480 / 2;
+     tile_bounds_rect.lrx += 640 / 2;
+-    tile_bounds_rect.lry += (480 - 100) / 2;
++    tile_bounds_rect.lry += 480 / 2;
+ 
+     // Adjust for vertical layout.
+     tile_bounds_rect.uly += 8;
