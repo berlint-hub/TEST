@@ -52,7 +52,7 @@ The model is loaded asynchronously; its input is a `[1, 3, H, W]` uint8 frame (p
 
 ## Building
 
-The repo is configured to build via GitHub Actions (see `.github/workflows/build.yml`); it installs the CPU PyTorch wheel and the `nvidia-cuda-runtime-cu12` headers, clones ReShade `v6.8.0` and produces `reshade_torch.addon`.
+The repo is configured to build via GitHub Actions (see `.github/workflows/build.yml`); it installs the CPU PyTorch wheel and the `nvidia-cuda-runtime-cu12` + `nvidia-cuda-cu12` headers (the latter provides `crt/host_defines.h`), clones ReShade `v6.8.0` and produces `reshade_torch.addon`.
 
 Local (needs VS 2022 + CMake):
 

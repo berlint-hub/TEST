@@ -24,14 +24,14 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
-          python -m pip install nvidia-cuda-runtime-cu12
+          python -m pip install nvidia-cuda-runtime-cu12 nvidia-cuda-cu12
 
       - name: Locate dependency paths
         run: |
           $tp = & python -c "import torch, os; print(os.path.dirname(torch.__file__))"
           $sp = Split-Path $tp
           echo "TORCH_WIN_DIR=$tp" | Out-File -FilePath $env:GITHUB_ENV -Append
-          echo "CUDA_RT_INC=$sp\nvidia\cuda_runtime\include" | Out-File -FilePath $env:GITHUB_ENV -Append
+          echo "CUDA_RT_INC=$sp\nvidia\cuda_runtime\include;$sp\nvidia\cuda_crt\include;$sp\nvidia\cuda_cccl\include" | Out-File -FilePath $env:GITHUB_ENV -Append
           echo "Reshading torch dir: $tp"
 
       - name: Clone ReShade SDK

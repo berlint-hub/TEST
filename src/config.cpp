@@ -15,7 +15,7 @@ static std::string module_directory(HMODULE module)
     if (length == 0 || length == _countof(path))
         return std::string();
     std::filesystem::path directory = std::filesystem::path(std::wstring(path, length)).parent_path();
-    return directory.u8string();
+    return directory.string();
 }
 
 Config &Config::instance()
