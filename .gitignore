@@ -1,0 +1,9 @@
+build/
+cmake-build*/
+CMakeCache.txt
+CMakeFiles/
+*.user
+*.log
+__pycache__/
+*.pyc
+models/*.pt
