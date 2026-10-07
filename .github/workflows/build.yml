@@ -28,10 +28,11 @@ jobs:
 
       - name: Locate dependency paths
         run: |
-          $sp = & python -c "import site; print(site.getsitepackages()[0])"
-          echo "TORCH_WIN_DIR=$sp/torch" | Out-File -FilePath $env:GITHUB_ENV -Append
-          echo "CUDA_RT_INC=$sp/nvidia/cuda_runtime/include" | Out-File -FilePath $env:GITHUB_ENV -Append
-          echo "Reshading torch dir: $sp/torch"
+          $tp = & python -c "import torch, os; print(os.path.dirname(torch.__file__))"
+          $sp = Split-Path $tp
+          echo "TORCH_WIN_DIR=$tp" | Out-File -FilePath $env:GITHUB_ENV -Append
+          echo "CUDA_RT_INC=$sp\nvidia\cuda_runtime\include" | Out-File -FilePath $env:GITHUB_ENV -Append
+          echo "Reshading torch dir: $tp"
 
       - name: Clone ReShade SDK
         run: |
@@ -43,7 +44,6 @@ jobs:
 
       - name: Configure CMake
         run: |
-          $sp = & python -c "import site; print(site.getsitepackages()[0])"
           cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release `
             -DRESHADE_DIR="$env:GITHUB_WORKSPACE/external/reshade" `
             -DTORCH_DIR="$env:TORCH_WIN_DIR" `
