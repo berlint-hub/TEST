@@ -39,7 +39,18 @@ jobs:
           git -C external/reshade submodule update --init --depth 1 deps/imgui
 
       - name: Configure CMake
-        run: cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -DRESHADE_DIR="$env:GITHUB_WORKSPACE/external/reshade" -DTORCH_DIR="$env:TORCH_WIN_DIR" -DCUDA_RUNTIME_INCLUDE_DIR="$env:CUDA_RT_INC" -DCMAKE_BUILD_TYPE=Release
+        run: |
+          $vswhere = Join-Path ${env:ProgramFiles(x86)} "Microsoft Visual Studio\Installer\vswhere.exe"
+          if (Test-Path $vswhere) {
+            echo "=== vswhere ==="
+            & $vswhere -all -products * -format json
+          } else {
+            echo "=== vswhere MISSING at $vswhere ==="
+          }
+          echo "=== cmake generators ==="
+          cmake --help | Select-String -Pattern "Visual Studio|Ninja|MSYS" | Select-Object -First 20
+          echo "=== end diagnostics ==="
+          cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -DRESHADE_DIR="$env:GITHUB_WORKSPACE/external/reshade" -DTORCH_DIR="$env:TORCH_WIN_DIR" -DCUDA_RUNTIME_INCLUDE_DIR="$env:CUDA_RT_INC" -DCMAKE_BUILD_TYPE=Release
 
       - name: Build
         run: cmake --build build --config Release --parallel
