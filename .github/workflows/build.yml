@@ -55,10 +55,7 @@ jobs:
       - name: Dump imports (temporary)
         if: always()
         run: |
-          Get-ChildItem build/CMakeFiles/reshade_torch.dir/src/*.obj | ForEach-Object {
-            echo "=== $($_.Name) ==="
-            dumpbin /nologo /imports $_.FullName | Select-String -Pattern 'std_string_metadata|\.dll$' | Select-Object -First 12
-          }
+          dumpbin /nologo /imports build/CMakeFiles/reshade_torch.dir/src/torch_engine.cpp.obj | Select-Object -First 60
 
       - name: Upload add-on
         uses: actions/upload-artifact@v4
