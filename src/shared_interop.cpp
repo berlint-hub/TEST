@@ -18,7 +18,6 @@ struct SharedInterop::Impl
 {
     reshade::api::swapchain *swapchain = nullptr;
     reshade::api::device *device = nullptr;
-    reshade::api::command_list *cmd = nullptr;
 
     reshade::api::resource bridge_buffer = {};
     void *bridge_cuda_ptr = nullptr;
@@ -46,8 +45,13 @@ bool SharedInterop::init(reshade::api::swapchain *swapchain)
 
     impl->swapchain = swapchain;
     impl->device = swapchain->get_device();
-    impl->cmd = impl->device->get_immediate_command_list();
     impl->is_vulkan = (swapchain->get_device()->get_api() == reshade::api::device_api::vulkan);
+
+    // get_immediate_command_list() is not available in ReShade 6.8.0 API.
+    // Use immediate command list via device->get_immediate_command_list() when available,
+    // otherwise fall back to using the device directly for copy operations.
+    // For now, we'll use the device directly for copy operations and rely on
+    // cudaDeviceSynchronize() for synchronization.
 
     // Get swapchain dimensions
     const uint32_t bb_count = swapchain->get_back_buffer_count();
@@ -180,8 +184,8 @@ bool SharedInterop::process_frame()
     // Get current back buffer
     reshade::api::resource bb = impl->swapchain->get_current_back_buffer();
 
-    // Copy back buffer -> bridge buffer
-    impl->cmd->copy_resource(bb, impl->bridge_buffer);
+    // Copy back buffer -> bridge buffer using device directly
+    impl->device->copy_resource(bb, impl->bridge_buffer);
 
     // Process frame in TorchEngine (uses linear device pointer via input_ptr()/output_ptr())
     void *engine_input = impl->engine->input_ptr();
@@ -210,7 +214,8 @@ bool SharedInterop::process_frame()
     }
 
     // Copy bridge -> back buffer
-    impl->cmd->copy_resource(impl->bridge_buffer, impl->swapchain->get_current_back_buffer());
+    reshade::api::resource bb = impl->swapchain->get_current_back_buffer();
+    impl->device->copy_resource(impl->bridge_buffer, bb);
 
     // Synchronize with CUDA
     cuda().cudaDeviceSynchronize();

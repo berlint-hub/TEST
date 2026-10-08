@@ -12,7 +12,7 @@ class D3D11Interop
 {
 public:
     D3D11Interop();
-    ~D3D11Interop();
+    virtual ~D3D11Interop();
 
     bool init(void *native_swapchain);
     void shutdown();
