@@ -11,6 +11,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(RESHADE_DIR "" CACHE PATH "Root of the ReShade SDK (folder containing include/ and deps/)")
 set(TORCH_DIR "" CACHE PATH "Root of the PyTorch/LibTorch install (folder containing include/ and lib/)")
 set(CUDA_RUNTIME_INCLUDE_DIR "" CACHE PATH "Folder containing the CUDA runtime headers (cuda_runtime_api.h, cuda_d3d11_interop.h)")
+set(VULKAN_HEADERS_DIR "" CACHE PATH "Folder containing the Vulkan headers (vulkan/vulkan.h), i.e. the include/ directory of KhronosGroup/Vulkan-Headers")
 
 if(NOT RESHADE_DIR)
     if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/external/reshade/include/reshade.hpp")
@@ -22,14 +23,22 @@ endif()
 if(NOT TORCH_DIR AND DEFINED ENV{TORCH_DIR})
     set(TORCH_DIR "$ENV{TORCH_DIR}")
 endif()
-if(NOT VULKAN_SDK AND DEFINED ENV{VULKAN_SDK})
-    set(VULKAN_SDK "$ENV{VULKAN_SDK}")
+if(NOT VULKAN_HEADERS_DIR)
+    foreach(vulkan_inc
+            "${CMAKE_CURRENT_SOURCE_DIR}/external/vulkan-headers/include"
+            "$ENV{VULKAN_SDK}/Include"
+            "${VULKAN_SDK}/Include")
+        if(EXISTS "${vulkan_inc}/vulkan/vulkan.h")
+            set(VULKAN_HEADERS_DIR "${vulkan_inc}")
+            break()
+        endif()
+    endforeach()
 endif()
 
 message(STATUS "RESHADE_DIR               = ${RESHADE_DIR}")
 message(STATUS "TORCH_DIR                 = ${TORCH_DIR}")
 message(STATUS "CUDA_RUNTIME_INCLUDE_DIR  = ${CUDA_RUNTIME_INCLUDE_DIR}")
-message(STATUS "VULKAN_SDK                = ${VULKAN_SDK}")
+message(STATUS "VULKAN_HEADERS_DIR        = ${VULKAN_HEADERS_DIR}")
 
 if(NOT EXISTS "${RESHADE_DIR}/include/reshade.hpp")
     message(FATAL_ERROR "ReShade SDK not found. Clone tag v6.8.0 into ./external/reshade or pass -DRESHADE_DIR=...")
@@ -45,6 +54,9 @@ foreach(cuda_inc IN LISTS CUDA_RUNTIME_INCLUDE_DIR)
 endforeach()
 if(NOT CUDA_RUNTIME_FOUND)
     message(FATAL_ERROR "CUDA runtime headers not found in ${CUDA_RUNTIME_INCLUDE_DIR}. pip install nvidia-cuda-runtime-cu12 and pass -DCUDA_RUNTIME_INCLUDE_DIR=...")
+endif()
+if(NOT EXISTS "${VULKAN_HEADERS_DIR}/vulkan/vulkan.h")
+    message(FATAL_ERROR "Vulkan headers not found in '${VULKAN_HEADERS_DIR}'. Clone https://github.com/KhronosGroup/Vulkan-Headers into ./external/vulkan-headers or pass -DVULKAN_HEADERS_DIR=...")
 endif()
 
 add_library(reshade_torch SHARED
@@ -84,7 +96,7 @@ target_include_directories(reshade_torch PRIVATE
     "${TORCH_DIR}/include/torch/csrc/api/include"
     "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/cuda_crt_shim"
     "${CUDA_RUNTIME_INCLUDE_DIR}"
-    "${VULKAN_SDK}/Include"
+    "${VULKAN_HEADERS_DIR}"
 )
 
 if(MSVC)
@@ -96,11 +108,12 @@ if(MSVC)
     target_compile_options(reshade_torch PRIVATE /W3 /MP /bigobj /permissive- /Zc:__cplusplus /Gy)
 endif()
 
+# vulkan-1.dll is loaded at runtime (see VulkanLoader in src/shared_interop.cpp),
+# so no Vulkan SDK import library is required to link against.
 target_link_libraries(reshade_torch PRIVATE
     "${TORCH_DIR}/lib/torch.lib"
     "${TORCH_DIR}/lib/torch_cpu.lib"
     "${TORCH_DIR}/lib/c10.lib"
-    "${VULKAN_SDK}/Lib/vulkan-1.lib"
 )
 
 if(MSVC)
