@@ -61,7 +61,7 @@ struct InteropWrapper : InteropBase
         auto &i = impl.info();
         static Info out;
         out.active = i.active;
-        out.is_vulkan = i.is_vulkan;
+        out.is_vulkan = dynamic_cast<SharedInterop *>(&impl) != nullptr;
         out.cuda_device = i.cuda_device;
         out.buffer_count = 0;
         if (auto *d3d11 = dynamic_cast<D3D11Interop *>(&impl))
