@@ -60,6 +60,13 @@ target_compile_definitions(reshade_torch PRIVATE
     _CRT_SECURE_NO_WARNINGS
     _CRT_NONSTDC_NO_DEPRECATE
     ImTextureID=ImU64
+    # NO_EXPORT empties torch's C10_EXPORT macro. Without it, every TU that
+    # includes torch headers emits *and exports* __declspec(dllexport)
+    # __forceinline TypeMeta specializations (e.g. _typeMetaData<std::string>
+    # from CAFFE_DECLARE_KNOWN_TYPE), whose out-of-line copies reference
+    # c10.dll *data* symbols - and data imports cannot be delay-loaded
+    # (LNK1194). We export nothing from torch, so turn it off.
+    NO_EXPORT
 )
 
 # thirdparty/cuda_crt_shim provides crt/host_defines.h, which the
