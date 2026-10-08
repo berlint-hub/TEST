@@ -322,10 +322,15 @@ command_list, takže na to nestačí.
 
 V pořadí podle hodnoty:
 
-1. **Propojit to.** `LumenMotionVectors::resolve()` → shared-handle import do
-   D3D12 → `NgxHost::evaluate()`. Bez toho je celý add-on k ničemu.
-   Existující mašinerie na shared handles je v `src/shared_interop.cpp` (386 řádků)
-   — **prověř, jestli jde znovu použít pro D3D12**, byla psaná pro CUDA interop.
+1. **Propojit to.** ⚠️ **Původní znění tohoto bodu bylo chybné.** Stálo tu
+   „shared-handle import do D3D12" — to **nejde**: `get_shared_handle` v ReShade
+   6.8.0 **neexistuje** a `create_resource(..., void **shared_handle)`
+   (`reshade_api_device.hpp:364`) vydá handle jen u zdroje, který sis sám
+   vytvořil. Pro existující `tFlow` žádný handle nedostaneš.
+   **Čti `ANTIGRAVITY_TASK.md`** — jsou tam dvě schůdné cesty (A: NGX na D3D11
+   device hry, řádově méně práce; B: vlastní shared zdroj + kopie + fence).
+   Existující `src/shared_interop.cpp` (386 řádků) byl psaný pro CUDA interop a
+   tenhle problém neřeší.
 2. **Upsampling MV 8×.** Nejjednodušší je compute shader nebo reuse ReShade efektu.
 3. **Zaregistrovat add-on v `src/addon.cpp`** — ReShade callbacks, overlay
    (`reshade_overlay.hpp`) pro status, `ReShade.ini` konfig.
