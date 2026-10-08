@@ -2,7 +2,6 @@
 
 #include <d3d11.h>
 #include <dxgi.h>
-#include <dxgi1_3.h>
 
 #include <cuda.h>
 #include <cuda_d3d11_interop.h>
@@ -15,6 +14,20 @@
 #include "cuda_runtime.hpp"
 #include "log.hpp"
 #include "torch_engine.hpp"
+
+// dxgi1_3.h is missing from newer Windows SDKs (e.g. 10.0.26100.0 ships no
+// such header), so the tiny subset of IDXGISwapChain3Compat we need is declared
+// here instead of including it. The COM interface UUID and vtable layout are
+// frozen ABI: GetCurrentBackBufferIndex is the first method of
+// IDXGISwapChain3Compat, directly after the IDXGISwapChain methods, so calling it
+// through this declaration is safe. If the QueryInterface below ever failed,
+// swapchain3 would stay null and the frame index would fall back to 0.
+MIDL_INTERFACE("6007896c-3244-4afd-bf18-a6d3eebed44e")
+IDXGISwapChain3CompatCompat : public IDXGISwapChain
+{
+public:
+    virtual UINT STDMETHODCALLTYPE GetCurrentBackBufferIndex() = 0;
+};
 
 namespace rt {
 
@@ -317,7 +330,7 @@ struct D3D11Interop::Impl
 
     TorchEngine *engine = nullptr;
     IDXGISwapChain *swapchain = nullptr;
-    IDXGISwapChain3 *swapchain3 = nullptr;
+    IDXGISwapChain3Compat *swapchain3 = nullptr;
     ID3D11Device *device = nullptr;
     ID3D11DeviceContext *context = nullptr;
     std::vector<ID3D11Texture2D *> buffers;
@@ -354,7 +367,7 @@ bool D3D11Interop::init(void *native_swapchain)
         return false;
 
     state->device->GetImmediateContext(&state->context);
-    state->swapchain->QueryInterface(__uuidof(IDXGISwapChain3), reinterpret_cast<void **>(&state->swapchain3));
+    state->swapchain->QueryInterface(__uuidof(IDXGISwapChain3Compat), reinterpret_cast<void **>(&state->swapchain3));
 
     DXGI_SWAP_CHAIN_DESC description{};
     if (FAILED(state->swapchain->GetDesc(&description)))

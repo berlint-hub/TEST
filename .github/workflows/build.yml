@@ -42,22 +42,6 @@ jobs:
       - name: Set up MSVC toolchain
         uses: ilammy/msvc-dev-cmd@v1
 
-      - name: Diagnose DXGI headers (temporary)
-        run: |
-          $sdk = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\Include" -Directory | Sort-Object Name -Descending | Select-Object -First 1
-          echo "SDK: $($sdk.FullName)"
-          $dx = Join-Path $sdk.FullName "um\dxgi1_3.h"
-          echo "dxgi1_3.h exists: $(Test-Path $dx)"
-          if (Test-Path $dx) {
-            Get-Content $dx | Select-Object -First 70 | ForEach-Object { echo "DXGI13: $_" }
-            echo "--- IDXGISwapChain3 refs ---"
-            Select-String -Path $dx -Pattern 'IDXGISwapChain3' | Select-Object -First 5 | ForEach-Object { echo "DXGI13: $($_.LineNumber): $($_.Line)" }
-          }
-          echo "--- mini compile test ---"
-          Set-Content -Path dxgi_test.cpp -Value "#include <dxgi1_3.h>`nIDXGISwapChain3 *g_p = nullptr;`nint main() { return g_p != nullptr; }`n"
-          cl.exe /nologo /c dxgi_test.cpp
-          echo "mini test exit: $LASTEXITCODE"
-
       - name: Configure CMake
         run: |
           cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release `
