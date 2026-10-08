@@ -14,7 +14,7 @@ class SharedInterop
 {
 public:
     SharedInterop();
-    ~SharedInterop();
+    virtual ~SharedInterop();
 
     bool init(reshade::api::swapchain *swapchain);
     void shutdown();

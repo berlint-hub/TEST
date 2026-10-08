@@ -6,6 +6,9 @@
 #include <cuda_runtime_api.h>
 #include <driver_types.h>
 
+#include <reshade_api.hpp>
+#include <reshade_api_device.hpp>
+
 #include <vector>
 #include <algorithm>
 
@@ -208,8 +211,7 @@ bool SharedInterop::process_frame()
     }
 
     // Copy bridge -> back buffer
-    reshade::api::resource bb = impl->swapchain->get_current_back_buffer();
-    impl->cmd->copy_resource(impl->bridge_buffer, bb);
+    impl->cmd->copy_resource(impl->bridge_buffer, impl->swapchain->get_current_back_buffer());
     impl->device->flush_immediate_command_list();
 
     // Synchronize with CUDA
