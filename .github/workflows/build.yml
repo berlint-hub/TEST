@@ -55,7 +55,7 @@ jobs:
       - name: Dump imports (temporary)
         if: always()
         run: |
-          dumpbin /nologo /imports build/CMakeFiles/reshade_torch.dir/src/torch_engine.cpp.obj | Select-Object -First 60
+          dumpbin /nologo /symbols build/CMakeFiles/reshade_torch.dir/src/torch_engine.cpp.obj | Select-String -Pattern 'std_string_metadata' | Select-Object -First 10
 
       - name: Upload add-on
         uses: actions/upload-artifact@v4
