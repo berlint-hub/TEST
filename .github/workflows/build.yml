@@ -68,7 +68,13 @@ jobs:
             "$ws\src\torch_engine.cpp")
           & cl.exe $args
           echo "--- preprocess done, searching ---"
-          Select-String -Path "$ws\PREPROCESSED.i" -Pattern 'std_string_metadata_index' | Select-Object -First 5 | ForEach-Object { ($_ -replace '^.*Z ',' ') }
+          $all = Select-String -Path "$ws\PREPROCESSED.i" -Pattern '_typeMetaData<std::string>'
+          echo "typemetdata-string refs: $($all.Count)"
+          $all | Select-Object -Skip 1 -First 6 | ForEach-Object {
+            $n = $_.LineNumber
+            echo "=== ref at .i line $n ==="
+            Get-Content "$ws\PREPROCESSED.i" | Select-Object -Skip ($n - 4) -First 7 | ForEach-Object { ($_ -replace '^.*Z ',' ').Substring(0, [Math]::Min(220, ($_ -replace '^.*Z ',' ').Length)) }
+          }
 
       - name: Upload add-on
         uses: actions/upload-artifact@v4
