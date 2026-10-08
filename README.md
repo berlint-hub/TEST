@@ -52,7 +52,7 @@ The model is loaded asynchronously; its input is a `[1, 3, H, W]` uint8 frame (p
 
 ## Building
 
-The repo is configured to build via GitHub Actions (see `.github/workflows/build.yml`); it installs the CPU PyTorch wheel and the `nvidia-cuda-runtime-cu12` headers, clones ReShade `v6.8.0` and produces `reshade_torch.addon`.
+The repo is configured to build via GitHub Actions (see `.github/workflows/build.yml`); it installs the CPU PyTorch wheel and the `nvidia-cuda-runtime-cu12` headers, clones ReShade `v6.8.0` and produces `reshade_torch.addon64` (64-bit ReShade loads `.addon64`; `.addon` is the 32-bit name).
 
 Note: `nvidia-cuda-runtime-cu12` does not ship the real `crt/host_defines.h` (only a self-referencing wrapper stub), so the repo carries a minimal clean-room shim at `thirdparty/cuda_crt_shim/crt/host_defines.h`, wired in via `CMakeLists.txt`. Do not copy the stub into a `crt/` folder — it includes itself and the build dies with C1014.
 
@@ -72,4 +72,4 @@ cmake --build build --config Release
 python python/export_model.py --out models/unsharp.pt
 ```
 
-Drop the add-on into your ReShade directory (`.addon` next to the effects folder or in `reshade-addons`) together with the `torch` libs, enable it in the ReShade menu, and check `reshade_torch.log` for status.
+Drop the add-on into your ReShade directory (`reshade_torch.addon64` next to the effects folder or in `reshade-addons`; use `.addon64` for 64-bit apps such as PCSX2, `.addon` is only for 32-bit) together with the `torch` libs, enable it in the ReShade menu, and check `reshade_torch.log` for status.

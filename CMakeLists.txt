@@ -108,5 +108,5 @@ endif()
 set_target_properties(reshade_torch PROPERTIES
     PREFIX ""
     OUTPUT_NAME "reshade_torch"
-    SUFFIX ".addon"
+    SUFFIX ".addon64"
 )
