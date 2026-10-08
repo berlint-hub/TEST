@@ -180,14 +180,11 @@ bool SharedInterop::process_frame()
     // Copy back buffer -> bridge buffer
     impl->cmd->copy_resource(impl->swapchain->get_current_back_buffer(), impl->bridge_buffer);
 
-    // Transition bridge to copy_source for CUDA (logical, CUDA doesn't need it but keep order)
-    // No explicit barrier needed for external memory, but flush for ordering
+    // Flush commands and wait for GPU to finish (synchronize with CUDA)
     impl->cmd->flush_immediate_command_list();
     impl->device->wait_idle();
 
     // Process frame in TorchEngine (uses linear device pointer via input_ptr()/output_ptr())
-    // We need to copy from bridge to TorchEngine input, run, then copy back
-    // TorchEngine uses input_ptr()/output_ptr() which are device pointers
     void *engine_input = impl->engine->input_ptr();
     void *engine_output = impl->engine->output_ptr();
     const size_t frame_bytes = static_cast<size_t>(impl->width) * impl->height * 4;

@@ -324,7 +324,7 @@ void on_overlay(reshade::api::effect_runtime *)
     {
         ImGui::Text("GPU: %s (%d)", info.device_name.c_str(), info.cuda_device);
         ImGui::Text("Swapchain: %ux%u, %s", info.width, info.height,
-                    info.is_vulkan ? "Vulkan" : (info.tier_a ? "direct" : (info.tier_b ? "copy" : "off")));
+                    info.is_vulkan ? "Vulkan" : "D3D11");
     }
     else
     {
