@@ -25,4 +25,11 @@
 #define __managed__
 #define __device_builtin__
 
+// Matches the real toolkit header: GNU-style alignment syntax used by the
+// CUDA headers (e.g. `struct __device_builtin__ __align__(2) char2`) maps to
+// __declspec for MSVC host compilation.
+#if defined(_MSC_VER)
+#define __align__(n) __declspec(align(n))
+#endif
+
 #endif // __HOST_DEFINES_H__
