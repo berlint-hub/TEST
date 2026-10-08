@@ -26,7 +26,24 @@ models/
 
 - ReShade 6.8.0 (D3D11)
 - NVIDIA GPU with a CUDA-capable runtime
-- PyTorch **CPU** libs (`torch_cpu.dll`, `c10.dll`, ...) plus `cudart64_12.dll` from an NVIDIA CUDA installation — the add-on finds them in this order:
+- A **CUDA** build of PyTorch (`torch_cpu.dll`, **`torch_cuda.dll`**, **`c10_cuda.dll`**, plus the cuBLAS/cuDNN DLLs that ship next to them) and a `cudart64_*.dll` from an NVIDIA CUDA installation.
+
+  A CPU-only wheel **does not work** and there is no way around it: aten's CUDA
+  hooks are a registry (`aten/src/ATen/detail/CUDAHooksInterface.cpp`) whose
+  real implementation is only registered when `torch_cuda.dll` is loaded into
+  the process. Without it every `device(kCUDA)` call throws *"Cannot initialize
+  CUDA without ATen_cuda library"*, the model never leaves the `loading` state,
+  and no frame is processed. Adding `cudart64_12.dll` on its own does not help —
+  the whole ATen CUDA operator library is missing, not just the runtime. The
+  add-on loads `torch_cuda.dll` itself when it is present (`src/addon.cpp`) and
+  logs a warning when it is not. `CMakeLists.txt` refuses to configure against a
+  CPU-only install unless `-DRESHADE_TORCH_ALLOW_CPU=ON` is passed.
+
+  ```
+  pip install torch --index-url https://download.pytorch.org/whl/cu130
+  ```
+
+  The add-on finds the torch `lib` directory in this order:
   1. `TorchPath` config key (path to the `torch\lib` directory)
   2. `torch` folder next to the add-on (or its parent)
   3. local Python installs under `%USERPROFILE%\AppData\Local\Programs\Python\Python3x`
@@ -66,7 +83,55 @@ cmake -S . -B build -G "Visual Studio 17 2022" -A x64 ^
 cmake --build build --config Release
 ```
 
-## Exporting a model
+## Denoiser model
+
+`python/denoiser.py` + `python/train_denoiser.py` produce a Monte-Carlo
+denoiser meant to sit behind a path-tracing ReShade shader (RTGI,
+ReaLtraCing, RadiantGI): the shader runs with a low ray count, the add-on
+cleans up the grain.
+
+It is a fully convolutional residual network — `out = clamp(x - noise(x))` —
+with **no pooling anywhere**, so it is resolution independent by construction
+(dilated convolutions give a ~43 px receptive field without ever changing the
+spatial size). The noise estimate can optionally be computed on a downscaled
+copy of the frame (`--internal-scale 0.5`, a 4x saving) and upsampled back; the
+residual is still subtracted at full resolution, so image detail is untouched.
+
+```
+# on an RTX 4080 - this is the one you want
+python python/train_denoiser.py --out models/denoise.pt --device cuda \
+    --channels 32 --internal-scale 0.5 --iterations 20000 --patch 192 --batch 16
+```
+
+Cost is printed at startup (`estimated cost per WxH frame: N GFLOP`) so you can
+pick `--channels` / `--internal-scale` against your frame budget before
+training. Training also prints a 5x5 box-blur PSNR — that is the bar the model
+has to beat to be worth running at all.
+
+### Training data, honestly
+
+By default the pairs are **synthetic**: procedural scenes plus a noise model
+(photon-like variance, fireflies, pixel-scale blotches). That produces a
+denoiser for generic path-tracer grain. It has never seen a real RTGI frame, so
+treat it as a starting point.
+
+For the real thing, capture matching PNGs into `noisy/` and `clean/`
+subfolders — same camera, same scene, one shot at low sample counts and one
+converged — and pass `--pairs-dir`:
+
+```
+python python/train_denoiser.py --out models/denoise.pt --device cuda --pairs-dir ./captured
+```
+
+One limitation worth stating up front: a **single-frame** denoiser can only
+remove noise that varies faster than the image. The wide, slow blotches an
+under-sampled GI pass produces are statistically indistinguishable from real
+image structure, so no spatial network removes them without also smoothing the
+picture. That needs temporal history plus G-buffers, which is exactly what
+DLSS-RR and the OptiX denoiser use — and why neither can be bolted onto a
+ReShade shader, which only ever sees the final image and a depth buffer.
+
+## Exporting the example model
 
 ```
 python python/export_model.py --out models/unsharp.pt

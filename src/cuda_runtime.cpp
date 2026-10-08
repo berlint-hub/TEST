@@ -15,8 +15,20 @@ bool cuda_load(const std::wstring &preferred_dll)
     HMODULE module = nullptr;
     if (!preferred_dll.empty())
         module = ::LoadLibraryW(preferred_dll.c_str());
-    if (module == nullptr)
-        module = ::LoadLibraryW(L"cudart64_12.dll");
+    // The runtime name tracks the CUDA major version torch was built against:
+    // cudart64_12.dll for cu12x wheels, cudart64_13.dll for cu13x. Try them all
+    // so the add-on works whichever CUDA build the user's torch came from.
+    static const wchar_t *const kFallbacks[] = {
+        L"cudart64_13.dll",
+        L"cudart64_12.dll",
+        L"cudart64_110.dll",
+    };
+    for (const wchar_t *name : kFallbacks)
+    {
+        if (module != nullptr)
+            break;
+        module = ::LoadLibraryW(name);
+    }
     if (module == nullptr)
         return false;
 

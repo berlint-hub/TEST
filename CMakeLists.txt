@@ -46,6 +46,22 @@ endif()
 if(NOT EXISTS "${TORCH_DIR}/include/torch/script.h")
     message(FATAL_ERROR "PyTorch not found at ${TORCH_DIR}. Install PyTorch for Windows and pass -DTORCH_DIR=...")
 endif()
+
+# A CPU-only PyTorch builds fine but can never run: aten's CUDA hooks are a
+# registry (aten/src/ATen/detail/CUDAHooksInterface.cpp) that only gets a real
+# implementation when torch_cuda.dll is loaded into the process, so every
+# device(kCUDA) call throws "Cannot initialize CUDA without ATen_cuda
+# library". Nothing here links torch_cuda.lib on purpose - loading the DLL is
+# what registers the hooks - but the DLL has to exist to be loaded.
+option(RESHADE_TORCH_ALLOW_CPU "Build against a CPU-only PyTorch anyway (the add-on will fail at runtime)" OFF)
+if(NOT EXISTS "${TORCH_DIR}/lib/torch_cuda.dll" AND NOT RESHADE_TORCH_ALLOW_CPU)
+    message(FATAL_ERROR
+        "${TORCH_DIR} is a CPU-only PyTorch install: lib/torch_cuda.dll is missing, so the "
+        "add-on would load and then fail on the first frame with 'Cannot initialize CUDA "
+        "without ATen_cuda library'. Install a CUDA build (pip install torch --index-url "
+        "https://download.pytorch.org/whl/cu130) and pass its site-packages/torch as -DTORCH_DIR. "
+        "Pass -DRESHADE_TORCH_ALLOW_CPU=ON to build it anyway.")
+endif()
 set(CUDA_RUNTIME_FOUND FALSE)
 foreach(cuda_inc IN LISTS CUDA_RUNTIME_INCLUDE_DIR)
     if(EXISTS "${cuda_inc}/cuda_runtime_api.h")
