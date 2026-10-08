@@ -27,35 +27,10 @@ jobs:
           python -m pip install nvidia-cuda-runtime-cu12
 
       - name: Install Vulkan SDK
-        run: |
-          choco install vulkan-sdk --no-progress
-          # Find the installed Vulkan SDK path
-          $vulkan_paths = Get-ChildItem "C:\VulkanSDK" -Directory -ErrorAction SilentlyContinue | Sort-Object Name -Descending
-          if ($vulkan_paths.Count -gt 0) {
-              $vulkan_sdk = $vulkan_paths[0].FullName
-              echo "VULKAN_SDK=$vulkan_sdk" | Out-File -FilePath $env:GITHUB_ENV -Append
-              echo "VULKAN_INCLUDE=$vulkan_sdk\Include" | Out-File -FilePath $env:GITHUB_ENV -Append
-              echo "VULKAN_LIB=$vulkan_sdk\Lib" | Out-File -FilePath $env:GITHUB_ENV -Append
-              echo "Found Vulkan SDK at: $vulkan_sdk"
-          } else {
-              # Fallback: check default chocolatey install location
-              $choco_vulkan = "C:\ProgramData\chocolatey\lib\vulkan-sdk"
-              if (Test-Path $choco_vulkan) {
-                  $tools = Get-ChildItem "$choco_vulkan\tools" -Directory -ErrorAction SilentlyContinue | Sort-Object Name -Descending
-                  if ($tools.Count -gt 0) {
-                      $vulkan_sdk = $tools[0].FullName
-                      echo "VULKAN_SDK=$vulkan_sdk" | Out-File -FilePath $env:GITHUB_ENV -Append
-                      echo "VULKAN_INCLUDE=$vulkan_sdk\Include" | Out-File -FilePath $env:GITHUB_ENV -Append
-                      echo "VULKAN_LIB=$vulkan_sdk\Lib" | Out-File -FilePath $env:GITHUB_ENV -Append
-                      echo "Found Vulkan SDK at: $vulkan_sdk"
-                  } else {
-                      Write-Error "Could not find Vulkan SDK installation"
-                      exit 1
-                  }
-              } else {
-                  Write-Error "Could not find Vulkan SDK installation"
-                  exit 1
-              }
+        uses: vulkan-actions/setup-vulkan-sdk@v1
+        with:
+          version: '1.3.290.0'
+          cache: true
 
       - name: Locate dependency paths
         run: |
