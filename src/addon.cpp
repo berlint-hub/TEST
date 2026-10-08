@@ -7,8 +7,10 @@
 #include <windows.h>
 
 #include <atomic>
+#include <charconv>
 #include <cstring>
 #include <filesystem>
+#include <iterator>
 #include <string>
 #include <vector>
 
@@ -426,9 +428,11 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
         Config::instance().load(hModule);
         {
             const Settings &loaded = Config::instance().settings();
+            char strength_buf[16] = "";
+            const auto strength_end = std::to_chars(std::begin(strength_buf), std::end(strength_buf), loaded.strength);
             rt::log_line(std::string("config: enabled=") + (loaded.enabled ? "1" : "0") +
                          ", fp16=" + (loaded.fp16 ? "1" : "0") +
-                         ", strength=" + std::to_string(loaded.strength));
+                         ", strength=" + std::string(strength_buf, strength_end.ptr));
             rt::log_line("config: model=" + loaded.model_path);
             rt::log_line("config: torch_path=" + (loaded.torch_path.empty() ? std::string("(auto)") : loaded.torch_path));
         }
@@ -439,6 +443,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
         reshade::register_event<reshade::addon_event::create_swapchain>(on_create_swapchain);
         reshade::register_event<reshade::addon_event::present>(on_present);
         reshade::register_overlay(nullptr, on_overlay);
+        rt::log_line("events registered: init/destroy/create_swapchain, present, overlay");
         break;
     case DLL_PROCESS_DETACH:
         g_engine.shutdown();
