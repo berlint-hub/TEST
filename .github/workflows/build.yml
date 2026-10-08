@@ -2,7 +2,7 @@ name: build
 
 on:
   push:
-    branches: [reshade-torch-addon]
+    branches: [reshade-torch-addon, arena/96bb4b4c-test]
   workflow_dispatch:
 
 defaults:

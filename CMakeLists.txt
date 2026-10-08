@@ -83,6 +83,7 @@ add_library(reshade_torch SHARED
     src/d3d11_interop.cpp
     src/shared_interop.cpp
     src/torch_engine.cpp
+    src/lumen_mv.cpp
 )
 
 target_compile_definitions(reshade_torch PRIVATE
