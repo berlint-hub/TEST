@@ -178,11 +178,8 @@ bool SharedInterop::process_frame()
     reshade::api::resource bb = impl->swapchain->get_current_back_buffer();
 
     // Copy back buffer -> bridge buffer
-    impl->cmd->copy_resource(impl->swapchain->get_current_back_buffer(), impl->bridge_buffer);
-
-    // Flush commands and wait for GPU to finish (synchronize with CUDA)
+    impl->cmd->copy_resource(bb, impl->bridge_buffer);
     impl->cmd->flush_immediate_command_list();
-    impl->device->wait_idle();
 
     // Process frame in TorchEngine (uses linear device pointer via input_ptr()/output_ptr())
     void *engine_input = impl->engine->input_ptr();
@@ -211,11 +208,12 @@ bool SharedInterop::process_frame()
     }
 
     // Copy bridge -> back buffer
-    // Need to get current back buffer again in case of resize
     reshade::api::resource bb = impl->swapchain->get_current_back_buffer();
     impl->cmd->copy_resource(impl->bridge_buffer, bb);
     impl->cmd->flush_immediate_command_list();
-    impl->device->wait_idle();
+
+    // Synchronize with CUDA
+    cuda().cudaDeviceSynchronize();
 
     return true;
 }
