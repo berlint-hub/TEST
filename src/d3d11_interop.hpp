@@ -4,6 +4,10 @@
 #include <memory>
 #include <string>
 
+namespace reshade::api {
+struct __declspec(novtable) command_queue;
+}
+
 namespace rt {
 
 class TorchEngine;
@@ -16,7 +20,8 @@ public:
 
     bool init(void *native_swapchain);
     void shutdown();
-    bool process_frame();
+    // The queue argument is unused: D3D11 goes through the immediate device context instead.
+    bool process_frame(reshade::api::command_queue *queue);
     void set_engine(TorchEngine *engine);
 
     struct Info

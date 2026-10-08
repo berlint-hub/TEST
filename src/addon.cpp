@@ -32,7 +32,7 @@ struct InteropBase
     virtual ~InteropBase() = default;
     virtual bool init(reshade::api::swapchain *swapchain) = 0;
     virtual void shutdown() = 0;
-    virtual bool process_frame() = 0;
+    virtual bool process_frame(reshade::api::command_queue *queue) = 0;
     virtual void set_engine(TorchEngine *engine) = 0;
     struct Info
     {
@@ -54,7 +54,7 @@ struct InteropWrapper : InteropBase
     explicit InteropWrapper(T &i) : impl(i) {}
     bool init(reshade::api::swapchain *swapchain) override { return impl.init(swapchain); }
     void shutdown() override { impl.shutdown(); }
-    bool process_frame() override { return impl.process_frame(); }
+    bool process_frame(reshade::api::command_queue *queue) override { return impl.process_frame(queue); }
     void set_engine(TorchEngine *engine) override { impl.set_engine(engine); }
     const Info &info() const override
     {
@@ -76,6 +76,10 @@ struct InteropWrapper : InteropBase
 InteropWrapper<D3D11Interop> g_d3d11_wrapper{g_d3d11_interop};
 InteropWrapper<SharedInterop> g_shared_wrapper{g_shared_interop};
 InteropBase *g_active_interop = nullptr;
+// The swapchain 'g_active_interop' was initialized for. Some paths create a
+// new swapchain before destroying the old one, so a destroy event for an
+// older swapchain must not tear the active interop down.
+reshade::api::swapchain *g_active_swapchain = nullptr;
 
 HMODULE g_module = nullptr;
 std::atomic<bool> g_torch_loaded{false};
@@ -203,10 +207,11 @@ void on_init_swapchain(reshade::api::swapchain *swapchain, bool resize)
 {
     rt::log_line(std::string("swapchain init (resize=") + (resize ? "1" : "0") + ")");
 
-    if (resize)
+    if (resize && g_active_interop != nullptr)
     {
-        if (g_active_interop != nullptr)
-            g_active_interop->shutdown();
+        g_active_interop->shutdown();
+        g_active_interop = nullptr;
+        g_active_swapchain = nullptr;
     }
 
     if (!Config::instance().settings().enabled)
@@ -226,14 +231,27 @@ void on_init_swapchain(reshade::api::swapchain *swapchain, bool resize)
     if (swapchain->get_device()->get_api() == reshade::api::device_api::vulkan)
     {
         rt::log_line("swapchain init: selecting Vulkan interop");
-        g_shared_wrapper.impl.init(swapchain);
-        g_active_interop = &g_shared_wrapper;
+        if (g_shared_wrapper.impl.init(swapchain))
+            selected = &g_shared_wrapper;
+        else
+            g_shared_wrapper.impl.shutdown();
     }
     else
     {
         rt::log_line("swapchain init: selecting D3D11 interop");
-        g_d3d11_wrapper.impl.init(reinterpret_cast<void *>(static_cast<uintptr_t>(swapchain->get_native())));
-        g_active_interop = &g_d3d11_wrapper;
+        if (g_d3d11_wrapper.impl.init(reinterpret_cast<void *>(static_cast<uintptr_t>(swapchain->get_native()))))
+            selected = &g_d3d11_wrapper;
+        else
+            g_d3d11_wrapper.impl.shutdown();
+    }
+
+    g_active_interop = selected;
+    g_active_swapchain = selected != nullptr ? swapchain : nullptr;
+
+    if (g_active_interop == nullptr)
+    {
+        rt::log_line("swapchain init: interop initialization failed");
+        return;
     }
 
     g_active_interop->set_engine(&g_engine);
@@ -245,25 +263,54 @@ void on_init_swapchain(reshade::api::swapchain *swapchain, bool resize)
     g_engine.start_load(Config::instance().settings().model_path, Config::instance().settings().fp16, info.cuda_device);
 }
 
-void on_destroy_swapchain(reshade::api::swapchain *, bool)
+bool on_create_swapchain(reshade::api::device_api api, reshade::api::swapchain_desc &desc, void *)
 {
-    if (g_active_interop != nullptr)
-        g_active_interop->shutdown();
+    if (api != reshade::api::device_api::vulkan)
+        return false;
+
+    // The images of a Vulkan swapchain are created without TRANSFER_DST unless
+    // requested here, and without it the processed frame cannot be copied back.
+    // Request it unconditionally (even while disabled) so toggling the add-on
+    // later still works without a swapchain recreation.
+    if ((desc.back_buffer.usage & reshade::api::resource_usage::copy_dest) != 0)
+        return false;
+
+    desc.back_buffer.usage = desc.back_buffer.usage | reshade::api::resource_usage::copy_dest;
+    rt::log_line("create_swapchain: requesting copy_dest usage for frame write-back");
+    return true;
 }
 
-void on_present(reshade::api::command_queue *, reshade::api::swapchain *, const reshade::api::rect *, const reshade::api::rect *, uint32_t, const reshade::api::rect *)
+void on_destroy_swapchain(reshade::api::swapchain *swapchain, bool)
+{
+    // A new swapchain may already have replaced this one (created before the
+    // old one was destroyed); only shut down when it is the one in use.
+    if (g_active_swapchain != nullptr && swapchain != g_active_swapchain)
+        return;
+
+    if (g_active_interop != nullptr)
+        g_active_interop->shutdown();
+
+    g_active_interop = nullptr;
+    g_active_swapchain = nullptr;
+}
+
+void on_present(reshade::api::command_queue *queue, reshade::api::swapchain *swapchain, const reshade::api::rect *, const reshade::api::rect *, uint32_t, const reshade::api::rect *)
 {
     if (!Config::instance().settings().enabled)
         return;
     if (g_active_interop == nullptr || !g_active_interop->info().active)
         return;
+    // Ignore presents from other swapchains than the one the interop targets.
+    if (g_active_swapchain != nullptr && swapchain != g_active_swapchain)
+        return;
 
-    g_active_interop->process_frame();
-
-    static std::atomic<bool> first_frame_logged{false};
-    bool expected = false;
-    if (first_frame_logged.compare_exchange_strong(expected, true))
-        rt::log_line("first frame processed");
+    if (g_active_interop->process_frame(queue))
+    {
+        static std::atomic<bool> first_frame_logged{false};
+        bool expected = false;
+        if (first_frame_logged.compare_exchange_strong(expected, true))
+            rt::log_line("first frame processed");
+    }
 }
 
 const char *engine_state_name(int state)
@@ -389,6 +436,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
         g_shared_wrapper.impl.set_engine(&g_engine);
         reshade::register_event<reshade::addon_event::init_swapchain>(on_init_swapchain);
         reshade::register_event<reshade::addon_event::destroy_swapchain>(on_destroy_swapchain);
+        reshade::register_event<reshade::addon_event::create_swapchain>(on_create_swapchain);
         reshade::register_event<reshade::addon_event::present>(on_present);
         reshade::register_overlay(nullptr, on_overlay);
         break;

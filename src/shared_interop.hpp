@@ -18,7 +18,7 @@ public:
 
     bool init(reshade::api::swapchain *swapchain);
     void shutdown();
-    bool process_frame();
+    bool process_frame(reshade::api::command_queue *queue);
     void set_engine(TorchEngine *engine);
 
     struct Info

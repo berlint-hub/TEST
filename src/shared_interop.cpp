@@ -1,4 +1,5 @@
 #include "shared_interop.hpp"
+#include "config.hpp"
 #include "cuda_runtime.hpp"
 #include "torch_engine.hpp"
 #include "log.hpp"
@@ -8,118 +9,58 @@
 
 #include <reshade_api.hpp>
 #include <reshade_api_device.hpp>
+#include <reshade_api_format.hpp>
+#include <reshade_api_resource.hpp>
 
-#include <vulkan/vulkan.h>
+#include <windows.h>
 
+#include <atomic>
 #include <string>
 
 namespace rt {
 
 namespace {
 
-// The Vulkan loader is always present when a Vulkan application runs, but the
-// SDK import library is not available on every build machine, so resolve
-// vkGetDeviceProcAddr straight out of vulkan-1.dll instead of linking it.
-struct VulkanLoader
+bool is_supported_format(reshade::api::format format)
 {
-    HMODULE module = nullptr;
-    PFN_vkGetInstanceProcAddr vkGetInstanceProcAddr = nullptr;
-    PFN_vkGetDeviceProcAddr vkGetDeviceProcAddr = nullptr;
-
-    bool init()
+    switch (format)
     {
-        if (module == nullptr)
-        {
-            module = ::LoadLibraryW(L"vulkan-1.dll");
-            if (module == nullptr)
-                return false;
-
-            vkGetInstanceProcAddr = reinterpret_cast<PFN_vkGetInstanceProcAddr>(::GetProcAddress(module, "vkGetInstanceProcAddr"));
-            vkGetDeviceProcAddr = reinterpret_cast<PFN_vkGetDeviceProcAddr>(::GetProcAddress(module, "vkGetDeviceProcAddr"));
-        }
-
-        if (vkGetDeviceProcAddr == nullptr && vkGetInstanceProcAddr != nullptr)
-            vkGetDeviceProcAddr = reinterpret_cast<PFN_vkGetDeviceProcAddr>(vkGetInstanceProcAddr(VK_NULL_HANDLE, "vkGetDeviceProcAddr"));
-
-        return vkGetDeviceProcAddr != nullptr;
-    }
-};
-
-VulkanLoader g_loader;
-
-// Device level entry points, loaded on demand from the dispatchable VkDevice.
-struct VulkanFunctions
-{
-    PFN_vkGetDeviceQueue vkGetDeviceQueue = nullptr;
-    PFN_vkCreateCommandPool vkCreateCommandPool = nullptr;
-    PFN_vkDestroyCommandPool vkDestroyCommandPool = nullptr;
-    PFN_vkAllocateCommandBuffers vkAllocateCommandBuffers = nullptr;
-    PFN_vkFreeCommandBuffers vkFreeCommandBuffers = nullptr;
-    PFN_vkBeginCommandBuffer vkBeginCommandBuffer = nullptr;
-    PFN_vkEndCommandBuffer vkEndCommandBuffer = nullptr;
-    PFN_vkCmdCopyBuffer vkCmdCopyBuffer = nullptr;
-    PFN_vkQueueSubmit vkQueueSubmit = nullptr;
-    PFN_vkQueueWaitIdle vkQueueWaitIdle = nullptr;
-
-    VkDevice loaded_device = VK_NULL_HANDLE;
-
-    void load(VkDevice device)
-    {
-        if (device == VK_NULL_HANDLE || device == loaded_device || g_loader.vkGetDeviceProcAddr == nullptr)
-            return;
-
-        const PFN_vkGetDeviceProcAddr get = g_loader.vkGetDeviceProcAddr;
-#define LOAD(name) name = reinterpret_cast<PFN_##name>(get(device, #name))
-        LOAD(vkGetDeviceQueue);
-        LOAD(vkCreateCommandPool);
-        LOAD(vkDestroyCommandPool);
-        LOAD(vkAllocateCommandBuffers);
-        LOAD(vkFreeCommandBuffers);
-        LOAD(vkBeginCommandBuffer);
-        LOAD(vkEndCommandBuffer);
-        LOAD(vkCmdCopyBuffer);
-        LOAD(vkQueueSubmit);
-        LOAD(vkQueueWaitIdle);
-#undef LOAD
-
-        loaded_device = device;
-    }
-
-    bool ready() const
-    {
-        return loaded_device != VK_NULL_HANDLE &&
-               vkGetDeviceQueue != nullptr &&
-               vkCreateCommandPool != nullptr &&
-               vkDestroyCommandPool != nullptr &&
-               vkAllocateCommandBuffers != nullptr &&
-               vkFreeCommandBuffers != nullptr &&
-               vkBeginCommandBuffer != nullptr &&
-               vkEndCommandBuffer != nullptr &&
-               vkQueueSubmit != nullptr &&
-               vkQueueWaitIdle != nullptr;
-    }
-};
-
-VulkanFunctions g_vk;
-
-bool create_command_pool_and_buffer(VkDevice device, uint32_t queue_family, VkCommandPool *out_pool, VkCommandBuffer *out_buffer)
-{
-    VkCommandPoolCreateInfo pool_info = { VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO };
-    pool_info.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-    pool_info.queueFamilyIndex = queue_family;
-
-    if (g_vk.vkCreateCommandPool(device, &pool_info, nullptr, out_pool) != VK_SUCCESS)
+    case reshade::api::format::r8g8b8a8_unorm:
+    case reshade::api::format::r8g8b8a8_unorm_srgb:
+    case reshade::api::format::r8g8b8x8_unorm:
+    case reshade::api::format::r8g8b8x8_unorm_srgb:
+    case reshade::api::format::b8g8r8a8_unorm:
+    case reshade::api::format::b8g8r8a8_unorm_srgb:
+    case reshade::api::format::b8g8r8x8_unorm:
+    case reshade::api::format::b8g8r8x8_unorm_srgb:
+        return true;
+    default:
         return false;
+    }
+}
 
-    VkCommandBufferAllocateInfo alloc_info = { VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO };
-    alloc_info.commandPool = *out_pool;
-    alloc_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-    alloc_info.commandBufferCount = 1;
-
-    if (g_vk.vkAllocateCommandBuffers(device, &alloc_info, out_buffer) != VK_SUCCESS)
+bool is_bgra_format(reshade::api::format format)
+{
+    switch (format)
+    {
+    case reshade::api::format::b8g8r8a8_unorm:
+    case reshade::api::format::b8g8r8a8_unorm_srgb:
+    case reshade::api::format::b8g8r8x8_unorm:
+    case reshade::api::format::b8g8r8x8_unorm_srgb:
+        return true;
+    default:
         return false;
+    }
+}
 
-    return true;
+std::atomic<bool> g_warned_no_queue = false;
+std::atomic<bool> g_warned_cuda_copy = false;
+
+void warn_once(std::atomic<bool> &flag, const std::string &message)
+{
+    bool expected = false;
+    if (flag.compare_exchange_strong(expected, true))
+        rt::log_line(message);
 }
 
 } // namespace
@@ -128,13 +69,9 @@ struct SharedInterop::Impl
 {
     reshade::api::swapchain *swapchain = nullptr;
     reshade::api::device *device = nullptr;
-
-    // Vulkan objects
-    VkDevice vk_device = VK_NULL_HANDLE;
-    VkQueue vk_queue = VK_NULL_HANDLE;
-    uint32_t queue_family_index = UINT32_MAX;
-    VkCommandPool cmd_pool = VK_NULL_HANDLE;
-    VkCommandBuffer cmd_buffer = VK_NULL_HANDLE;
+    // Last queue used for frame processing, kept so shutdown can wait for any
+    // still in-flight copy before destroying the bridge buffer.
+    reshade::api::command_queue *last_queue = nullptr;
 
     reshade::api::resource bridge_buffer = {};
     void *bridge_cuda_ptr = nullptr;
@@ -143,8 +80,15 @@ struct SharedInterop::Impl
 
     uint32_t width = 0;
     uint32_t height = 0;
+    int cuda_device = 0;
+    bool bgra = false;
     bool is_vulkan = false;
     bool active = false;
+    // The bridge buffer is created in 'copy_dest' state. Every recorded frame
+    // flips it: copy_dest while CUDA writes into it, copy_source while it is
+    // copied back into the swapchain image. The flag tracks the state that the
+    // recorded command stream expects next.
+    bool bridge_is_copy_dest = true;
 
     TorchEngine *engine = nullptr;
 };
@@ -170,12 +114,6 @@ bool SharedInterop::init(reshade::api::swapchain *swapchain)
         return false;
     }
 
-    if (!g_loader.init())
-    {
-        rt::log_line("shared_interop: vulkan-1.dll not available");
-        return false;
-    }
-
     // CUDA can only import a real NT handle, which ReShade exports only when
     // the device supports shared_resource_nt_handle.
     if (!impl->device->check_capability(reshade::api::device_caps::shared_resource_nt_handle))
@@ -184,32 +122,9 @@ bool SharedInterop::init(reshade::api::swapchain *swapchain)
         return false;
     }
 
-    impl->vk_device = reinterpret_cast<VkDevice>(impl->device->get_native());
-    if (impl->vk_device == VK_NULL_HANDLE)
+    if (!impl->device->check_capability(reshade::api::device_caps::copy_buffer_to_texture))
     {
-        rt::log_line("shared_interop: failed to get VkDevice");
-        return false;
-    }
-
-    g_vk.load(impl->vk_device);
-    if (!g_vk.ready())
-    {
-        rt::log_line("shared_interop: failed to load Vulkan functions");
-        return false;
-    }
-
-    // TODO: Query the queue family properties instead of assuming family 0.
-    impl->queue_family_index = 0;
-    g_vk.vkGetDeviceQueue(impl->vk_device, impl->queue_family_index, 0, &impl->vk_queue);
-    if (impl->vk_queue == VK_NULL_HANDLE)
-    {
-        rt::log_line("shared_interop: failed to get queue");
-        return false;
-    }
-
-    if (!create_command_pool_and_buffer(impl->vk_device, impl->queue_family_index, &impl->cmd_pool, &impl->cmd_buffer))
-    {
-        rt::log_line("shared_interop: failed to create command pool/buffer");
+        rt::log_line("shared_interop: device does not support buffer<->texture copies");
         return false;
     }
 
@@ -231,8 +146,29 @@ bool SharedInterop::init(reshade::api::swapchain *swapchain)
     impl->height = bb_desc.texture.height;
     const uint64_t frame_bytes = static_cast<uint64_t>(impl->width) * impl->height * 4;
 
+    if (!is_supported_format(bb_desc.texture.format))
+    {
+        rt::log_line("shared_interop: unsupported swapchain format " + std::to_string(static_cast<int>(bb_desc.texture.format)) + " (need an 8-bit RGBA/BGRA format)");
+        return false;
+    }
+    impl->bgra = is_bgra_format(bb_desc.texture.format);
+
+    // ReShade forces TRANSFER_SRC onto every swapchain image. copy_dest only
+    // exists when our 'create_swapchain' event asked for it, so treat its
+    // absence as a failed hook instead of producing garbage copies.
+    if ((bb_desc.usage & reshade::api::resource_usage::copy_source) == 0)
+    {
+        rt::log_line("shared_interop: back buffer is missing copy_source usage");
+        return false;
+    }
+    if ((bb_desc.usage & reshade::api::resource_usage::copy_dest) == 0)
+    {
+        rt::log_line("shared_interop: back buffer is missing copy_dest usage, the create_swapchain hook did not take effect");
+        return false;
+    }
+
     rt::log_line("shared_interop: swapchain " + std::to_string(impl->width) + "x" + std::to_string(impl->height) +
-                 " (Vulkan), format " + std::to_string(static_cast<int>(bb_desc.texture.format)));
+                 ", format " + std::to_string(static_cast<int>(bb_desc.texture.format)) + (impl->bgra ? " (BGRA)" : " (RGBA)"));
 
     // Bridge buffer: linear, GPU only, exported as an NT handle for CUDA.
     const reshade::api::resource_desc bridge_desc(
@@ -285,8 +221,9 @@ bool SharedInterop::init(reshade::api::swapchain *swapchain)
 
     rt::log_line("shared_interop: bridge buffer mapped at " + std::to_string(reinterpret_cast<uintptr_t>(impl->bridge_cuda_ptr)));
 
+    impl->bridge_is_copy_dest = true;
     impl->active = true;
-    rt::log_line("shared_interop: Vulkan interop initialized (basic)");
+    rt::log_line("shared_interop: Vulkan interop initialized");
     return true;
 }
 
@@ -294,6 +231,13 @@ void SharedInterop::shutdown()
 {
     Impl *const impl = impl_.get();
 
+    if (impl->active && impl->last_queue != nullptr)
+    {
+        // The last write-back is submitted right after the present event, so
+        // wait for it here before the bridge buffer it reads goes away.
+        impl->last_queue->wait_idle();
+    }
+    impl->last_queue = nullptr;
     impl->bridge_cuda_ptr = nullptr;
 
     if (impl->cuda_ext_mem != nullptr && cuda_loaded())
@@ -301,19 +245,6 @@ void SharedInterop::shutdown()
         cuda().cudaDestroyExternalMemory(impl->cuda_ext_mem);
     }
     impl->cuda_ext_mem = nullptr;
-
-    if (impl->cmd_buffer != VK_NULL_HANDLE && impl->cmd_pool != VK_NULL_HANDLE && impl->vk_device != VK_NULL_HANDLE)
-    {
-        if (g_vk.vkFreeCommandBuffers != nullptr)
-            g_vk.vkFreeCommandBuffers(impl->vk_device, impl->cmd_pool, 1, &impl->cmd_buffer);
-        impl->cmd_buffer = VK_NULL_HANDLE;
-    }
-
-    if (impl->cmd_pool != VK_NULL_HANDLE && impl->vk_device != VK_NULL_HANDLE && g_vk.vkDestroyCommandPool != nullptr)
-    {
-        g_vk.vkDestroyCommandPool(impl->vk_device, impl->cmd_pool, nullptr);
-        impl->cmd_pool = VK_NULL_HANDLE;
-    }
 
     if (impl->nt_handle != nullptr)
     {
@@ -331,65 +262,64 @@ void SharedInterop::shutdown()
     impl->device = nullptr;
     impl->width = 0;
     impl->height = 0;
+    impl->cuda_device = 0;
+    impl->bgra = false;
     impl->active = false;
     impl->is_vulkan = false;
-    impl->vk_device = VK_NULL_HANDLE;
-    impl->vk_queue = VK_NULL_HANDLE;
-    impl->queue_family_index = UINT32_MAX;
+    impl->bridge_is_copy_dest = true;
 }
 
-bool SharedInterop::process_frame()
+bool SharedInterop::process_frame(reshade::api::command_queue *queue)
 {
     Impl *const impl = impl_.get();
 
-    if (!impl->active || impl->engine == nullptr || !cuda_loaded())
+    if (!impl->active || impl->engine == nullptr || impl->engine->state() != TorchEngine::State::Ready || !cuda_loaded())
         return false;
 
-    if (!g_vk.ready() || g_vk.loaded_device != impl->vk_device)
+    if (queue == nullptr)
         return false;
 
-    // Ensure buffers in torch engine
-    if (!impl->engine->ensure_buffers(impl->width, impl->height, 0))
-        return false;
-
-    // TODO: Record backbuffer -> bridge and bridge -> backbuffer copies here.
-    // Until then the command buffer is recorded empty, so the plumbing below
-    // can be exercised without touching image layouts we do not know about.
-    VkCommandBufferBeginInfo begin_info = { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
-    begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-
-    VkResult result = g_vk.vkBeginCommandBuffer(impl->cmd_buffer, &begin_info);
-    if (result != VK_SUCCESS)
+    reshade::api::command_list *const cmd = queue->get_immediate_command_list();
+    if (cmd == nullptr)
     {
-        rt::log_line("shared_interop: vkBeginCommandBuffer failed");
+        // Present queue is not a graphics queue (e.g. async present), so
+        // ReShade has no immediate command list to record into.
+        warn_once(g_warned_no_queue, "shared_interop: present queue has no immediate command list, skipping frame processing");
         return false;
     }
 
-    // TODO: Record vkCmdCopyImageToBuffer (backbuffer -> bridge) + barrier
-    // TODO: Record vkCmdCopyBuffer (bridge -> backbuffer) + barrier
-
-    result = g_vk.vkEndCommandBuffer(impl->cmd_buffer);
-    if (result != VK_SUCCESS)
-    {
-        rt::log_line("shared_interop: vkEndCommandBuffer failed");
+    const reshade::api::resource bb = impl->swapchain->get_current_back_buffer();
+    if (bb.handle == 0)
         return false;
+
+    impl->last_queue = queue;
+
+    // Read the frame that is about to be presented into the shared bridge
+    // buffer, using the same present -> copy_source pattern ReShade itself
+    // uses for its back buffer readbacks.
+    if (!impl->bridge_is_copy_dest)
+    {
+        cmd->barrier(impl->bridge_buffer, reshade::api::resource_usage::copy_source, reshade::api::resource_usage::copy_dest);
+        impl->bridge_is_copy_dest = true;
     }
 
-    VkSubmitInfo submit_info = { VK_STRUCTURE_TYPE_SUBMIT_INFO };
-    submit_info.commandBufferCount = 1;
-    submit_info.pCommandBuffers = &impl->cmd_buffer;
-    result = (g_vk.vkQueueSubmit != nullptr)
-        ? g_vk.vkQueueSubmit(impl->vk_queue, 1, &submit_info, VK_NULL_HANDLE)
-        : VK_ERROR_INITIALIZATION_FAILED;
-    if (result != VK_SUCCESS)
-    {
-        rt::log_line("shared_interop: vkQueueSubmit failed");
+    cmd->barrier(bb, reshade::api::resource_usage::present, reshade::api::resource_usage::copy_source);
+    cmd->copy_texture_to_buffer(bb, 0, nullptr, impl->bridge_buffer, 0);
+    cmd->barrier(bb, reshade::api::resource_usage::copy_source, reshade::api::resource_usage::present);
+
+    // This flushes the copy-in above and waits for it (and anything still
+    // queued, like the previous write-back) to finish before CUDA reads.
+    queue->wait_idle();
+
+    if (cuda().cudaSetDevice(impl->cuda_device) != cudaSuccess)
         return false;
-    }
+    cuda().cudaGetLastError();
 
-    g_vk.vkQueueWaitIdle(impl->vk_queue);
+    impl->engine->set_bgra(impl->bgra);
 
-    // Process frame in TorchEngine (uses linear device pointer via input_ptr()/output_ptr())
+    if (!impl->engine->ensure_buffers(impl->width, impl->height, impl->cuda_device))
+        return false;
+
     void *const engine_input = impl->engine->input_ptr();
     void *const engine_output = impl->engine->output_ptr();
     const size_t frame_bytes = static_cast<size_t>(impl->width) * impl->height * 4;
@@ -401,25 +331,35 @@ bool SharedInterop::process_frame()
     cudaError_t err = cuda().cudaMemcpy(engine_input, impl->bridge_cuda_ptr, frame_bytes, cudaMemcpyDeviceToDevice);
     if (err != cudaSuccess)
     {
-        rt::log_line("shared_interop: cudaMemcpy bridge->engine failed: " + cuda_error_name(err));
+        warn_once(g_warned_cuda_copy, "shared_interop: cudaMemcpy bridge->engine failed: " + cuda_error_name(err));
         return false;
     }
 
     // Run inference
-    const float strength = 0.8f; // Will be overridden by overlay
-    if (!impl->engine->run(strength))
+    if (!impl->engine->run(Config::instance().settings().strength))
         return false;
 
     // engine_output -> bridge
     err = cuda().cudaMemcpy(impl->bridge_cuda_ptr, engine_output, frame_bytes, cudaMemcpyDeviceToDevice);
     if (err != cudaSuccess)
     {
-        rt::log_line("shared_interop: cudaMemcpy engine->bridge failed: " + cuda_error_name(err));
+        warn_once(g_warned_cuda_copy, "shared_interop: cudaMemcpy engine->bridge failed: " + cuda_error_name(err));
         return false;
     }
 
-    // Synchronize with CUDA
+    // Make sure CUDA is done writing before the GPU reads the bridge again.
     cuda().cudaDeviceSynchronize();
+
+    // Write the processed frame back. These commands are not flushed here:
+    // ReShade submits the immediate command list right after the present
+    // event (with the application's wait semaphores), which picks them up
+    // before the actual present call.
+    cmd->barrier(impl->bridge_buffer, reshade::api::resource_usage::copy_dest, reshade::api::resource_usage::copy_source);
+    impl->bridge_is_copy_dest = false;
+
+    cmd->barrier(bb, reshade::api::resource_usage::present, reshade::api::resource_usage::copy_dest);
+    cmd->copy_buffer_to_texture(impl->bridge_buffer, 0, 0, 0, bb, 0);
+    cmd->barrier(bb, reshade::api::resource_usage::copy_dest, reshade::api::resource_usage::present);
 
     return true;
 }
@@ -436,10 +376,10 @@ const SharedInterop::Info &SharedInterop::info() const
     Impl *const impl = impl_.get();
     info.active = impl->active;
     info.is_vulkan = impl->is_vulkan;
-    info.cuda_device = 0; // default device
+    info.cuda_device = impl->cuda_device;
     info.width = impl->width;
     info.height = impl->height;
-    info.device_name = "Vulkan GPU"; // TODO: query actual device name
+    info.device_name = "Vulkan GPU";
     return info;
 }
 

@@ -462,7 +462,7 @@ void D3D11Interop::shutdown()
     impl_->shutdown();
 }
 
-bool D3D11Interop::process_frame()
+bool D3D11Interop::process_frame(reshade::api::command_queue * /*queue*/)
 {
     Impl *state = impl_.get();
     if (!state->active)
