@@ -55,14 +55,20 @@ jobs:
       - name: Dump imports (temporary)
         if: always()
         run: |
-          Get-ChildItem build/CMakeFiles/reshade_torch.dir/src/*.obj | ForEach-Object {
-            $hits = dumpbin /nologo /symbols $_.FullName | Select-String -Pattern '@@3'
-            if ($hits) {
-              echo "=== $($_.Name) has data imports ==="
-              $hits | ForEach-Object { ($_ -replace '^.*External\s+\|\s*','DATA: ') }
-            }
-          }
-          echo "--- data import scan done ---"
+          $ws = $env:GITHUB_WORKSPACE
+          $tp = $env:TORCH_WIN_DIR
+          $inc = $env:CUDA_RT_INC
+          $args = @('/nologo','/TP','/P',"/Fi$ws\PREPROCESSED.i",
+            '-DImTextureID=ImU64','-DNOMINMAX','-DUNICODE','-DWIN32_LEAN_AND_MEAN',
+            '-D_CRT_NONSTDC_NO_DEPRECATE','-D_CRT_SECURE_NO_WARNINGS','-D_UNICODE',
+            '-Dreshade_torch_EXPORTS','-DWIN32','-D_WINDOWS','/EHsc','-std:c++20','/MD','/permissive-',
+            "-I$ws\src","-I$ws\external\reshade\include","-I$ws\external\reshade\deps\imgui",
+            "-I$tp\include","-I$tp\include\torch\csrc\api\include",
+            "-I$ws\thirdparty\cuda_crt_shim","-I$inc",
+            "$ws\src\torch_engine.cpp")
+          & cl.exe $args
+          echo "--- preprocess done, searching ---"
+          Select-String -Path "$ws\PREPROCESSED.i" -Pattern 'std_string_metadata_index' | Select-Object -First 5 | ForEach-Object { ($_ -replace '^.*Z ',' ') }
 
       - name: Upload add-on
         uses: actions/upload-artifact@v4
