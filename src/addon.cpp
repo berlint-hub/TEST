@@ -27,6 +27,7 @@ D3D11Interop g_interop;
 HMODULE g_module = nullptr;
 std::atomic<bool> g_torch_loaded{false};
 std::wstring g_torch_lib_dir;
+std::wstring g_log_path;
 
 std::wstring module_directory()
 {
@@ -147,21 +148,33 @@ bool ensure_torch_loaded()
 
 void on_init_swapchain(reshade::api::swapchain *swapchain, bool resize)
 {
+    rt::log_line(std::string("swapchain init (resize=") + (resize ? "1" : "0") + ")");
     if (resize)
         g_interop.shutdown();
 
     if (!Config::instance().settings().enabled)
+    {
+        rt::log_line("swapchain init: add-on disabled, skipping");
         return;
+    }
 
     if (!ensure_torch_loaded())
+    {
+        rt::log_line("swapchain init: torch not available, skipping");
         return;
+    }
 
     g_interop.set_engine(&g_engine);
     void *const native_swapchain = reinterpret_cast<void *>(static_cast<uintptr_t>(swapchain->get_native()));
     if (g_interop.init(native_swapchain))
     {
         const auto &interop_info = g_interop.info();
+        rt::log_line("swapchain init: interop active, loading model '" + Config::instance().settings().model_path + "'");
         g_engine.start_load(Config::instance().settings().model_path, Config::instance().settings().fp16, interop_info.cuda_device);
+    }
+    else
+    {
+        rt::log_line("swapchain init: interop init failed (see lines above)");
     }
 }
 
@@ -178,6 +191,11 @@ void on_present(reshade::api::command_queue *, reshade::api::swapchain *, const 
         return;
 
     g_interop.process_frame();
+
+    static std::atomic<bool> first_frame_logged{false};
+    bool expected = false;
+    if (first_frame_logged.compare_exchange_strong(expected, true))
+        rt::log_line("first frame processed");
 }
 
 const char *engine_state_name(int state)
@@ -246,6 +264,21 @@ void on_overlay(reshade::api::effect_runtime *)
     {
         ImGui::Text("Interop inactive");
     }
+
+    ImGui::Separator();
+
+    if (ImGui::CollapsingHeader("Debug"))
+    {
+        ImGui::TextWrapped("Addon dir: %s", wide_to_utf8(module_directory()).c_str());
+        ImGui::TextWrapped("Log file: %s", wide_to_utf8(g_log_path).c_str());
+        ImGui::Text("Torch loaded: %s", g_torch_loaded ? "yes" : "no");
+        if (!g_torch_lib_dir.empty())
+            ImGui::TextWrapped("Torch lib: %s", wide_to_utf8(g_torch_lib_dir).c_str());
+        ImGui::Text("CUDA runtime: %s", cuda_loaded() ? "yes" : "no");
+        ImGui::TextWrapped("TorchPath: %s", settings.torch_path.empty() ? "(auto-detect)" : settings.torch_path.c_str());
+        if (ImGui::Button("Write test log line"))
+            rt::log_line("test log line from overlay (file logging works)");
+    }
 }
 
 } // namespace
@@ -264,8 +297,20 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
         g_module = hModule;
         if (!reshade::register_addon(hModule))
             return FALSE;
-        Log::instance().open(module_directory() + L"\\reshade_torch.log");
+        g_log_path = module_directory() + L"\\reshade_torch.log";
+        Log::instance().open(g_log_path);
+        rt::log_line("ReShade Torch attached");
+        rt::log_line("module dir: " + wide_to_utf8(module_directory()));
+        rt::log_line("log file: " + wide_to_utf8(g_log_path));
         Config::instance().load(hModule);
+        {
+            const Settings &loaded = Config::instance().settings();
+            rt::log_line(std::string("config: enabled=") + (loaded.enabled ? "1" : "0") +
+                         ", fp16=" + (loaded.fp16 ? "1" : "0") +
+                         ", strength=" + std::to_string(loaded.strength));
+            rt::log_line("config: model=" + loaded.model_path);
+            rt::log_line("config: torch_path=" + (loaded.torch_path.empty() ? std::string("(auto)") : loaded.torch_path));
+        }
         g_interop.set_engine(&g_engine);
         reshade::register_event<reshade::addon_event::init_swapchain>(on_init_swapchain);
         reshade::register_event<reshade::addon_event::destroy_swapchain>(on_destroy_swapchain);
