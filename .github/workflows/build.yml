@@ -27,10 +27,27 @@ jobs:
           python -m pip install nvidia-cuda-runtime-cu12
 
       - name: Install Vulkan SDK
-        uses: vulkan-actions/setup-vulkan-sdk@v1
-        with:
-          version: '1.3.290.0'
-          cache: true
+        run: |
+          # Download and install Vulkan SDK from LunarG
+          $vulkan_version = "1.3.290.0"
+          $installer_url = "https://sdk.lunarg.com/sdk/download/$vulkan_version/windows/VulkanSDK-$vulkan_version-Installer.exe"
+          $installer_path = "$env:TEMP\VulkanSDK-Installer.exe"
+          Write-Host "Downloading Vulkan SDK $vulkan_version..."
+          Invoke-WebRequest -Uri $installer_url -OutFile $installer_path -UseBasicParsing
+          Write-Host "Installing Vulkan SDK..."
+          & $installer_path /S /D=C:\VulkanSDK
+          # Find the installed SDK
+          $vulkan_paths = Get-ChildItem "C:\VulkanSDK" -Directory -ErrorAction SilentlyContinue | Sort-Object Name -Descending
+          if ($vulkan_paths.Count -gt 0) {
+              $vulkan_sdk = $vulkan_paths[0].FullName
+              echo "VULKAN_SDK=$vulkan_sdk" | Out-File -FilePath $env:GITHUB_ENV -Append
+              echo "VULKAN_INCLUDE=$vulkan_sdk\Include" | Out-File -FilePath $env:GITHUB_ENV -Append
+              echo "VULKAN_LIB=$vulkan_sdk\Lib" | Out-File -FilePath $env:GITHUB_ENV -Append
+              echo "Found Vulkan SDK at: $vulkan_sdk"
+          } else {
+              Write-Error "Could not find Vulkan SDK after installation"
+              exit 1
+          }
 
       - name: Locate dependency paths
         run: |
