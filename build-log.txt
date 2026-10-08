@@ -2,46 +2,9 @@
 [2/10] Building CXX object CMakeFiles\reshade_torch.dir\src\shared_interop.cpp.obj
 [3/10] Building CXX object CMakeFiles\reshade_torch.dir\src\d3d11_interop.cpp.obj
 [4/10] Building CXX object CMakeFiles\reshade_torch.dir\src\log.cpp.obj
-[5/10] Building CXX object CMakeFiles\reshade_torch.dir\src\config.cpp.obj
-[6/10] Building CXX object CMakeFiles\reshade_torch.dir\src\ngx_host.cpp.obj
-FAILED: [code=2] CMakeFiles/reshade_torch.dir/src/ngx_host.cpp.obj 
-"C:\Program Files\Microsoft Visual Studio\18\Enterprise\VC\Tools\MSVC\14.51.36231\bin\Hostx64\x64\cl.exe"  /nologo /TP -DImTextureID=ImU64 -DNOMINMAX -DNO_EXPORT -DUNICODE -DWIN32_LEAN_AND_MEAN -D_CRT_NONSTDC_NO_DEPRECATE -D_CRT_SECURE_NO_WARNINGS -D_UNICODE -Dreshade_torch_EXPORTS -ID:\a\TEST\TEST\src -ID:\a\TEST\TEST\external\reshade\include -ID:\a\TEST\TEST\external\reshade\deps\imgui -IC:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\site-packages\torch\include -IC:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\site-packages\torch\include\torch\csrc\api\include -ID:\a\TEST\TEST\thirdparty\cuda_crt_shim -IC:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\site-packages\nvidia\cuda_runtime\include -ID:\a\TEST\TEST\external\vulkan-headers\include -ID:\a\TEST\TEST\external\dlss\include /DWIN32 /D_WINDOWS /EHsc /O2 /Ob2 /DNDEBUG -std:c++20 -MD /W3 /MP /bigobj /permissive- /Zc:__cplusplus /Gy /showIncludes /FoCMakeFiles\reshade_torch.dir\src\ngx_host.cpp.obj /FdCMakeFiles\reshade_torch.dir\ /FS -c D:\a\TEST\TEST\src\ngx_host.cpp
-D:\a\TEST\TEST\src\ngx_host.hpp(91): error C3646: 'module_': unknown override specifier
-D:\a\TEST\TEST\src\ngx_host.hpp(91): error C2059: syntax error: '='
-D:\a\TEST\TEST\src\ngx_host.hpp(91): error C2238: unexpected token(s) preceding ';'
-D:\a\TEST\TEST\src\ngx_host.cpp(17): error C2065: 'NVSDK_NGX_Result_FeatureNotSupported': undeclared identifier
-D:\a\TEST\TEST\src\ngx_host.cpp(17): error C2131: expression did not evaluate to a constant
-D:\a\TEST\TEST\src\ngx_host.cpp(17): note: a non-constant (sub-)expression was encountered
-D:\a\TEST\TEST\src\ngx_host.cpp(18): error C2065: 'NVSDK_NGX_Result_PlatformError': undeclared identifier
-D:\a\TEST\TEST\src\ngx_host.cpp(18): error C2131: expression did not evaluate to a constant
-D:\a\TEST\TEST\src\ngx_host.cpp(18): note: a non-constant (sub-)expression was encountered
-D:\a\TEST\TEST\src\ngx_host.cpp(19): error C2065: 'NVSDK_NGX_Result_InvalidParameter': undeclared identifier
-D:\a\TEST\TEST\src\ngx_host.cpp(19): error C2131: expression did not evaluate to a constant
-D:\a\TEST\TEST\src\ngx_host.cpp(19): note: a non-constant (sub-)expression was encountered
-D:\a\TEST\TEST\src\ngx_host.cpp(20): error C2065: 'NVSDK_NGX_Result_InvalidVersion': undeclared identifier
-D:\a\TEST\TEST\src\ngx_host.cpp(20): error C2131: expression did not evaluate to a constant
-D:\a\TEST\TEST\src\ngx_host.cpp(20): note: a non-constant (sub-)expression was encountered
-D:\a\TEST\TEST\src\ngx_host.cpp(17): error C2051: case expression not constant
-D:\a\TEST\TEST\src\ngx_host.cpp(18): error C2051: case expression not constant
-D:\a\TEST\TEST\src\ngx_host.cpp(19): error C2051: case expression not constant
-D:\a\TEST\TEST\src\ngx_host.cpp(20): error C2051: case expression not constant
-D:\a\TEST\TEST\src\ngx_host.cpp(63): error C2065: 'module_': undeclared identifier
-D:\a\TEST\TEST\src\ngx_host.cpp(66): error C2065: 'module_': undeclared identifier
-D:\a\TEST\TEST\src\ngx_host.cpp(67): error C2065: 'module_': undeclared identifier
-D:\a\TEST\TEST\src\ngx_host.cpp(78): error C2065: 'module_': undeclared identifier
-D:\a\TEST\TEST\src\ngx_host.cpp(79): error C2065: 'module_': undeclared identifier
-D:\a\TEST\TEST\src\ngx_host.cpp(80): error C2065: 'module_': undeclared identifier
-D:\a\TEST\TEST\src\ngx_host.cpp(81): error C2065: 'module_': undeclared identifier
-D:\a\TEST\TEST\src\ngx_host.cpp(82): error C2065: 'module_': undeclared identifier
-D:\a\TEST\TEST\src\ngx_host.cpp(83): error C2065: 'module_': undeclared identifier
-D:\a\TEST\TEST\src\ngx_host.cpp(84): error C2065: 'module_': undeclared identifier
-D:\a\TEST\TEST\src\ngx_host.cpp(85): error C2065: 'module_': undeclared identifier
-D:\a\TEST\TEST\src\ngx_host.cpp(94): error C2065: 'module_': undeclared identifier
-D:\a\TEST\TEST\src\ngx_host.cpp(95): error C2065: 'module_': undeclared identifier
-D:\a\TEST\TEST\src\ngx_host.cpp(232): error C2065: 'module_': undeclared identifier
-D:\a\TEST\TEST\src\ngx_host.cpp(234): error C2065: 'module_': undeclared identifier
-D:\a\TEST\TEST\src\ngx_host.cpp(235): error C2065: 'module_': undeclared identifier
-[7/10] Building CXX object CMakeFiles\reshade_torch.dir\src\lumen_mv.cpp.obj
+[5/10] Building CXX object CMakeFiles\reshade_torch.dir\src\lumen_mv.cpp.obj
+[6/10] Building CXX object CMakeFiles\reshade_torch.dir\src\config.cpp.obj
+[7/10] Building CXX object CMakeFiles\reshade_torch.dir\src\ngx_host.cpp.obj
 [8/10] Building CXX object CMakeFiles\reshade_torch.dir\src\addon.cpp.obj
 [9/10] Building CXX object CMakeFiles\reshade_torch.dir\src\torch_engine.cpp.obj
 C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\site-packages\torch\include\c10/util/Exception.h(36): warning C4251: 'c10::Error::msg_': 'std::basic_string<char,std::char_traits<char>,std::allocator<char>>' needs to have dll-interface to be used by clients of 'c10::Error'
@@ -1739,4 +1702,16 @@ C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\site-packages\torch\include\c1
             T=torch::jit::TreeRef
         ]
 C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\site-packages\torch\include\torch/csrc/jit/frontend/tree.h(141): note: see the first reference to 'c10::SmallVector<torch::jit::TreeRef,4>::SmallVector' in 'torch::jit::Compound::Compound'
+[10/10] Linking CXX shared library reshade_torch.addon64
+FAILED: [code=4294967295] reshade_torch.addon64 reshade_torch.lib 
+C:\Windows\system32\cmd.exe /C "cd . && "C:\Program Files\CMake\bin\cmake.exe" -E vs_link_dll --msvc-ver=1951 --intdir=CMakeFiles\reshade_torch.dir --rc="C:\Program Files (x86)\Windows Kits\10\bin\10.0.26100.0\x64\rc.exe" --mt="C:\Program Files (x86)\Windows Kits\10\bin\10.0.26100.0\x64\mt.exe" --manifests  -- "C:\Program Files\Microsoft Visual Studio\18\Enterprise\VC\Tools\MSVC\14.51.36231\bin\Hostx64\x64\link.exe" /nologo CMakeFiles\reshade_torch.dir\src\addon.cpp.obj CMakeFiles\reshade_torch.dir\src\config.cpp.obj CMakeFiles\reshade_torch.dir\src\log.cpp.obj CMakeFiles\reshade_torch.dir\src\cuda_runtime.cpp.obj CMakeFiles\reshade_torch.dir\src\d3d11_interop.cpp.obj CMakeFiles\reshade_torch.dir\src\shared_interop.cpp.obj CMakeFiles\reshade_torch.dir\src\torch_engine.cpp.obj CMakeFiles\reshade_torch.dir\src\lumen_mv.cpp.obj CMakeFiles\reshade_torch.dir\src\ngx_host.cpp.obj  /out:reshade_torch.addon64 /implib:reshade_torch.lib /pdb:reshade_torch.pdb /dll /version:0.0 /machine:x64 /INCREMENTAL:NO /DELAYLOAD:torch.dll /DELAYLOAD:torch_cpu.dll /DELAYLOAD:c10.dll delayimp.lib  C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\site-packages\torch\lib\torch.lib  C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\site-packages\torch\lib\torch_cpu.lib  C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\site-packages\torch\lib\c10.lib  d3d12.lib  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
+LINK: command "C:\Program Files\Microsoft Visual Studio\18\Enterprise\VC\Tools\MSVC\14.51.36231\bin\Hostx64\x64\link.exe /nologo CMakeFiles\reshade_torch.dir\src\addon.cpp.obj CMakeFiles\reshade_torch.dir\src\config.cpp.obj CMakeFiles\reshade_torch.dir\src\log.cpp.obj CMakeFiles\reshade_torch.dir\src\cuda_runtime.cpp.obj CMakeFiles\reshade_torch.dir\src\d3d11_interop.cpp.obj CMakeFiles\reshade_torch.dir\src\shared_interop.cpp.obj CMakeFiles\reshade_torch.dir\src\torch_engine.cpp.obj CMakeFiles\reshade_torch.dir\src\lumen_mv.cpp.obj CMakeFiles\reshade_torch.dir\src\ngx_host.cpp.obj /out:reshade_torch.addon64 /implib:reshade_torch.lib /pdb:reshade_torch.pdb /dll /version:0.0 /machine:x64 /INCREMENTAL:NO /DELAYLOAD:torch.dll /DELAYLOAD:torch_cpu.dll /DELAYLOAD:c10.dll delayimp.lib C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\site-packages\torch\lib\torch.lib C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\site-packages\torch\lib\torch_cpu.lib C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\site-packages\torch\lib\c10.lib d3d12.lib kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib /MANIFEST:EMBED,ID=2" failed (exit code 1120) with the following output:
+   Creating library reshade_torch.lib and object reshade_torch.exp
+
+LINK : warning LNK4199: /DELAYLOAD:torch.dll ignored; no imports found from torch.dll
+
+ngx_host.cpp.obj : error LNK2019: unresolved external symbol IID_ID3D12Device referenced in function "public: bool __cdecl rt::NgxHost::init(unsigned int,unsigned int,unsigned int,unsigned int,enum rt::NgxHost::Quality)" (?init@NgxHost@rt@@QEAA_NIIIIW4Quality@12@@Z)
+
+reshade_torch.addon64 : fatal error LNK1120: 1 unresolved externals
+
 ninja: build stopped: subcommand failed.
