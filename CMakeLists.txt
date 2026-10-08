@@ -75,7 +75,12 @@ target_include_directories(reshade_torch PRIVATE
 )
 
 if(MSVC)
-    target_compile_options(reshade_torch PRIVATE /W3 /MP /bigobj /permissive- /Zc:__cplusplus)
+    # /Gy (function-level linking) is load-bearing: torch headers contain
+    # __declspec(dllexport) __forceinline specializations (e.g.
+    # TypeMeta::_typeMetaData<std::string>) whose emitted out-of-line copies
+    # reference c10.dll data symbols. With /Gy the linker discards those
+    # unused copies (/OPT:REF), which keeps /DELAYLOAD:c10.dll viable.
+    target_compile_options(reshade_torch PRIVATE /W3 /MP /bigobj /permissive- /Zc:__cplusplus /Gy)
 endif()
 
 target_link_libraries(reshade_torch PRIVATE
