@@ -144,6 +144,7 @@ target_link_libraries(reshade_torch PRIVATE
     "${TORCH_DIR}/lib/torch_cpu.lib"
     "${TORCH_DIR}/lib/c10.lib"
     d3d12
+    dxguid
 )
 
 if(MSVC)
