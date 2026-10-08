@@ -137,4 +137,7 @@ ReShade shader, which only ever sees the final image and a depth buffer.
 python python/export_model.py --out models/unsharp.pt
 ```
 
+`models/*.pt` is gitignored, so no model ships with the repo — train one (see
+above) and point `ModelPath` at it.
+
 Drop the add-on into your ReShade directory (`reshade_torch.addon64` next to the effects folder or in `reshade-addons`; use `.addon64` for 64-bit apps such as PCSX2, `.addon` is only for 32-bit) together with the `torch` libs, enable it in the ReShade menu, and check `reshade_torch.log` for status.
