@@ -33,4 +33,16 @@
 #define __inline__ __inline
 #endif
 
+// The CUDA runtime API declarations are annotated with CUDARTAPI and
+// __cudart_builtin__. Neither is defined by the pip headers; the real
+// toolkit defines both in crt/host_defines.h.
+#if !defined(__CUDACC__)
+#define __cudart_builtin__
+#endif
+#if defined(_WIN32)
+#define CUDARTAPI __stdcall
+#else
+#define CUDARTAPI
+#endif
+
 #endif // __HOST_DEFINES_H__
