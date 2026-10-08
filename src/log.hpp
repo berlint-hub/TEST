@@ -16,7 +16,10 @@ public:
 private:
     Log() = default;
     std::mutex mutex_;
-    void *handle_ = nullptr;
+    // The file is opened, appended to and closed on every line on purpose:
+    // never holding the handle means the log can always be opened in an
+    // editor while the game is running.
+    std::wstring file_;
 };
 
 void log_line(const std::string &text);

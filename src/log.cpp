@@ -16,16 +16,7 @@ Log &Log::instance()
 void Log::open(std::wstring file)
 {
     std::lock_guard<std::mutex> guard(mutex_);
-
-    if (handle_ != nullptr)
-    {
-        std::fclose(static_cast<FILE *>(handle_));
-        handle_ = nullptr;
-    }
-
-    FILE *file_handle = nullptr;
-    if (_wfopen_s(&file_handle, file.c_str(), L"ab") == 0 && file_handle != nullptr)
-        handle_ = file_handle;
+    file_ = std::move(file);
 }
 
 void Log::line(const std::string &text)
@@ -40,12 +31,16 @@ void Log::line(const std::string &text)
         localtime_s(&local, &time) == 0 &&
         std::strftime(header, sizeof(header), "%Y-%m-%d %H:%M:%S", &local) > 0)
     {
-        std::string full = std::string(header) + "  " + text + "\r\n";
+        const std::string full = std::string(header) + "  " + text + "\r\n";
 
-        if (handle_ != nullptr)
+        if (!file_.empty())
         {
-            std::fwrite(full.data(), 1, full.size(), static_cast<FILE *>(handle_));
-            std::fflush(static_cast<FILE *>(handle_));
+            FILE *file_handle = nullptr;
+            if (_wfopen_s(&file_handle, file_.c_str(), L"ab") == 0 && file_handle != nullptr)
+            {
+                std::fwrite(full.data(), 1, full.size(), file_handle);
+                std::fclose(file_handle);
+            }
         }
 
         OutputDebugStringA(full.c_str());
