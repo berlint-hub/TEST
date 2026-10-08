@@ -3,6 +3,10 @@
 #include <cstdint>
 #include <string>
 
+// NGX declares its API in terms of Win32 types (HMODULE, ID3D12Device*) but
+// does not pull the headers in itself.
+#include <Windows.h>
+
 #include <nvsdk_ngx.h>
 
 namespace rt {

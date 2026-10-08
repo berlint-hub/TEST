@@ -14,10 +14,14 @@ std::string result_name(NVSDK_NGX_Result result)
     {
     case NVSDK_NGX_Result_Success: return "Success";
     case NVSDK_NGX_Result_Fail: return "Fail";
-    case NVSDK_NGX_Result_FeatureNotSupported: return "FeatureNotSupported";
-    case NVSDK_NGX_Result_PlatformError: return "PlatformError";
-    case NVSDK_NGX_Result_InvalidParameter: return "InvalidParameter";
-    case NVSDK_NGX_Result_InvalidVersion: return "InvalidVersion";
+    case NVSDK_NGX_Result_FAIL_FeatureNotSupported: return "FeatureNotSupported";
+    case NVSDK_NGX_Result_FAIL_PlatformError: return "PlatformError";
+    case NVSDK_NGX_Result_FAIL_InvalidParameter: return "InvalidParameter";
+    case NVSDK_NGX_Result_FAIL_NotInitialized: return "NotInitialized";
+    case NVSDK_NGX_Result_FAIL_MissingInput: return "MissingInput";
+    case NVSDK_NGX_Result_FAIL_OutOfDate: return "OutOfDate";
+    case NVSDK_NGX_Result_FAIL_OutOfGPUMemory: return "OutOfGPUMemory";
+    case NVSDK_NGX_Result_FAIL_UnsupportedFormat: return "UnsupportedFormat";
     default: return "NGX result " + std::to_string(static_cast<int>(result));
     }
 }
