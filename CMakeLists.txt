@@ -40,7 +40,7 @@ foreach(cuda_inc IN LISTS CUDA_RUNTIME_INCLUDE_DIR)
     endif()
 endforeach()
 if(NOT CUDA_RUNTIME_FOUND)
-    message(FATAL_ERROR "CUDA runtime headers not found in ${CUDA_RUNTIME_INCLUDE_DIR}. pip install nvidia-cuda-runtime-cu12 nvidia-cuda-cu12 and pass -DCUDA_RUNTIME_INCLUDE_DIR=...")
+    message(FATAL_ERROR "CUDA runtime headers not found in ${CUDA_RUNTIME_INCLUDE_DIR}. pip install nvidia-cuda-runtime-cu12 and pass -DCUDA_RUNTIME_INCLUDE_DIR=...")
 endif()
 
 add_library(reshade_torch SHARED
