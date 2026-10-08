@@ -63,7 +63,9 @@ struct InteropWrapper : InteropBase
         out.active = i.active;
         out.is_vulkan = i.is_vulkan;
         out.cuda_device = i.cuda_device;
-        out.buffer_count = i.buffer_count;
+        out.buffer_count = 0;
+        if (auto *d3d11 = dynamic_cast<D3D11Interop *>(&impl))
+            out.buffer_count = d3d11->info().buffer_count;
         out.width = i.width;
         out.height = i.height;
         out.device_name = i.device_name;

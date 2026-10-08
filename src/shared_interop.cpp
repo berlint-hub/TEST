@@ -179,7 +179,7 @@ bool SharedInterop::process_frame()
 
     // Copy back buffer -> bridge buffer
     impl->cmd->copy_resource(bb, impl->bridge_buffer);
-    impl->cmd->flush_immediate_command_list();
+    impl->device->flush_immediate_command_list();
 
     // Process frame in TorchEngine (uses linear device pointer via input_ptr()/output_ptr())
     void *engine_input = impl->engine->input_ptr();
@@ -210,7 +210,7 @@ bool SharedInterop::process_frame()
     // Copy bridge -> back buffer
     reshade::api::resource bb = impl->swapchain->get_current_back_buffer();
     impl->cmd->copy_resource(impl->bridge_buffer, bb);
-    impl->cmd->flush_immediate_command_list();
+    impl->device->flush_immediate_command_list();
 
     // Synchronize with CUDA
     cuda().cudaDeviceSynchronize();
