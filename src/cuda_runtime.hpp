@@ -26,6 +26,10 @@ struct CudaApi
     using Memcpy2DFromArray_fn = decltype(&::cudaMemcpy2DFromArray);
     using Memcpy2DToArray_fn = decltype(&::cudaMemcpy2DToArray);
     using DeviceSynchronize_fn = decltype(&::cudaDeviceSynchronize);
+    using Memcpy_fn = decltype(&::cudaMemcpy);
+    using ImportExternalMemory_fn = decltype(&::cudaImportExternalMemory);
+    using ExternalMemoryGetMappedBuffer_fn = decltype(&::cudaExternalMemoryGetMappedBuffer);
+    using DestroyExternalMemory_fn = decltype(&::cudaDestroyExternalMemory);
 
     SetDevice_fn cudaSetDevice = nullptr;
     GetDevice_fn cudaGetDevice = nullptr;
@@ -43,6 +47,10 @@ struct CudaApi
     Memcpy2DFromArray_fn cudaMemcpy2DFromArray = nullptr;
     Memcpy2DToArray_fn cudaMemcpy2DToArray = nullptr;
     DeviceSynchronize_fn cudaDeviceSynchronize = nullptr;
+    Memcpy_fn cudaMemcpy = nullptr;
+    ImportExternalMemory_fn cudaImportExternalMemory = nullptr;
+    ExternalMemoryGetMappedBuffer_fn cudaExternalMemoryGetMappedBuffer = nullptr;
+    DestroyExternalMemory_fn cudaDestroyExternalMemory = nullptr;
 };
 
 bool cuda_load(const std::wstring &preferred_dll);

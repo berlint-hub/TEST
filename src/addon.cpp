@@ -16,13 +16,64 @@
 #include "cuda_runtime.hpp"
 #include "d3d11_interop.hpp"
 #include "log.hpp"
+#include "shared_interop.hpp"
 #include "torch_engine.hpp"
 
 namespace rt {
 namespace {
 
 TorchEngine g_engine;
-D3D11Interop g_interop;
+D3D11Interop g_d3d11_interop;
+SharedInterop g_shared_interop;
+
+// Abstract interface for runtime-polymorphic interop
+struct InteropBase
+{
+    virtual ~InteropBase() = default;
+    virtual bool init(reshade::api::swapchain *swapchain) = 0;
+    virtual void shutdown() = 0;
+    virtual bool process_frame() = 0;
+    virtual void set_engine(TorchEngine *engine) = 0;
+    struct Info
+    {
+        bool active = false;
+        bool is_vulkan = false;
+        int cuda_device = -1;
+        uint32_t buffer_count = 0;
+        uint32_t width = 0;
+        uint32_t height = 0;
+        std::string device_name;
+    };
+    virtual const Info &info() const = 0;
+};
+
+template <typename T>
+struct InteropWrapper : InteropBase
+{
+    T &impl;
+    explicit InteropWrapper(T &i) : impl(i) {}
+    bool init(reshade::api::swapchain *swapchain) override { return impl.init(swapchain); }
+    void shutdown() override { impl.shutdown(); }
+    bool process_frame() override { return impl.process_frame(); }
+    void set_engine(TorchEngine *engine) override { impl.set_engine(engine); }
+    const Info &info() const override
+    {
+        auto &i = impl.info();
+        static Info out;
+        out.active = i.active;
+        out.is_vulkan = i.is_vulkan;
+        out.cuda_device = i.cuda_device;
+        out.buffer_count = i.buffer_count;
+        out.width = i.width;
+        out.height = i.height;
+        out.device_name = i.device_name;
+        return out;
+    }
+};
+
+InteropWrapper<D3D11Interop> g_d3d11_wrapper{g_d3d11_interop};
+InteropWrapper<SharedInterop> g_shared_wrapper{g_shared_interop};
+InteropBase *g_active_interop = nullptr;
 
 HMODULE g_module = nullptr;
 std::atomic<bool> g_torch_loaded{false};
@@ -149,8 +200,12 @@ bool ensure_torch_loaded()
 void on_init_swapchain(reshade::api::swapchain *swapchain, bool resize)
 {
     rt::log_line(std::string("swapchain init (resize=") + (resize ? "1" : "0") + ")");
+
     if (resize)
-        g_interop.shutdown();
+    {
+        if (g_active_interop != nullptr)
+            g_active_interop->shutdown();
+    }
 
     if (!Config::instance().settings().enabled)
     {
@@ -164,33 +219,44 @@ void on_init_swapchain(reshade::api::swapchain *swapchain, bool resize)
         return;
     }
 
-    g_interop.set_engine(&g_engine);
-    void *const native_swapchain = reinterpret_cast<void *>(static_cast<uintptr_t>(swapchain->get_native()));
-    if (g_interop.init(native_swapchain))
+    // Select interop based on API
+    InteropBase *selected = nullptr;
+    if (swapchain->get_device()->get_api() == reshade::api::device_api::vulkan)
     {
-        const auto &interop_info = g_interop.info();
-        rt::log_line("swapchain init: interop active, loading model '" + Config::instance().settings().model_path + "'");
-        g_engine.start_load(Config::instance().settings().model_path, Config::instance().settings().fp16, interop_info.cuda_device);
+        rt::log_line("swapchain init: selecting Vulkan interop");
+        g_shared_wrapper.impl.init(swapchain);
+        g_active_interop = &g_shared_wrapper;
     }
     else
     {
-        rt::log_line("swapchain init: interop init failed (see lines above)");
+        rt::log_line("swapchain init: selecting D3D11 interop");
+        g_d3d11_wrapper.impl.init(reinterpret_cast<void *>(static_cast<uintptr_t>(swapchain->get_native())));
+        g_active_interop = &g_d3d11_wrapper;
     }
+
+    g_active_interop->set_engine(&g_engine);
+
+    const auto &info = g_active_interop->info();
+    rt::log_line("swapchain init: interop active (" + std::string(info.is_vulkan ? "Vulkan" : "D3D11") +
+                 "), loading model '" + Config::instance().settings().model_path + "'");
+
+    g_engine.start_load(Config::instance().settings().model_path, Config::instance().settings().fp16, info.cuda_device);
 }
 
 void on_destroy_swapchain(reshade::api::swapchain *, bool)
 {
-    g_interop.shutdown();
+    if (g_active_interop != nullptr)
+        g_active_interop->shutdown();
 }
 
 void on_present(reshade::api::command_queue *, reshade::api::swapchain *, const reshade::api::rect *, const reshade::api::rect *, uint32_t, const reshade::api::rect *)
 {
     if (!Config::instance().settings().enabled)
         return;
-    if (!g_interop.info().active)
+    if (g_active_interop == nullptr || !g_active_interop->info().active)
         return;
 
-    g_interop.process_frame();
+    g_active_interop->process_frame();
 
     static std::atomic<bool> first_frame_logged{false};
     bool expected = false;
@@ -253,12 +319,12 @@ void on_overlay(reshade::api::effect_runtime *)
     if (state == TorchEngine::State::Error && !g_engine.error().empty())
         ImGui::TextWrapped("Error: %s", g_engine.error().c_str());
 
-    const D3D11Interop::Info &info = g_interop.info();
+    const InteropBase::Info &info = g_active_interop ? g_active_interop->info() : InteropBase::Info{};
     if (info.active)
     {
         ImGui::Text("GPU: %s (%d)", info.device_name.c_str(), info.cuda_device);
-        ImGui::Text("Swapchain: %ux%u, %u buffers, %s", info.width, info.height, info.buffer_count,
-                    info.tier_a ? "direct" : (info.tier_b ? "copy" : "off"));
+        ImGui::Text("Swapchain: %ux%u, %s", info.width, info.height,
+                    info.is_vulkan ? "Vulkan" : (info.tier_a ? "direct" : (info.tier_b ? "copy" : "off")));
     }
     else
     {
@@ -275,6 +341,12 @@ void on_overlay(reshade::api::effect_runtime *)
         if (!g_torch_lib_dir.empty())
             ImGui::TextWrapped("Torch lib: %s", wide_to_utf8(g_torch_lib_dir).c_str());
         ImGui::Text("CUDA runtime: %s", cuda_loaded() ? "yes" : "no");
+        if (g_active_interop)
+        {
+            const InteropBase::Info &info = g_active_interop->info();
+            ImGui::Text("Active interop: %s", info.is_vulkan ? "Vulkan" : "D3D11");
+            ImGui::Text("Interop active: %s", info.active ? "yes" : "no");
+        }
         ImGui::TextWrapped("TorchPath: %s", settings.torch_path.empty() ? "(auto-detect)" : settings.torch_path.c_str());
         if (ImGui::Button("Write test log line"))
             rt::log_line("test log line from overlay (file logging works)");
@@ -311,7 +383,8 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
             rt::log_line("config: model=" + loaded.model_path);
             rt::log_line("config: torch_path=" + (loaded.torch_path.empty() ? std::string("(auto)") : loaded.torch_path));
         }
-        g_interop.set_engine(&g_engine);
+        g_d3d11_wrapper.impl.set_engine(&g_engine);
+        g_shared_wrapper.impl.set_engine(&g_engine);
         reshade::register_event<reshade::addon_event::init_swapchain>(on_init_swapchain);
         reshade::register_event<reshade::addon_event::destroy_swapchain>(on_destroy_swapchain);
         reshade::register_event<reshade::addon_event::present>(on_present);

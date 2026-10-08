@@ -39,6 +39,10 @@ bool cuda_load(const std::wstring &preferred_dll)
     RESOLVE(cudaMemcpy2DFromArray)
     RESOLVE(cudaMemcpy2DToArray)
     RESOLVE(cudaDeviceSynchronize)
+    RESOLVE(cudaMemcpy)
+    RESOLVE(cudaImportExternalMemory)
+    RESOLVE(cudaExternalMemoryGetMappedBuffer)
+    RESOLVE(cudaDestroyExternalMemory)
 #undef RESOLVE
 
     if (api.cudaSetDevice == nullptr || api.cudaGetDevice == nullptr ||
@@ -48,7 +52,9 @@ bool cuda_load(const std::wstring &preferred_dll)
         api.cudaGraphicsUnregisterResource == nullptr || api.cudaGraphicsMapResources == nullptr ||
         api.cudaGraphicsUnmapResources == nullptr || api.cudaGraphicsSubResourceGetMappedArray == nullptr ||
         api.cudaMemcpy2DFromArray == nullptr || api.cudaMemcpy2DToArray == nullptr ||
-        api.cudaDeviceSynchronize == nullptr)
+        api.cudaDeviceSynchronize == nullptr || api.cudaMemcpy == nullptr ||
+        api.cudaImportExternalMemory == nullptr || api.cudaExternalMemoryGetMappedBuffer == nullptr ||
+        api.cudaDestroyExternalMemory == nullptr)
     {
         ::FreeLibrary(module);
         return false;

@@ -49,6 +49,7 @@ add_library(reshade_torch SHARED
     src/log.cpp
     src/cuda_runtime.cpp
     src/d3d11_interop.cpp
+    src/shared_interop.cpp
     src/torch_engine.cpp
 )
 
