@@ -22,10 +22,14 @@ endif()
 if(NOT TORCH_DIR AND DEFINED ENV{TORCH_DIR})
     set(TORCH_DIR "$ENV{TORCH_DIR}")
 endif()
+if(NOT VULKAN_SDK AND DEFINED ENV{VULKAN_SDK})
+    set(VULKAN_SDK "$ENV{VULKAN_SDK}")
+endif()
 
 message(STATUS "RESHADE_DIR               = ${RESHADE_DIR}")
 message(STATUS "TORCH_DIR                 = ${TORCH_DIR}")
 message(STATUS "CUDA_RUNTIME_INCLUDE_DIR  = ${CUDA_RUNTIME_INCLUDE_DIR}")
+message(STATUS "VULKAN_SDK                = ${VULKAN_SDK}")
 
 if(NOT EXISTS "${RESHADE_DIR}/include/reshade.hpp")
     message(FATAL_ERROR "ReShade SDK not found. Clone tag v6.8.0 into ./external/reshade or pass -DRESHADE_DIR=...")
@@ -80,6 +84,7 @@ target_include_directories(reshade_torch PRIVATE
     "${TORCH_DIR}/include/torch/csrc/api/include"
     "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/cuda_crt_shim"
     "${CUDA_RUNTIME_INCLUDE_DIR}"
+    "${VULKAN_SDK}/Include"
 )
 
 if(MSVC)
@@ -95,6 +100,7 @@ target_link_libraries(reshade_torch PRIVATE
     "${TORCH_DIR}/lib/torch.lib"
     "${TORCH_DIR}/lib/torch_cpu.lib"
     "${TORCH_DIR}/lib/c10.lib"
+    "${VULKAN_SDK}/Lib/vulkan-1.lib"
 )
 
 if(MSVC)
