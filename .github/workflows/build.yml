@@ -52,6 +52,14 @@ jobs:
       - name: Build
         run: cmake --build build
 
+      - name: Dump imports (temporary)
+        if: always()
+        run: |
+          Get-ChildItem build/CMakeFiles/reshade_torch.dir/src/*.obj | ForEach-Object {
+            echo "=== $($_.Name) ==="
+            dumpbin /nologo /imports $_.FullName | Select-String -Pattern 'std_string_metadata|\.dll$' | Select-Object -First 12
+          }
+
       - name: Upload add-on
         uses: actions/upload-artifact@v4
         with:
