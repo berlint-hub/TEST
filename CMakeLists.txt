@@ -62,12 +62,15 @@ target_compile_definitions(reshade_torch PRIVATE
     ImTextureID=ImU64
 )
 
+# thirdparty/cuda_crt_shim provides crt/host_defines.h, which the
+# nvidia-cuda-runtime-cu12 pip package does not ship (see the shim header).
 target_include_directories(reshade_torch PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/src"
     "${RESHADE_DIR}/include"
     "${RESHADE_DIR}/deps/imgui"
     "${TORCH_DIR}/include"
     "${TORCH_DIR}/include/torch/csrc/api/include"
+    "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/cuda_crt_shim"
     "${CUDA_RUNTIME_INCLUDE_DIR}"
 )
 

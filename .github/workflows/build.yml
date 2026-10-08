@@ -33,13 +33,6 @@ jobs:
           echo "TORCH_WIN_DIR=$tp" | Out-File -FilePath $env:GITHUB_ENV -Append
           echo "CUDA_RT_INC=$sp\nvidia\cuda_runtime\include" | Out-File -FilePath $env:GITHUB_ENV -Append
           echo "Reshading torch dir: $tp"
-          # Workaround for an NVIDIA pip packaging quirk: cuda_runtime_api.h does
-          # `#include "crt/host_defines.h"`, but nvidia-cuda-runtime-cu12 ships
-          # host_defines.h/host_config.h at the include root with no crt/ subdir.
-          $crt = Join-Path $sp "nvidia\cuda_runtime\include\crt"
-          New-Item -ItemType Directory -Force -Path $crt | Out-Null
-          Copy-Item (Join-Path $sp "nvidia\cuda_runtime\include\host_defines.h") $crt -Force
-          Copy-Item (Join-Path $sp "nvidia\cuda_runtime\include\host_config.h") $crt -Force
 
       - name: Clone ReShade SDK
         run: |

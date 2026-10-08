@@ -54,7 +54,7 @@ The model is loaded asynchronously; its input is a `[1, 3, H, W]` uint8 frame (p
 
 The repo is configured to build via GitHub Actions (see `.github/workflows/build.yml`); it installs the CPU PyTorch wheel and the `nvidia-cuda-runtime-cu12` headers, clones ReShade `v6.8.0` and produces `reshade_torch.addon`.
 
-Note: `nvidia-cuda-runtime-cu12` ships `host_defines.h`/`host_config.h` at the include root, but its own `cuda_runtime_api.h` does `#include "crt/host_defines.h"`. For a local build, copy both files into a `crt/` subdirectory of the CUDA include dir first (the CI workflow does this automatically).
+Note: `nvidia-cuda-runtime-cu12` does not ship the real `crt/host_defines.h` (only a self-referencing wrapper stub), so the repo carries a minimal clean-room shim at `thirdparty/cuda_crt_shim/crt/host_defines.h`, wired in via `CMakeLists.txt`. Do not copy the stub into a `crt/` folder — it includes itself and the build dies with C1014.
 
 Local (needs VS 2022 + CMake):
 
