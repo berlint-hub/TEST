@@ -42,6 +42,13 @@ jobs:
           # so neither the SDK install nor its import library is needed here.
           git clone --depth 1 --branch v1.4.365 https://github.com/KhronosGroup/Vulkan-Headers.git external/vulkan-headers
 
+      - name: Clone NVIDIA NGX headers
+        run: |
+          # Headers only. Every NGX entry point is resolved from
+          # nvngx_dlss.dll at runtime, so no import library is linked and the
+          # add-on still loads where the DLL is absent.
+          git clone --depth 1 https://github.com/NVIDIA/DLSS.git external/dlss
+
       - name: Locate dependency paths
         run: |
           $tp = & python -c "import torch, os; print(os.path.dirname(torch.__file__))"
@@ -63,7 +70,8 @@ jobs:
           cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release `
             -DRESHADE_DIR="$env:GITHUB_WORKSPACE/external/reshade" `
             -DTORCH_DIR="$env:TORCH_WIN_DIR" `
-            -DCUDA_RUNTIME_INCLUDE_DIR="$env:CUDA_RT_INC"
+            -DCUDA_RUNTIME_INCLUDE_DIR="$env:CUDA_RT_INC" `
+            -DNGX_HEADERS_DIR="$env:GITHUB_WORKSPACE/external/dlss/include"
 
       - name: Build
         run: cmake --build build

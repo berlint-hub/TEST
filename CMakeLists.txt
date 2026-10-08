@@ -12,6 +12,7 @@ set(RESHADE_DIR "" CACHE PATH "Root of the ReShade SDK (folder containing includ
 set(TORCH_DIR "" CACHE PATH "Root of the PyTorch/LibTorch install (folder containing include/ and lib/)")
 set(CUDA_RUNTIME_INCLUDE_DIR "" CACHE PATH "Folder containing the CUDA runtime headers (cuda_runtime_api.h, cuda_d3d11_interop.h)")
 set(VULKAN_HEADERS_DIR "" CACHE PATH "Folder containing the Vulkan headers (vulkan/vulkan.h), i.e. the include/ directory of KhronosGroup/Vulkan-Headers")
+set(NGX_HEADERS_DIR "" CACHE PATH "Folder containing the NVIDIA NGX headers (nvsdk_ngx.h), i.e. the include/ directory of NVIDIA/DLSS")
 
 if(NOT RESHADE_DIR)
     if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/external/reshade/include/reshade.hpp")
@@ -34,11 +35,17 @@ if(NOT VULKAN_HEADERS_DIR)
         endif()
     endforeach()
 endif()
+if(NOT NGX_HEADERS_DIR)
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/external/dlss/include/nvsdk_ngx.h")
+        set(NGX_HEADERS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/external/dlss/include")
+    endif()
+endif()
 
 message(STATUS "RESHADE_DIR               = ${RESHADE_DIR}")
 message(STATUS "TORCH_DIR                 = ${TORCH_DIR}")
 message(STATUS "CUDA_RUNTIME_INCLUDE_DIR  = ${CUDA_RUNTIME_INCLUDE_DIR}")
 message(STATUS "VULKAN_HEADERS_DIR        = ${VULKAN_HEADERS_DIR}")
+message(STATUS "NGX_HEADERS_DIR           = ${NGX_HEADERS_DIR}")
 
 if(NOT EXISTS "${RESHADE_DIR}/include/reshade.hpp")
     message(FATAL_ERROR "ReShade SDK not found. Clone tag v6.8.0 into ./external/reshade or pass -DRESHADE_DIR=...")
@@ -74,6 +81,9 @@ endif()
 if(NOT EXISTS "${VULKAN_HEADERS_DIR}/vulkan/vulkan.h")
     message(FATAL_ERROR "Vulkan headers not found in '${VULKAN_HEADERS_DIR}'. Clone https://github.com/KhronosGroup/Vulkan-Headers into ./external/vulkan-headers or pass -DVULKAN_HEADERS_DIR=...")
 endif()
+if(NOT EXISTS "${NGX_HEADERS_DIR}/nvsdk_ngx.h")
+    message(FATAL_ERROR "NVIDIA NGX headers not found in '${NGX_HEADERS_DIR}'. Clone https://github.com/NVIDIA/DLSS into ./external/dlss or pass -DNGX_HEADERS_DIR=...")
+endif()
 
 add_library(reshade_torch SHARED
     src/addon.cpp
@@ -84,6 +94,7 @@ add_library(reshade_torch SHARED
     src/shared_interop.cpp
     src/torch_engine.cpp
     src/lumen_mv.cpp
+    src/ngx_host.cpp
 )
 
 target_compile_definitions(reshade_torch PRIVATE
@@ -114,6 +125,7 @@ target_include_directories(reshade_torch PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/cuda_crt_shim"
     "${CUDA_RUNTIME_INCLUDE_DIR}"
     "${VULKAN_HEADERS_DIR}"
+    "${NGX_HEADERS_DIR}"
 )
 
 if(MSVC)
@@ -131,6 +143,7 @@ target_link_libraries(reshade_torch PRIVATE
     "${TORCH_DIR}/lib/torch.lib"
     "${TORCH_DIR}/lib/torch_cpu.lib"
     "${TORCH_DIR}/lib/c10.lib"
+    d3d12
 )
 
 if(MSVC)
