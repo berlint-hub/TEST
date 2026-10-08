@@ -287,6 +287,39 @@ protože `Windows.h` se includuje **až po** API hlavičkách.
 
 ## 8. Co zbývá udělat (konkrétně)
 
+### ⚠️ Než sáhneš na `addon.cpp`: existující hooky nestačí
+
+`LumenMotionVectors::resolve()` potřebuje **`effect_runtime *` A ZÁROVEŇ
+`command_list *`** (runtime na `find_texture_variable`, command_list na
+`get_device()->get_resource_from_view`). Žádný z pěti hooků, které `addon.cpp`
+dnes registruje, nedává obojí — ověřeno:
+
+| Hook v `addon.cpp` | Řádek | Signature | runtime | cmd_list |
+|---|---|---|---|---|
+| `on_init_swapchain` | 208 | `(swapchain *, bool resize)` | ❌ | ❌ |
+| `on_create_swapchain` | 268 | `(device_api, swapchain_desc &, void *)` | ❌ | ❌ |
+| `on_destroy_swapchain` | 285 | `(swapchain *, bool)` | ❌ | ❌ |
+| `on_present` | 299 | `(command_queue *, swapchain *, const rect *, const rect *, uint32_t, const rect *)` | ❌ | ❌ |
+| `on_overlay` | 335 | `(effect_runtime *)` | ✅ | ❌ |
+
+Registrace je na řádcích **441–445**.
+
+**Správný hook je `reshade::addon_event::reshade_finish_effects`**
+(`include/reshade_events.hpp` v6.8.0). Jeho signature je:
+
+```cpp
+void (api::effect_runtime *runtime, api::command_list *cmd_list,
+      api::resource_view rtv, api::resource_view rtv_srgb)
+```
+
+Má obojí **a** volá se *„right after ReShade effects were rendered"* — tedy v tu
+chvíli už Lumenite `tFlow` vypočítal. `reshade_begin_effects` má stejnou
+signature, ale běží **před** efekty, takže `tFlow` by byl z předchozího snímku.
+`reshade_present` (= 75) bere jen `(api::effect_runtime *runtime)` — bez
+command_list, takže na to nestačí.
+
+### Postup
+
 V pořadí podle hodnoty:
 
 1. **Propojit to.** `LumenMotionVectors::resolve()` → shared-handle import do
