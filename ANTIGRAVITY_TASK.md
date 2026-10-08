@@ -1,157 +1,154 @@
-# Úkol pro Antigravity
+# Úkol pro Antigravity — Vulkan (aktualizováno)
 
-> Než začneš: **`git pull`**. Tento soubor a `HANDOFF.md` se od tvého klonu liší.
-> Čti `HANDOFF.md` jako kontext, tento soubor jako zadání.
+> **`git pull` nejdřív.** Předchozí verze tohoto souboru doporučovala jako Cestu B
+> Vulkan→D3D12 interop. **To už neplatí — byla to moje chyba.** Čti dál.
+>
+> Uživatel se rozhodl: **zůstáváme na Vulkanu.** Přepínat PCSX2 na D3D11 nechce.
 
 ---
 
-## ⚠️ Nejdřív korekce: plán z `HANDOFF.md` §8 má díru
+## Oprava: NGX má nativní Vulkan API. Interop není potřeba.
 
-V handoffu stojí *„shared-handle import do D3D12"*. To **nejde tak, jak je to
-napsané.** Ověřeno proti `crosire/reshade@v6.8.0`:
+V `NVIDIA/DLSS include/nvsdk_ngx_vk.h` (768 řádků) je kompletní vulkanová větev.
+Prefix je **`NVSDK_NGX_VULKAN_` velkými písmeny** — proto ji předchozí hledání
+minulo. Ověřeno:
 
-**`get_shared_handle` v ReShade 6.8.0 neexistuje.** Grep přes celý
-`reshade_api_device.hpp` vrací nulu. Jediné API na shared handle je:
+```
+:114  NVSDK_NGX_VULKAN_RequiredExtensions(uint *OutInstanceExtCount, const char ***OutInstanceExts,
+                                          uint *OutDeviceExtCount,   const char ***OutDeviceExts)
+:172  NVSDK_NGX_VULKAN_Init(u64 appId, const wchar_t *path, VkInstance, VkPhysicalDevice, VkDevice, ...)
+:174  NVSDK_NGX_VULKAN_Init_Ext2(..., PFN_vkGetInstanceProcAddr GIPA, PFN_vkGetDeviceProcAddr GDPA, ...)
+:286  NVSDK_NGX_VULKAN_Shutdown(void)          :288  _Shutdown1(VkDevice)
+:382  NVSDK_NGX_VULKAN_AllocateParameters(NVSDK_NGX_Parameter **)
+:447  NVSDK_NGX_VULKAN_DestroyParameters(NVSDK_NGX_Parameter *)
+:479  NVSDK_NGX_VULKAN_GetScratchBufferSize(feature, params, size_t *)
+:536  NVSDK_NGX_VULKAN_CreateFeature(VkCommandBuffer, NVSDK_NGX_Feature, const NVSDK_NGX_Parameter *, NVSDK_NGX_Handle **)
+:537  NVSDK_NGX_VULKAN_CreateFeature1(VkDevice, VkCommandBuffer, ...)
+:753  NVSDK_NGX_VULKAN_EvaluateFeature(VkCommandBuffer, const NVSDK_NGX_Handle *, const NVSDK_NGX_Parameter *, PFN_... = NULL)
+```
+
+Eval struktura `NVSDK_NGX_VK_DLSS_Eval_Params` (`nvsdk_ngx_helpers_vk.h:64`):
 
 ```cpp
-// reshade_api_device.hpp:364
-virtual bool create_resource(const resource_desc &desc,
-                             const subresource_data *initial_data,
-                             resource_usage initial_state,
-                             resource *out_resource,
-                             void **shared_handle = nullptr) = 0;
+NVSDK_NGX_Resource_VK *pInDepth;            // :67
+NVSDK_NGX_Resource_VK *pInMotionVectors;    // :68
+float InJitterOffsetX;                      // :69  "must be in input/render pixel space"
+int   InReset;                              // :73  "Set to 1 when scene changes completely"
+float InMVScaleX;                           // :74  "If MVs need custom scaling to convert to pixel space"
+// + Feature.pInColor / Feature.pInOutput (:47-48)
 ```
 
-Dokumentace k parametru (řádek 362): když `shared_handle` ukazuje na
-`nullptr`, **nastaví se na exportovaný handle nově vytvořeného zdroje**. Když už
-platný handle obsahuje, zdroj se z něj **importuje**.
-
-**Důsledek:** handle jde získat jen u zdroje, **který sis sám vytvořil**. Pro
-Lumenite `tFlow` ani pro backbuffer hry žádný handle dostat nemůžeš. Přímý
-import `tFlow` do privátního D3D12 device je tedy nemožný.
-
-Druhá díra: **`NgxHost` nevlastní command queue, command allocator ani fence** —
-ověřeno, jediné co bere je `ID3D12GraphicsCommandList *` jako parametr
-`evaluate()`. Nikdo ho tedy nemá jak vyrobit a není čím synchronizovat frontu
-hry s naší.
-
-Obě díry jdou obejít. Existují dvě cesty a **cesta A je řádově méně práce.**
+**Co to znamená:** NGX běží **přímo na VkDevice hry** a evaluuje se na **jejím
+VkCommandBuffer**. Odpadá privátní D3D12 device, `OpenSharedHandle`, fence,
+timeline semaphore a kopie textury každý snímek. **Celý interop, který jsem ti
+minule zadal, je k ničemu.**
 
 ---
 
-## Cesta A — doporučená: NGX na D3D11 device hry
+## Nové omezení — tohle je teď ta skutečná práce
 
-NGX má **plnohodnotnou D3D11 větev**, ověřeno v `NVIDIA/DLSS include/nvsdk_ngx.h`:
+`NVSDK_NGX_VULKAN_Init` chce **`VkInstance` + `VkPhysicalDevice` + `VkDevice`**.
+ReShade 6.8.0 vydává jen některé z nich. Ověřeno:
+
+| Co potřebujeme | Odkud | Stav |
+|---|---|---|
+| `VkDevice` | `device::get_native()` (`reshade_api_device.hpp:275`) | ✅ vrací `VkDevice` |
+| `VkCommandBuffer` | `command_list::get_native()` | ✅ vrací `VkCommandBuffer` |
+| `VkInstance` | — | ❌ **ReShade nevystavuje** |
+| `VkPhysicalDevice` | — | ❌ **ReShade nevystavuje** |
+
+Grep přes `reshade_events.hpp` (1966 řádků) **nenachází** `init_instance` ani
+`init_physical_device`. Dostupné device eventy jsou jen `init_device`
+(`:33`, signature `void (api::device *device)`), `create_device` (`:55`),
+`destroy_device` (`:71`). Grep na `physical` v `reshade_api_device.hpp` i
+`reshade_api.hpp` — **nula výsledků**.
+
+Druhý problém: `NVSDK_NGX_VULKAN_RequiredExtensions` vrací seznam instančních
+a **device** rozšíření, která NGX vyžaduje. **Device extension nejde přidat do
+už vytvořeného `VkDevice`.** Musí být zapnutá v okamžiku jeho vytvoření.
+
+### Z toho plyne jediná cesta
+
+**Hooknout `vkCreateInstance` a `vkCreateDevice` v `vulkan-1.dll`**, abys:
+
+1. zachytil `VkInstance` a `VkPhysicalDevice`,
+2. do `VkDeviceCreateInfo` přidal rozšíření z `NVSDK_NGX_VULKAN_RequiredExtensions`.
+
+**Dobrá zpráva: na tomhle stroji to už někdo dělá.** Z `dlss5-feed.log`, který
+jsi sám našel:
 
 ```
-:150/:168  NVSDK_NGX_D3D11_Init(..., ID3D11Device*, ...)
-:278       NVSDK_NGX_D3D11_Shutdown(void)
-:380       NVSDK_NGX_D3D11_AllocateParameters(NVSDK_NGX_Parameter**)
-:544/:549  NVSDK_NGX_D3D11_CreateFeature(ID3D11DeviceContext*, NVSDK_NGX_Feature,
-                                          const NVSDK_NGX_Parameter*, NVSDK_NGX_Handle**)
+vkCreateDevice hook installed on vulkan-1!vkCreateDevice
+vkCreateDevice #1: app asked for 12 extension(s), added 7
+VK_KHR_external_memory ADDED
+VK_KHR_external_semaphore ADDED
+VK_KHR_timeline_semaphore ADDED
 ```
 
-Plus `NGX_D3D11_CREATE_DLSS_EXT` / `NGX_D3D11_EVALUATE_DLSS_EXT` v
-`nvsdk_ngx_helpers_d3d.h:85` / `:103`.
-
-**Proč to řeší všechno najednou:** pokud hra běží na D3D11, inicializuješ NGX
-přímo na **jejím** `ID3D11Device`. Pak:
-
-- `tFlow` i backbuffer jsou **už na tom správném device** → žádné sdílení, žádný
-  privátní device, žádný fence, žádná synchronizace mezi frontami.
-- `ID3D11DeviceContext*` dostaneš z ReShade: `cmd_list->get_native()`.
-- `ID3D11Device*` z `device::get_native()` (`reshade_api_device.hpp:275`,
-  vrací `uint64_t`) + `QueryInterface`.
-
-To je zhruba **desetina práce** oproti cestě B.
+Takže vzor, který na RTX 4080 v PCSX2 prokazatelně funguje, máš přímo před nosem.
+**Nespoléhej ale na to, že ta rozšíření přidá dlss5-feed za tebe** — musíš si
+zjistit vlastní seznam přes `RequiredExtensions` a ověřit překryv.
 
 ---
 
-## Krok 0 — zjistit, na čem PCSX2 běží (udělej tohle první)
+## Postup
 
-Celé rozhodnutí A vs B visí na tomhle. Zjisti to **na skutečném stroji**, ne
-hádej:
+### Krok 1 — zjistit, co NGX skutečně chce
 
-```cpp
-// v on_create_swapchain (src/addon.cpp:268) už signature bere device_api
-reshade::api::device_api api   // ← tohle jen zaloguj
-```
+Zavolej `NVSDK_NGX_VULKAN_RequiredExtensions` a **vypiš oba seznamy do logu**.
+Porovnej je s tím, co už přidává dlss5-feed. Bez toho nevíme, jestli hook
+`vkCreateDevice` vůbec potřebujeme, nebo jestli rozšíření už zapnutá jsou.
 
-Napiš to do `ReShade.log` a **napiš nám, co to vrátilo**. `device_api::d3d11` →
-cesta A. `device_api::vulkan` → cesta B.
+Tohle je levné a rozhoduje to o rozsahu práce. **Udělej to první.**
 
-Dokud tohle nevíme, je zbytečné psát kód.
+### Krok 2 — hook Vulkan loaderu
 
----
+Pokud krok 1 ukáže, že něco chybí: hook `vkCreateInstance` + `vkCreateDevice`
+v `vulkan-1.dll`. Musí být nainstalovaný **před** vytvořením device — tedy co
+nejdřív v životním cyklu add-onu (`DllMain` / `register_addon` v
+`src/addon.cpp:421`).
 
-## Krok 1 — rozšířit `NgxHost` o D3D11 větev
+### Krok 3 — Vulkan větev v `NgxHost`
 
-Přidej vedle D3D12 cesty druhou. Sdílej co nejvíc: tabulka `GetProcAddress`,
-`result_name()`, parametry, `Info`.
+Přidej ji vedle D3D12 cesty, **nemíchej je**. Sdílej tabulku `GetProcAddress`,
+`result_name()` a `Info`. Vzor pro ruční `LoadLibraryW` + `GetProcAddress` je v
+`src/ngx_host.cpp` (283 řádků) — **drž se ho, nelinkuj nic proti NVIDIA
+binárkám**, to je záměr.
 
-Přesný tvar si odvod z existujícího `src/ngx_host.cpp` (283 řádků) — je tam
-vzor pro `LoadLibraryW` + `GetProcAddress`, který **nelinkuje nic proti NVIDIA
-binárkám**. Drž se ho, je to záměr: add-on se musí dát načíst i bez
-`nvngx_dlss.dll`.
+Pozor na pasti z `HANDOFF.md` §6: `#include <Windows.h>`, enum konstanty
+s infixem `FAIL_`.
 
-Nezapomeň na pasti z `HANDOFF.md` §6 — hlavně `#include <Windows.h>` a enum
-konstanty s infixem `FAIL_`.
+### Krok 4 — hook `reshade_finish_effects`
 
-## Krok 2 — zaregistrovat správný hook
+Podrobně v `HANDOFF.md` §8. Žádný z pěti existujících hooků v `addon.cpp`
+(řádky 441–445) nedává `effect_runtime*` **i** `command_list*` najednou.
 
-**`reshade::addon_event::reshade_finish_effects`**, podrobně v `HANDOFF.md` §8.
-Žádný z pěti existujících hooků v `addon.cpp` (řádky 441–445) nedává
-`effect_runtime*` **i** `command_list*` najednou — ověřeno tabulkou tamtéž.
+### Krok 5 — upsampling `tFlow`
 
-## Krok 3 — upsampling `tFlow`
-
-`tFlow` je **RG16F při 1/8 rozlišení** (`lumenite_QuantMotion.fx`, pyramida
-128→64→32→16→8). DLSS čeká MV v rozlišení vstupu. `InMVScaleX/Y` škáluje
-**velikost** vektorů, ne rozlišení textury — takže to samotné nestačí, musíš
-reálně upsamplovat 8×. Confidence kanál DLSS neumí, ten se zahazuje.
-
-## Krok 4 — až potom cesta B, pokud je PCSX2 na Vulkanu
-
-Postup, který skutečně funguje (na rozdíl od přímého importu):
-
-1. Vytvoř **vlastní** zdroj přes `create_resource(..., resource_flags::shared,
-   &handle)` — handle dostaneš, protože je to tvůj zdroj.
-2. Na command listu hry udělej `copy_resource(muj_shared, tFlow)` — oba jsou
-   ReShade zdroje na stejném device, takže je to legální.
-3. Na privátním D3D12 device `OpenSharedHandle` → `ID3D12Resource`.
-4. **Musíš doplnit** command queue + command allocator + command list + fence do
-   `NgxHost` a ručně synchronizovat s frontou hry. Tohle v kódu vůbec není.
-5. Nejdřív zkontroluj `device_caps::shared_resource` /
-   `shared_resource_nt_handle` (`reshade_api_device.hpp:156–163`) — bez nich
-   `resource_flags::shared` nesmíš použít.
-
-Stojí to kopii textury navíc každý snímek. Proto až jako druhá volba.
+`tFlow` je **RG16F při 1/8 rozlišení**. DLSS čeká MV v rozlišení vstupu;
+`InMVScaleX/Y` škáluje **velikost** vektorů, ne rozlišení textury. Musíš reálně
+upsamplovat 8×. Confidence kanál DLSS neumí.
 
 ---
 
-## Pravidla, která dodržuj
+## Pravidla
 
-1. **Každou změnu ověř přes CI push.** Postup v `HANDOFF.md` §5. Chyby
-   kompilátoru čti z **`build-log.txt` v repozitáři**, ne z Actions UI — tam
-   nejsou dostupné. Ten log tam publishuje krok `Publish build log on failure`;
-   nesmazat.
-2. **`gh workflow run` nefunguje** (403). CI se spouští pushem, větev je v
-   `on: push: branches:`.
-3. **Nikdy netvrď, že něco funguje, jen protože to prošlo kompilátorem.**
-   Kompilace ≠ upscaling. Jsi na stroji s RTX 4080 — **ty můžeš add-on skutečně
-   spustit v PCSX2.** Dokud to neuděláš, piš „zkompilováno", ne „funguje".
-4. **Před každým pushem `git fetch` + `git rebase origin/arena/96bb4b4c-test`.**
-   Historie se mezi tahy resetuje a push jinak spadne na non-fast-forward.
-5. **Pospiš si s krokem 0.** Dokud nevíme `device_api`, je každá další řádka
-   kódu sázka.
+1. **Nepoužívej žádné GitHub tokeny.** Pushuje agent v tomto chatu. Ty odevzdej
+   kód jako **diff** — uživatel ho předá dál.
+2. **Každou změnu ověříme přes CI.** Chyby kompilátoru jsou v **`build-log.txt`
+   v repozitáři**, ne v Actions UI.
+3. **Nikdy netvrď „funguje", když to jen prošlo kompilátorem.** Máš RTX 4080 —
+   můžeš to spustit v PCSX2. Dokud to neuděláš, piš „zkompilováno".
+4. **`get_shared_handle` v ReShade 6.8.0 neexistuje** a interop už stejně
+   nepotřebujeme. Nesahej na `src/shared_interop.cpp`.
 
 ---
 
-## Kde přesně začít
+## Kde začít
 
 ```
-src/addon.cpp:268   on_create_swapchain  → zaloguj device_api   (KROK 0)
-src/addon.cpp:441   blok register_event  → přidej finish_effects (KROK 2)
-src/ngx_host.cpp    283 řádků, vzor pro D3D11 větev             (KROK 1)
+src/addon.cpp:421   register_addon      → sem patří hook loaderu   (KROK 2)
+src/addon.cpp:441   blok register_event → přidej finish_effects    (KROK 4)
+src/ngx_host.cpp    283 řádků, vzor pro Vulkan větev               (KROK 3)
 src/lumen_mv.cpp     91 řádků, hotové, nic neměň
 ```
