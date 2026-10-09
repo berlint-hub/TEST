@@ -49,7 +49,7 @@ jobs:
 
       # 7. Nahraje artifact
       - name: Upload artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: depth_range_detector
           path: artifacts/

@@ -47,7 +47,7 @@ jobs:
           cp build/Release/depth_range_detector.addon64 artifacts/
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: depth_range_detector
           path: artifacts/
