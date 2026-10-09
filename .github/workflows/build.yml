@@ -1,96 +1,67 @@
-name: build
+name: Build Depth Range Detector
 
 on:
   push:
-    branches: [reshade-torch-addon, arena/96bb4b4c-test]
+    branches: [ main, master, arena/** ]
+  pull_request:
+    branches: [ main, master, arena/** ]
   workflow_dispatch:
-
-defaults:
-  run:
-    shell: pwsh
 
 jobs:
   build:
     runs-on: windows-latest
+
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      # 1. Checkout kodu
+      - name: Checkout repository
+        uses: actions/checkout@v4
         with:
-          python-version: '3.12'
+          submodules: recursive
 
-      - name: Install PyTorch (CUDA) and CUDA runtime headers
+      # 2. Stahnout ReShade SDK v6.8.0
+      - name: Download ReShade SDK
         run: |
-          python -m pip install --upgrade pip
-          # The CPU wheel cannot run the add-on: aten's CUDA hooks are a
-          # registry (aten/src/ATen/detail/CUDAHooksInterface.cpp) that stays
-          # empty unless torch_cuda.dll is loaded into the process, so every
-          # device(kCUDA) call throws "Cannot initialize CUDA without
-          # ATen_cuda library". A CUDA wheel is what ships torch_cuda.dll.
-          # The cu*** indexes do not all carry every torch version, so fall
-          # back through them instead of pinning one that may disappear.
-          python -m pip install torch --index-url https://download.pytorch.org/whl/cu130 || `
-          python -m pip install torch --index-url https://download.pytorch.org/whl/cu128 || `
-          python -m pip install torch --index-url https://download.pytorch.org/whl/cu126
-          python -c "import torch,os;p=os.path.join(os.path.dirname(torch.__file__),'lib');print('CUDA libs:',[f for f in os.listdir(p) if 'cuda' in f][:6]);assert os.path.exists(os.path.join(p,'torch_cuda.dll')),'torch_cuda.dll missing - CPU wheel installed'"
-          python -m pip install nvidia-cuda-runtime-cu12
+          git clone --branch v6.8.0 --depth 1 https://github.com/crosire/reshade.git external/reshade
 
-      - name: Clone Vulkan headers
-        run: |
-          # The Vulkan headers are enough: vulkan-1.dll is loaded at runtime,
-          # so neither the SDK install nor its import library is needed here.
-          git clone --depth 1 --branch v1.4.365 https://github.com/KhronosGroup/Vulkan-Headers.git external/vulkan-headers
-
-      - name: Clone NVIDIA NGX headers
-        run: |
-          # Headers only. Every NGX entry point is resolved from
-          # nvngx_dlss.dll at runtime, so no import library is linked and the
-          # add-on still loads where the DLL is absent.
-          git clone --depth 1 https://github.com/NVIDIA/DLSS.git external/dlss
-
-      - name: Locate dependency paths
-        run: |
-          $tp = & python -c "import torch, os; print(os.path.dirname(torch.__file__))"
-          $sp = Split-Path $tp
-          echo "TORCH_WIN_DIR=$tp" | Out-File -FilePath $env:GITHUB_ENV -Append
-          echo "CUDA_RT_INC=$sp\nvidia\cuda_runtime\include" | Out-File -FilePath $env:GITHUB_ENV -Append
-          echo "Reshading torch dir: $tp"
-
-      - name: Clone ReShade SDK
-        run: |
-          git clone --depth 1 --branch v6.8.0 https://github.com/crosire/reshade.git external/reshade
-          git -C external/reshade submodule update --init --depth 1 deps/imgui
-
-      - name: Set up MSVC toolchain
+      # 3. Instalace Visual Studio 2022
+      - name: Setup MSVC
         uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
 
+      # 4. Konfigurace CMake
       - name: Configure CMake
         run: |
-          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release `
-            -DRESHADE_DIR="$env:GITHUB_WORKSPACE/external/reshade" `
-            -DTORCH_DIR="$env:TORCH_WIN_DIR" `
-            -DCUDA_RUNTIME_INCLUDE_DIR="$env:CUDA_RT_INC" `
-            -DNGX_HEADERS_DIR="$env:GITHUB_WORKSPACE/external/dlss/include"
+          cmake -S . -B build `
+            -G "Visual Studio 17 2022" `
+            -A x64 `
+            -DRESHADE_DIR=${{ github.workspace }}/external/reshade
 
+      # 5. Build
       - name: Build
-        run: |
-          # Tee the log to a file so it can be published on failure: the
-          # Actions log endpoints are not reachable from every environment.
-          cmake --build build 2>&1 | Tee-Object -FilePath build-log.txt
-          exit $LASTEXITCODE
+        run: cmake --build build --config Release
 
-      - name: Publish build log on failure
-        if: failure()
+      # 6. Vytvoreni artifactu
+      - name: Create artifact
         run: |
-          git config user.name "ci-build-log"
-          git config user.email "ci@example.com"
-          git add -f build-log.txt
-          git commit -m "ci: publish failed build log [skip ci]"
-          git push origin HEAD:$env:GITHUB_REF_NAME
+          mkdir -p artifacts
+          cp build/Release/depth_range_detector.addon64 artifacts/
 
-      - name: Upload add-on
-        uses: actions/upload-artifact@v4
+      # 7. Nahraje artifact
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
         with:
-          name: reshade_torch
-          path: build/reshade_torch.addon64
+          name: depth_range_detector
+          path: artifacts/
+          retention-days: 30
+
+      # 8. Vytvoreni release (pouze pro main/master/arena branch)
+      - name: Create Release
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/heads/arena/')
+        uses: softprops/action-gh-release@v1
+        with:
+          files: artifacts/depth_range_detector.addon64
+          tag_name: v1.0.${{ github.run_number }}
+          name: Depth Range Detector v1.0.${{ github.run_number }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

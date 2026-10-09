@@ -1,163 +1,49 @@
 cmake_minimum_required(VERSION 3.21)
-project(reshade_torch LANGUAGES CXX)
-
-if(NOT CMAKE_BUILD_TYPE)
-    set(CMAKE_BUILD_TYPE Release)
-endif()
+project(depth_range_detector LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-set(RESHADE_DIR "" CACHE PATH "Root of the ReShade SDK (folder containing include/ and deps/)")
-set(TORCH_DIR "" CACHE PATH "Root of the PyTorch/LibTorch install (folder containing include/ and lib/)")
-set(CUDA_RUNTIME_INCLUDE_DIR "" CACHE PATH "Folder containing the CUDA runtime headers (cuda_runtime_api.h, cuda_d3d11_interop.h)")
-set(VULKAN_HEADERS_DIR "" CACHE PATH "Folder containing the Vulkan headers (vulkan/vulkan.h), i.e. the include/ directory of KhronosGroup/Vulkan-Headers")
-set(NGX_HEADERS_DIR "" CACHE PATH "Folder containing the NVIDIA NGX headers (nvsdk_ngx.h), i.e. the include/ directory of NVIDIA/DLSS")
+# Cesta k ReShade SDK (bude stazena v GitHub Actions nebo lokalne)
+set(RESHADE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/external/reshade" CACHE PATH "ReShade SDK path")
 
-if(NOT RESHADE_DIR)
-    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/external/reshade/include/reshade.hpp")
-        set(RESHADE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/external/reshade")
-    elseif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../reshade/include/reshade.hpp")
-        set(RESHADE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../reshade")
-    endif()
-endif()
-if(NOT TORCH_DIR AND DEFINED ENV{TORCH_DIR})
-    set(TORCH_DIR "$ENV{TORCH_DIR}")
-endif()
-if(NOT VULKAN_HEADERS_DIR)
-    foreach(vulkan_inc
-            "${CMAKE_CURRENT_SOURCE_DIR}/external/vulkan-headers/include"
-            "$ENV{VULKAN_SDK}/Include"
-            "${VULKAN_SDK}/Include")
-        if(EXISTS "${vulkan_inc}/vulkan/vulkan.h")
-            set(VULKAN_HEADERS_DIR "${vulkan_inc}")
-            break()
-        endif()
-    endforeach()
-endif()
-if(NOT NGX_HEADERS_DIR)
-    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/external/dlss/include/nvsdk_ngx.h")
-        set(NGX_HEADERS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/external/dlss/include")
-    endif()
-endif()
-
-message(STATUS "RESHADE_DIR               = ${RESHADE_DIR}")
-message(STATUS "TORCH_DIR                 = ${TORCH_DIR}")
-message(STATUS "CUDA_RUNTIME_INCLUDE_DIR  = ${CUDA_RUNTIME_INCLUDE_DIR}")
-message(STATUS "VULKAN_HEADERS_DIR        = ${VULKAN_HEADERS_DIR}")
-message(STATUS "NGX_HEADERS_DIR           = ${NGX_HEADERS_DIR}")
-
+# Validace SDK
 if(NOT EXISTS "${RESHADE_DIR}/include/reshade.hpp")
-    message(FATAL_ERROR "ReShade SDK not found. Clone tag v6.8.0 into ./external/reshade or pass -DRESHADE_DIR=...")
-endif()
-if(NOT EXISTS "${TORCH_DIR}/include/torch/script.h")
-    message(FATAL_ERROR "PyTorch not found at ${TORCH_DIR}. Install PyTorch for Windows and pass -DTORCH_DIR=...")
+    message(FATAL_ERROR "ReShade SDK v6.8.0 not found at: ${RESHADE_DIR}\nClone it with: git clone --branch v6.8.0 https://github.com/crosire/reshade.git external/reshade")
 endif()
 
-# A CPU-only PyTorch builds fine but can never run: aten's CUDA hooks are a
-# registry (aten/src/ATen/detail/CUDAHooksInterface.cpp) that only gets a real
-# implementation when torch_cuda.dll is loaded into the process, so every
-# device(kCUDA) call throws "Cannot initialize CUDA without ATen_cuda
-# library". Nothing here links torch_cuda.lib on purpose - loading the DLL is
-# what registers the hooks - but the DLL has to exist to be loaded.
-option(RESHADE_TORCH_ALLOW_CPU "Build against a CPU-only PyTorch anyway (the add-on will fail at runtime)" OFF)
-if(NOT EXISTS "${TORCH_DIR}/lib/torch_cuda.dll" AND NOT RESHADE_TORCH_ALLOW_CPU)
-    message(FATAL_ERROR
-        "${TORCH_DIR} is a CPU-only PyTorch install: lib/torch_cuda.dll is missing, so the "
-        "add-on would load and then fail on the first frame with 'Cannot initialize CUDA "
-        "without ATen_cuda library'. Install a CUDA build (pip install torch --index-url "
-        "https://download.pytorch.org/whl/cu130) and pass its site-packages/torch as -DTORCH_DIR. "
-        "Pass -DRESHADE_TORCH_ALLOW_CPU=ON to build it anyway.")
-endif()
-set(CUDA_RUNTIME_FOUND FALSE)
-foreach(cuda_inc IN LISTS CUDA_RUNTIME_INCLUDE_DIR)
-    if(EXISTS "${cuda_inc}/cuda_runtime_api.h")
-        set(CUDA_RUNTIME_FOUND TRUE)
-    endif()
-endforeach()
-if(NOT CUDA_RUNTIME_FOUND)
-    message(FATAL_ERROR "CUDA runtime headers not found in ${CUDA_RUNTIME_INCLUDE_DIR}. pip install nvidia-cuda-runtime-cu12 and pass -DCUDA_RUNTIME_INCLUDE_DIR=...")
-endif()
-if(NOT EXISTS "${VULKAN_HEADERS_DIR}/vulkan/vulkan.h")
-    message(FATAL_ERROR "Vulkan headers not found in '${VULKAN_HEADERS_DIR}'. Clone https://github.com/KhronosGroup/Vulkan-Headers into ./external/vulkan-headers or pass -DVULKAN_HEADERS_DIR=...")
-endif()
-if(NOT EXISTS "${NGX_HEADERS_DIR}/nvsdk_ngx.h")
-    message(FATAL_ERROR "NVIDIA NGX headers not found in '${NGX_HEADERS_DIR}'. Clone https://github.com/NVIDIA/DLSS into ./external/dlss or pass -DNGX_HEADERS_DIR=...")
-endif()
-
-add_library(reshade_torch SHARED
-    src/addon.cpp
-    src/config.cpp
-    src/log.cpp
-    src/cuda_runtime.cpp
-    src/d3d11_interop.cpp
-    src/shared_interop.cpp
-    src/torch_engine.cpp
-    src/lumen_mv.cpp
-    src/ngx_host.cpp
+# Zdrojove soubory
+add_library(depth_range_detector SHARED
+    src/depth_range_detector.cpp
 )
 
-target_compile_definitions(reshade_torch PRIVATE
+# Kompilacni nastaveni
+target_compile_definitions(depth_range_detector PRIVATE
     UNICODE
     _UNICODE
     WIN32_LEAN_AND_MEAN
     NOMINMAX
     _CRT_SECURE_NO_WARNINGS
-    _CRT_NONSTDC_NO_DEPRECATE
-    ImTextureID=ImU64
-    # NO_EXPORT empties torch's C10_EXPORT macro. Without it, every TU that
-    # includes torch headers emits *and exports* __declspec(dllexport)
-    # __forceinline TypeMeta specializations (e.g. _typeMetaData<std::string>
-    # from CAFFE_DECLARE_KNOWN_TYPE), whose out-of-line copies reference
-    # c10.dll *data* symbols - and data imports cannot be delay-loaded
-    # (LNK1194). We export nothing from torch, so turn it off.
-    NO_EXPORT
 )
 
-# thirdparty/cuda_crt_shim provides crt/host_defines.h, which the
-# nvidia-cuda-runtime-cu12 pip package does not ship (see the shim header).
-target_include_directories(reshade_torch PRIVATE
+target_include_directories(depth_range_detector PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/src"
     "${RESHADE_DIR}/include"
     "${RESHADE_DIR}/deps/imgui"
-    "${TORCH_DIR}/include"
-    "${TORCH_DIR}/include/torch/csrc/api/include"
-    "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/cuda_crt_shim"
-    "${CUDA_RUNTIME_INCLUDE_DIR}"
-    "${VULKAN_HEADERS_DIR}"
-    "${NGX_HEADERS_DIR}"
 )
 
 if(MSVC)
-    # /Gy (function-level linking) is load-bearing: torch headers contain
-    # __declspec(dllexport) __forceinline specializations (e.g.
-    # TypeMeta::_typeMetaData<std::string>) whose emitted out-of-line copies
-    # reference c10.dll data symbols. With /Gy the linker discards those
-    # unused copies (/OPT:REF), which keeps /DELAYLOAD:c10.dll viable.
-    target_compile_options(reshade_torch PRIVATE /W3 /MP /bigobj /permissive- /Zc:__cplusplus /Gy)
-endif()
-
-# vulkan-1.dll is loaded at runtime (see VulkanLoader in src/shared_interop.cpp),
-# so no Vulkan SDK import library is required to link against.
-target_link_libraries(reshade_torch PRIVATE
-    "${TORCH_DIR}/lib/torch.lib"
-    "${TORCH_DIR}/lib/torch_cpu.lib"
-    "${TORCH_DIR}/lib/c10.lib"
-    d3d12
-    dxguid
-)
-
-if(MSVC)
-    target_link_options(reshade_torch PRIVATE
-        /DELAYLOAD:torch.dll
-        /DELAYLOAD:torch_cpu.dll
-        /DELAYLOAD:c10.dll
-        delayimp.lib
+    target_compile_options(depth_range_detector PRIVATE
+        /W4
+        /MP
+        /Zc:__cplusplus
+        /permissive-
     )
 endif()
 
-set_target_properties(reshade_torch PROPERTIES
+# Vystupni soubor
+set_target_properties(depth_range_detector PROPERTIES
     PREFIX ""
-    OUTPUT_NAME "reshade_torch"
+    OUTPUT_NAME "depth_range_detector"
     SUFFIX ".addon64"
 )
