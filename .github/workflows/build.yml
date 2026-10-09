@@ -9,7 +9,7 @@ on:
 
 jobs:
   build:
-    runs-on: windows-latest
+    runs-on: windows-2022
 
     steps:
       # 1. Checkout kodu
@@ -23,31 +23,25 @@ jobs:
         run: |
           git clone --branch v6.8.0 --depth 1 https://github.com/crosire/reshade.git external/reshade
 
-      # 3. Instalace Visual Studio 2022
-      - name: Setup MSVC
-        uses: ilammy/msvc-dev-cmd@v1
-        with:
-          arch: x64
-
-      # 4. Konfigurace CMake
+      # 3. Konfigurace CMake s Ninja (misto Visual Studio)
       - name: Configure CMake
         run: |
           cmake -S . -B build `
-            -G "Visual Studio 17 2022" `
-            -A x64 `
+            -G "Ninja" `
+            -DCMAKE_BUILD_TYPE=Release `
             -DRESHADE_DIR=${{ github.workspace }}/external/reshade
 
-      # 5. Build
+      # 4. Build
       - name: Build
         run: cmake --build build --config Release
 
-      # 6. Vytvoreni artifactu
+      # 5. Vytvoreni artifactu
       - name: Create artifact
         run: |
           mkdir -p artifacts
           cp build/Release/depth_range_detector.addon64 artifacts/
 
-      # 7. Nahraje artifact
+      # 6. Nahraje artifact
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
@@ -55,7 +49,7 @@ jobs:
           path: artifacts/
           retention-days: 30
 
-      # 8. Vytvoreni release (pouze pro main/master/arena branch)
+      # 7. Vytvoreni release (pouze pro main/master/arena branch)
       - name: Create Release
         if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/heads/arena/')
         uses: softprops/action-gh-release@v1
