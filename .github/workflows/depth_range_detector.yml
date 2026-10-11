@@ -22,9 +22,9 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Download ReShade SDK v6.8.0
+      - name: Download ReShade SDK v6.8.0 with submodules
         run: |
-          git clone --branch v6.8.0 --depth 1 https://github.com/crosire/reshade.git external/reshade
+          git clone --branch v6.8.0 --depth 1 --recurse-submodules https://github.com/crosire/reshade.git external/reshade
 
       - name: Configure CMake
         run: |

@@ -12,18 +12,15 @@ jobs:
     runs-on: windows-2022
 
     steps:
-      # 1. Checkout kodu
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           submodules: recursive
 
-      # 2. Stahnout ReShade SDK v6.8.0
-      - name: Download ReShade SDK
+      - name: Download ReShade SDK v6.8.0 with submodules
         run: |
-          git clone --branch v6.8.0 --depth 1 https://github.com/crosire/reshade.git external/reshade
+          git clone --branch v6.8.0 --depth 1 --recurse-submodules https://github.com/crosire/reshade.git external/reshade
 
-      # 3. Konfigurace CMake s Ninja (misto Visual Studio)
       - name: Configure CMake
         run: |
           cmake -S . -B build `
@@ -31,17 +28,14 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release `
             -DRESHADE_DIR=${{ github.workspace }}/external/reshade
 
-      # 4. Build
       - name: Build
         run: cmake --build build --config Release
 
-      # 5. Vytvoreni artifactu
       - name: Create artifact
         run: |
           mkdir -p artifacts
           cp build/Release/depth_range_detector.addon64 artifacts/
 
-      # 6. Nahraje artifact
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
@@ -49,7 +43,6 @@ jobs:
           path: artifacts/
           retention-days: 30
 
-      # 7. Vytvoreni release (pouze pro main/master/arena branch)
       - name: Create Release
         if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/heads/arena/')
         uses: softprops/action-gh-release@v1
