@@ -1,5 +1,11 @@
 # NVOF Motion – project status & handoff
 
+> MOVED: standalone public repo lives at
+> https://github.com/berlint-hub/NVofMOTION (`main` = snapshot,
+> `archive/nvof-motion-bisect` = full history). Continue there.
+> (Note below is the last TEST-side state.)
+
+
 > For continuing this work (human or AI): hardware is RTX 4080 + PCSX2 DX12
 > + ReShade 6.8.0. No local toolchain anywhere – everything builds in GitHub
 > Actions (`build-nvof.yml`, windows-2022, x64), everything is tested on the
