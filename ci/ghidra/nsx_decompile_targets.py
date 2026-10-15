@@ -119,9 +119,10 @@ def main():
     # ktera callsite je ktereho vlakna.
     try:
         symtab = prog.getSymbolTable()
+        refmgr2 = prog.getReferenceManager()
         seen_ra = []
         for sym in symtab.getSymbols("pthread_create"):
-            for r in symtab.getReferencesTo(sym.getAddress()):
+            for r in refmgr2.getReferencesTo(sym.getAddress()):
                 fa = fm.getFunctionContaining(r.getFromAddress())
                 if fa is None:
                     continue
