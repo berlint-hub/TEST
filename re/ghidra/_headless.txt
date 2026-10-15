@@ -5,14 +5,14 @@ INFO  Using log config file: jar:file:/opt/ghidra_11.4.2_PUBLIC/Ghidra/Framework
 INFO  Using log file: /home/runner/.config/ghidra/ghidra_11.4.2_PUBLIC/application.log (LoggingInitialization)  
 INFO  Loading user preferences: /home/runner/.config/ghidra/ghidra_11.4.2_PUBLIC/preferences (Preferences)  
 INFO  Searching for classes... (ClassSearcher)  
-INFO  Class search complete (724 ms) (ClassSearcher)  
+INFO  Class search complete (1108 ms) (ClassSearcher)  
 INFO  Initializing SSL Context (SSLContextInitializer)  
 INFO  Initializing Random Number Generator... (SecureRandomFactory)  
 INFO  Random Number Generator initialization complete: NativePRNGNonBlocking (SecureRandomFactory)  
 INFO  Trust manager disabled, cacerts have not been set (ApplicationTrustManagerFactory)  
 INFO  Starting cache cleanup: /var/tmp/runner-ghidra/fscache2 (FileCacheMaintenanceDaemon)  
 INFO  Finished cache cleanup, estimated storage used: 0 (FileCacheMaintenanceDaemon)  
-INFO  Headless startup complete (5994 ms) (AnalyzeHeadless)  
+INFO  Headless startup complete (4216 ms) (AnalyzeHeadless)  
 INFO  Class searcher loaded 58 extension points (18 false positives) (ClassSearcher)  
 INFO  HEADLESS Script Paths:
     /opt/ghidra_11.4.2_PUBLIC/Ghidra/Features/Base/ghidra_scripts
@@ -40,95 +40,9 @@ INFO  HEADLESS Script Paths:
     /opt/ghidra_11.4.2_PUBLIC/Ghidra/Debug/Debugger-rmi-trace/ghidra_scripts
     /opt/ghidra_11.4.2_PUBLIC/Ghidra/Processors/DATA/ghidra_scripts (HeadlessAnalyzer)  
 INFO  HEADLESS: execution starts (HeadlessAnalyzer)  
-INFO  Creating project: /tmp/ghproj/NSX4248 (HeadlessAnalyzer)  
-INFO  Creating project: /tmp/ghproj/NSX4248 (DefaultProject)  
-INFO  REPORT: Processing input files:  (HeadlessAnalyzer)  
-INFO       project: /tmp/ghproj/NSX4248 (HeadlessAnalyzer)  
-INFO  IMPORTING: file:///tmp/core.so (HeadlessAnalyzer)  
-INFO  Using Loader: Executable and Linking Format (ELF) (AutoImporter)  
-INFO  Using Language/Compiler: AARCH64:LE:64:v8A:default (AutoImporter)  
-INFO  Using Library Search Path: [., /bin, /lib, /lib64, /lib/x86_64-linux-gnu, /lib/aarch64-linux-gnu, /usr/bin, /usr/lib, /usr/X11R6/bin, /usr/X11R6/lib, /usr/java/packages/lib, /usr/lib64] (AutoImporter)  
-INFO  Additional info:
-Loading file:///tmp/core.so?MD5=c29c89ec9a8f60c8bcf1bbe59155d51d...
-Setting block .data.rel.ro to read-only
-Setting block .fini_array to read-only
-Setting block .init_array to read-only
-Setting block .dynamic to read-only
-------------------------------------------------
-
-Linking the External Programs of 'core.so' to imported libraries...
-  [libdl.so] -> not found in project
-  [libEGL.so] -> not found in project
-  [liblog.so] -> not found in project
-  [libaaudio.so] -> not found in project
-  [libandroid.so] -> not found in project
-  [libjnigraphics.so] -> not found in project
-  [libm.so] -> not found in project
-  [libc.so] -> not found in project
-------------------------------------------------
-
-Resolving External Symbols of [/core.so] - 334 unresolved symbols, no external libraries configured - skipping
- (AutoImporter)  
-INFO  IMPORTING: Loaded 0 additional files (HeadlessAnalyzer)  
-INFO  ANALYZING all memory and code: file:///tmp/core.so (HeadlessAnalyzer)  
-INFO  DWARF external debug information found: ExternalDebugInfo [filename=null, crc=0, hash=2b4fe70fd5c1bc92ae3ca7a01d9e8cdd8eebd71e] (ExternalDebugFileSectionProvider)  
-INFO  Unable to find DWARF information, skipping DWARF analysis (DWARFAnalyzer)  
-ERROR Invalid PNG data at 00230e00 (PngDataType)  
-WARN  Decompiling 005fd890: Unable to read bytes at ram:02716880 (DecompileCallback)  
-WARN  Decompiling 005fda90: Unable to read bytes at ram:02717080 (DecompileCallback)  
-WARN  Decompiling 005fd4b0: Unable to read bytes at ram:02717480 (DecompileCallback)  
-WARN  Decompiling 005b6a90: Unable to read bytes at ram:02718080 (DecompileCallback)  
-WARN  Decompiling 005b6a90: Unable to read bytes at ram:02717880 (DecompileCallback)  
-WARN  Decompiling 005b6a90: Unable to read bytes at ram:02717080 (DecompileCallback)  
-WARN  Decompiling 005b6a90: Unable to read bytes at ram:02716880 (DecompileCallback)  
-WARN  Decompiling 005fde90: Unable to read bytes at ram:02718080 (DecompileCallback)  
-WARN  Decompiling 005fdc90: Unable to read bytes at ram:02717880 (DecompileCallback)  
-WARN  Decompiling 005fd6a0: Unable to read bytes at ram:02717c80 (DecompileCallback)  
-WARN  Decompiling 005fcce0: Unable to read bytes at ram:02718480 (DecompileCallback)  
-WARN  Decompiling 005fced0: Unable to read bytes at ram:02718880 (DecompileCallback)  
-WARN  Decompiling 005fd2c0: Unable to read bytes at ram:02716c80 (DecompileCallback)  
-WARN  Decompiling 006bcf50: Unable to read bytes at ram:0281e0d6 (DecompileCallback)  
-WARN  Decompiling 005fd0d0: Unable to read bytes at ram:02716480 (DecompileCallback)  
-ERROR VarnodeContext: out of address spaces at @009d24a0 for: d31-009d24a0 (VarnodeContext)  
-ERROR VarnodeContext: out of address spaces at @00a6eeb8 for: d21-00a6eeb8 (VarnodeContext)  
-INFO  Packed database cache: /var/tmp/runner-ghidra/packed-db-cache (PackedDatabaseCache)  
-INFO  Applied data type archive: generic_clib_64 (ApplyDataArchiveAnalyzer)  
-ERROR VarnodeContext: out of address spaces at @00a6eeb8 for: d21-00a6eeb8 (VarnodeContext)  
-ERROR VarnodeContext: out of address spaces at @009d24a0 for: d31-009d24a0 (VarnodeContext)  
-INFO  -----------------------------------------------------
-    AARCH64 ELF PLT Thunks                     0.272 secs
-    ASCII Strings                              1.002 secs
-    Apply Data Archives                        0.479 secs
-    Basic Constant Reference Analyzer         55.594 secs
-    Call Convention ID                         3.801 secs
-    Call-Fixup Installer                       0.185 secs
-    Create Address Tables                      2.063 secs
-    Create Address Tables - One Time           1.509 secs
-    Create Function                            0.162 secs
-    DWARF                                      0.006 secs
-    Data Reference                             3.560 secs
-    Decompiler Switch Analysis               442.245 secs
-    Demangler GNU                              1.269 secs
-    Disassemble                                0.000 secs
-    Disassemble Entry Points                  20.942 secs
-    Embedded Media                             0.085 secs
-    External Entry References                  0.013 secs
-    Function Start Search                      0.251 secs
-    Function Start Search After Code           0.440 secs
-    Function Start Search After Data           0.259 secs
-    Function Start Search delayed - One Time   0.001 secs
-    GCC Exception Handlers                    17.404 secs
-    Non-Returning Functions - Discovered       4.676 secs
-    Non-Returning Functions - Known            0.007 secs
-    Reference                                  4.192 secs
-    Shared Return Calls                        2.928 secs
-    Stack                                     49.689 secs
-    Subroutine References                      1.373 secs
------------------------------------------------------
-     Total Time   614 secs
------------------------------------------------------
- (AutoAnalysisManager)  
-INFO  REPORT: Analysis succeeded for file: file:///tmp/core.so (HeadlessAnalyzer)  
+INFO  Opening existing project: /tmp/ghproj/NSX4248 (HeadlessAnalyzer)  
+INFO  Opening project: /tmp/ghproj/NSX4248 (HeadlessProject)  
+INFO  REPORT: Processing project file: /core.so (HeadlessAnalyzer)  
 INFO  SCRIPT: /home/runner/work/TEST/TEST/ci/ghidra/nsx_decompile_targets.py (HeadlessAnalyzer)  
 [nsx] Ghidra .text delta = 0x100000
 [nsx] data 0xB969A0: bez xrefu (tabulka indexovana registrem?)
@@ -136,6 +50,7 @@ INFO  SCRIPT: /home/runner/work/TEST/TEST/ci/ghidra/nsx_decompile_targets.py (He
 [nsx] data 0xB969BC: bez xrefu (tabulka indexovana registrem?)
 [nsx] data 0xB969C0: bez xrefu (tabulka indexovana registrem?)
 [nsx] data 0xB969C4: bez xrefu (tabulka indexovana registrem?)
+[nsx] externi symboly: 'ghidra.program.database.symbol.SymbolManager' object has no attribute 'getReferencesTo'
 [nsx] yield celkem 17368, izolovanych (realnych) 991
 [nsx] func_5b34c0.c <- 0x5B34C0 (affinity_writer (str do AFF1/AFF6/AFF8 = setup vlaken))
 [nsx] func_8bf720.c <- 0x8BF720 (affinity_reader_A)
@@ -155,8 +70,5 @@ INFO  SCRIPT: /home/runner/work/TEST/TEST/ci/ghidra/nsx_decompile_targets.py (He
 [nsx] func_b3b020.c <- 0xB3B020 (isolated yield x12)
 [nsx] func_839c30.c <- 0x839C30 (isolated yield x10)
 [nsx] HOTOVO: 16/17 funkci dekompilovano -> /home/runner/work/TEST/TEST/re/ghidra
-INFO  ANALYZING changes made by post scripts: file:///tmp/core.so (HeadlessAnalyzer)  
-INFO  REPORT: Post-analysis succeeded for file: file:///tmp/core.so (HeadlessAnalyzer)  
-INFO  REPORT: Save succeeded for: /core.so (NSX4248:/core.so) (HeadlessAnalyzer)  
-INFO  REPORT: Import succeeded (HeadlessAnalyzer)  
+INFO  REPORT: Save succeeded for processed file: /core.so (HeadlessAnalyzer)  
 analyzeHeadless rc=0
