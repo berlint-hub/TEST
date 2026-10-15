@@ -118,7 +118,8 @@ def main():
     if textblock is not None:
         ycounts = {}
         scanned = 0
-        cur = findBytes(textblock, Y, textblock.getEnd(), 1)
+        cur = findBytes(AddressSet(textblock.getStart(), textblock.getEnd()),
+                        Y, textblock.getEnd(), 1)
         while cur is not None:
             scanned += 1
             prev_y = False
