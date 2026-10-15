@@ -83,6 +83,28 @@ jobs:
           fi
           rc=$?
           echo "analyzeHeadless rc=$rc" >> re/ghidra/_headless.txt
+          # fallback: Jython postScript (Java OSGi load zatim padal; Jython
+          # feature v 11.4.2 je — jeden z dvou projde, log rekne proc)
+          if [ ! -s re/ghidra/00_INDEX.md ]; then
+            echo "=== java skript neprodukoval vystup, zkousim Jython ===" >> re/ghidra/_headless.txt
+            if [ -f /tmp/ghproj/NSX4248.gpr ]; then
+              "$GH" /tmp/ghproj NSX4248 \
+                -process libemucore_4248_baked.so -noanalysis \
+                -scriptPath "$GITHUB_WORKSPACE/ci/ghidra" \
+                -postScript nsx_decompile_targets.py "$GITHUB_WORKSPACE/re/ghidra" \
+                >> re/ghidra/_headless.txt 2>&1
+            else
+              "$GH" /tmp/ghproj NSX4248 \
+                -import /tmp/core.so -analysisTimeoutPerFile 3000 \
+                -scriptPath "$GITHUB_WORKSPACE/ci/ghidra" \
+                -postScript nsx_decompile_targets.py "$GITHUB_WORKSPACE/re/ghidra" \
+                >> re/ghidra/_headless.txt 2>&1
+            fi
+            echo "jython rc=$?" >> re/ghidra/_headless.txt
+          fi
+          # OSGi/compile diagnostika zije v Ghidra application.log
+          cp /home/runner/.config/ghidra/ghidra_11.4.2_PUBLIC/application.log \
+             re/ghidra/_applog.txt 2>/dev/null || true
           echo "=== konec logu ==="
           tail -40 re/ghidra/_headless.txt
           ls -la re/ghidra || true
