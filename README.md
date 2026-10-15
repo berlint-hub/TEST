@@ -5,9 +5,13 @@ od buildu 43 vypnutý).
 
 **Kam začít:** [`VU-GS-OPTIMALIZACE.md`](VU-GS-OPTIMALIZACE.md) — zadání
 a plán pro optimalizaci CPU/VU/GS (změřená FPS podle taktů, rozložení threadů,
-hypotézy v pořadí, jak měřit). Aktuální build: **54** (fix pádu — emulátor
-vystoupil z podsystemu taktů, viz BUILD-NOTES.md „Build 54").
+hypotézy v pořadí, jak měřit). Aktuální build: **88 = konsolidace** (main +
+X1 stack z linie opencode-ci: pinning MTGS/VU1, MTVU marker, FastmemMode
+hybrid, GT3 profil, fastload vrstva; viz BUILD-NOTES.md, sekce „Build 88").
 
+- **[`CORE-BUILD-VERDICT.md`](CORE-BUILD-VERDICT.md)** — proč NEjde kompilovat
+  vlastní libemucore.so ze zdrojáků (LGPL drop nemá ARM64 dynarecy) a co místo
+  toho je „vlastní jádro pro Tegru X1".
 - **[`VU-GS-OPTIMALIZACE.md`](VU-GS-OPTIMALIZACE.md)** — co optimalizovat
   a proč (GT3 je CPU-bound, GS ne), experimenty, metodika měření.
 - **[`HANDOFF.md`](HANDOFF.md)** — stav, čísla, mrtvé cesty, mechanika

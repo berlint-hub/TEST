@@ -1,4 +1,9 @@
 name: build / VK (nxvk Mesa -> NetherSX2_nx)
+# Build 88 (2026-10-15): konsolidace X1 stacku do mainove linie — pinning
+# MTGS(core1)/VU1(core2), MTVU marker (prefs.c), FastmemMode=hybrid + GT3
+# profil (NSX_CI_DEFAULTS + gamecfg), fastload vrstva (so_util/filehelper/vk
+# present), QoL buildu 87 (ci_load, logy v logs/, /Roms/PS2, exit->launcher).
+# Jadro se nemeni (Trixarian 4248 z APK) — cisty A/B proti buildu 87.
 
 # Build 54 (2026-09-18): FIX padu — crash reporty ukazaly fatal v pcv
 # sysmodulu (Result 2011-0102) + pad governoru hoc:clk. Emulator vychazi

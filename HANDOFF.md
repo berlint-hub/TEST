@@ -12,6 +12,15 @@ během**, ne domněnka; kde se pochybuje, je to napsané.
 > sha256 `9c719e25cb27b374`). Build 52 = pátrání po pádu při přehazování
 > = forenzní log; build 54 = FIX pádu (níž §0b).
 
+> **Update 2026-10-15 (build 88):** výkon stack z linie `arena/opencode-ci`
+> (buildy 76–83: pinning MTGS(core1)/VU1(core2), MTVU marker, FastmemMode
+> hybrid, GT3 per-game profil, fastload vrstva) + QoL buildu 87 jsou
+> konsolidované do mainové linie — viz BUILD-NOTES.md „Build 88“ a
+> `CORE-BUILD-VERDICT.md` (proč nejde kompilovat vlastní jádro ze
+> zdrojáků: LGPL drop nemá ARM64 dynarecy). Sekce výkonu níž (§9–§11)
+> popisují stav buildu 51–54; čísla z buildu 83+ hledej v commitech
+> `arena/opencode-ci` a `arena/load-diag`.
+
 Cíl uživatele: reproducible CI, který vyrobí `.nro` s funkčním Vulkan
 rendererem, plus zpětná vazba z logů na kartě. Historie: build 37/38 našel
 a opravil „Vulkan vidí nula fyzických zařízení" (chybějící

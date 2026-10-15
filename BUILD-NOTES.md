@@ -549,3 +549,51 @@ takty) je pravděpodobnostní a rozjela se až při intenzivním přehazování 
 Co si má uživatel ohlídat i mimo náš build: `hoc:clk` padal spolu s pcv —
 na FW 22.1.0 + Atmosphère 1.11.2-master je podezřelý i sám o sobě; zvážit
 aktualizaci (sys-clk fork). Emulátor mu od buildu 54 nestojí v cestě.
+
+---
+
+## Build 88 — konsolidace X1 optimalizačního stacku + verdikt k vlastnímu jádru (2026-10-15)
+
+Dva rozhodnutí v jednom buildu:
+
+**1. Vlastní libemucore.so ze zdrojáků: NE.** Ověřeno proti skutečnému
+zdrojáku (LGPL drop AetherSX2 4248, zrcadla Trixarian/manemobiili/
+Hercules2048): drop **neobsahuje ARM64 recompilery** (EE/IOP/VU). Všechny
+recompilery jsou v `pcsx2x86Sources` (kompilují se jen pro x86), vixl
+používá jedině GS SW JIT a `System.cpp` instancuje `recMicroVU0/1`, které
+na aarch64 nemají definici → build nelinkuje ani jako interpret-only.
+Plný rozbor s důkazy: [`CORE-BUILD-VERDICT.md`](CORE-BUILD-VERDICT.md).
+Nezkoušet znovu bez nového source dropu.
+
+**2. Konsolidace:** linie `arena/opencode-ci` (buildy 76–83) a `load-diag`
+(build 87) se nikdy nesly k sobě; uživatelova `nro-latest` (build 87) tak
+neměla pinning/MTVU/fastmem/gamecfg. Build 88 = main + build-87 QoL
+(`ci_load`, `log_paths`, `launcher_fix`, `emu_fix`, logy v `logs/`,
+`/Roms/PS2`, exit→launcher, FrameLimit) + opencode-ci stack:
+
+* `so_fastload.py` + `fh_buf.py` (vrstva: stream .so, BSS-only zero,
+  RX-only flush, resource buffer) — stage 5b,
+* `pthr_pin_fixed.py` (MTGS→core 1, VU1→core 2, respektuje ci-nopin) +
+  `mtvu_marker.py` — stage 7b3b/c,
+* `vk_fast_present.py` (present bez SVC, LSFG-only klasifikace) — stage 7d,
+* per-game profily `ci/gamecfg/*.ini` → romfs:/gamecfg + extrakce na SD
+  (marker `.ci_installed`) — stage 8 + edit (8) v launcher heredocu,
+* `NSX_CI_DEFAULTS` (112 klíčů; FastmemMode=hybrid, EECycleRate/Skip=0,
+  vu1Instant/vuFlagHack on, clamp 0, renderer 14) — po launcher patchi.
+
+Změny vůči opencode-ci předloze (důvody):
+
+* **core se NEbere z repozitáře** (uživatelský affinity-auto .so byl
+  smazán a jádra do repa patřit nemají — HANDOFF §7); build 88 jede na
+  Trixarian 4248 z APK, stejně jako build 87 → čistě A/B proti 87,
+* **3668 zůstává v balíku** (volitelný; core lock se nepřebíral),
+* **mtvu_marker přepsán na prefs.c**: upstream přesunul tvorbu VU1
+  threadu z pthr.c; nový patch přepisuje `EmuCore/Speedhacks/vuThread`
+  v `prefs_get_bool()` — čte `ci-mtvu.conf` (0=off, 1=on, bez souboru =
+  bez zásahu). Suchý test všech 10 patchů + obou heredoců proti čerstvému
+  upstreamu: 12/12 OK (`gcc -fsyntax-only` na patchované prefs.c a
+  filehelper.c taky).
+
+Očekávaný dopravník na kartě: `[CI] session start build=88`, `[CI] load:`
+řádky (EE/VU/GS/audio %), thready `EE→0, MTGS→1, VU1→2, audio→3`.
+A/B testy bez rebuildu: `ci-mtvu.conf`, `ci-nopin.enabled`.

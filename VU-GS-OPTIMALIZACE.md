@@ -97,6 +97,13 @@ VU1 (MTVU) + worker thready round-robin**, jádro 3 = audio.
 
 ## 5. Hypotézy a experimenty (v tomto pořadí)
 
+> **Stav (build 88, 2026-10-15):** experimenty **#1 (pinning)** a **#2
+> (MTVU marker)** jsou od buildu 88 v balíku — konsolidovány z linie
+> `arena/opencode-ci` (buildy 76–83), kde už jednou proběhly, ale nikdy
+> se nedostaly do `nro-latest` linie. A/B přepínače bez rebuildu:
+> `ci-mtvu.conf` (0=off, 1=on; bez souboru = default) a `ci-nopin.enabled`.
+> Měřit jen okna se stejnými takty (viz níž).
+
 1. **MTGS a VU1 na vlastní jádra místo round-robinu** (`pthr.c`).
    Změna: work pool přiřazuje thready round-robin; MTGS a VU1 by měly dostat
    fixní jádra (např. VU1 → core 2, MTGS → core 1) a worker thready zbytek.
