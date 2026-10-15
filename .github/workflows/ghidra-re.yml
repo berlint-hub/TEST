@@ -1,0 +1,83 @@
+name: RE / Ghidra headless (jádro 4248, TEST3)
+
+# Build 92 (2026-10-15): cílená dekompilace vybraných funkcí jádra z
+# berlint-hub/TEST3 (libemucore_4248_baked.so, sha256 cda05f6b...; .text
+# totožný s analyzním základem 516077 — kotvy potvrzené capstonem).
+# Výstup: re/ghidra/*.c (pseudo-C) — commit do větve [skip ci] + artifact.
+# Ghidra 11.4.2 (poslední linie s Jython postScripty), JDK 21.
+# Analýza binárky, ne distribuce — jádro se nikam neukládá (HANDOFF §7).
+
+on:
+  # spolehlivý trigger je push sahající do tohoto souboru (viz mesa-vk.yml)
+  push:
+    branches: ["arena/**"]
+    paths:
+      - ".github/workflows/ghidra-re.yml"
+      - "ci/ghidra/**"
+      - "re/analyze_core.py"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ghidra-re-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ghidra:
+    runs-on: ubuntu-latest
+    timeout-minutes: 100
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Ghidra 11.4.2
+        run: |
+          curl -fL --retry 3 -o /tmp/ghidra.zip \
+            "https://github.com/NationalSecurityAgency/ghidra/releases/download/Ghidra_11.4.2_build/ghidra_11.4.2_PUBLIC_20250826.zip"
+          unzip -q /tmp/ghidra.zip -d /opt
+          test -x /opt/ghidra_11.4.2_PUBLIC/support/analyzeHeadless
+
+      - name: Jádro z TEST3 (4248 baked)
+        run: |
+          curl -fL --retry 3 -o /tmp/core.so \
+            "https://raw.githubusercontent.com/berlint-hub/TEST3/main/libemucore_4248_baked.so"
+          echo "cda05f6b9136f5535ae33bc71fd3624f95b5fde7706259cadbdd90cecb6b531e  /tmp/core.so" | sha256sum -c
+          stat -c "core = %s B" /tmp/core.so
+
+      - name: Headless analýza + dekompilace cílů
+        run: |
+          mkdir -p re/ghidra /tmp/ghproj
+          /opt/ghidra_11.4.2_PUBLIC/support/analyzeHeadless \
+            /tmp/ghproj NSX4248 \
+            -import /tmp/core.so \
+            -analysisTimeoutPerFile 3000 \
+            -scriptPath "$GITHUB_WORKSPACE/ci/ghidra" \
+            -postScript nsx_decompile_targets.py "$GITHUB_WORKSPACE/re/ghidra" \
+            -deleteProject 2>&1 | tail -200
+          echo "=== re/ghidra ==="
+          ls -la re/ghidra
+          test -s re/ghidra/00_INDEX.md
+
+      - name: Commit výsledků
+        run: |
+          git config user.name "nsx-re-bot"
+          git config user.email "actions@localhost"
+          git add re/ghidra
+          if git diff --cached --quiet; then
+            echo "výstupy se nezměnily — commit netřeba"
+          else
+            git commit -m "ghidra: pseudo-C cílových funkcí jádra 4248 (TEST3 cda05f6b) [skip ci]"
+            git push origin HEAD:"${GITHUB_REF#refs/heads/}"
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: re-ghidra-pseudo-c
+          path: re/ghidra
+          retention-days: 90
