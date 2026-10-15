@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Dekompilace cilovych funkci jadra 4248 (RE-ANALYZA.md) do pseudo-C.
 # Spusti se z analyzeHeadless jako postScript PO auto-analyze.
 #
