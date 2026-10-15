@@ -5,10 +5,12 @@ od buildu 43 vypnutý).
 
 **Kam začít:** [`VU-GS-OPTIMALIZACE.md`](VU-GS-OPTIMALIZACE.md) — zadání
 a plán pro optimalizaci CPU/VU/GS (změřená FPS podle taktů, rozložení threadů,
-hypotézy v pořadí, jak měřit). Aktuální build: **89 = X1 lab** (build 88 +
+hypotézy v pořadí, jak měřit). Aktuální build: **90 = RE/optstr** (build 88 +
 volitelné jádro „X1 lab“ v launcheru + sync spin na semaforech EE/VU1/GS,
 ovládací `ci-sync.conf`; viz BUILD-NOTES.md, sekce „Build 89“).
 
+- **[`RE-ANALYZA.md`](RE-ANALYZA.md)** — reverzní analýza jádra 4248 (co jde
+  rozebrat a záplatovat; xrefy knobů, import plocha, NSX_MEMMOVE_OPT).
 - **[`CORE-BUILD-VERDICT.md`](CORE-BUILD-VERDICT.md)** — proč NEjde kompilovat
   vlastní libemucore.so ze zdrojáků (LGPL drop nemá ARM64 dynarecy) a co místo
   toho je „vlastní jádro pro Tegru X1".

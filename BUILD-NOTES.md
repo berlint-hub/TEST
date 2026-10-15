@@ -662,3 +662,28 @@ na patchované `libc_shim.c`, `pthr.c`, `prefs.c`: 0 chyb.
    (Spolu s core x1 taky — matice 2×2, ale nejdřív spin samostatně.)
 3. Log vždy začíná `[CI] session start build=89` a `[CI] sync: spin=…`,
    launcher diag ukazuje zvolené jádro.
+
+---
+
+## Build 90 — NSX_MEMMOVE_OPT (asm memmove pro jádro) + RE analýza (2026-10-15)
+
+Vrchní dokument: [`RE-ANALYZA.md`](RE-ANALYZA.md). Shrnutí:
+
+* **Celý decompile→rebuild jádra: NE** (9,4 MB .text, ~2,35 M instrukcí,
+  LTO, bez symbolů). **Cílená chirurgie: ANO** — důkaz v RE-ANALYZA.md:
+  xrefy na .data knoby (FIFO/DMA = tabulky indexované registrem — potvrzení
+  phase2 lekce; affinity zapisovač = funkce @0x5B34C0, čtenáři @0x8BF720,
+  @0x7CEB60), yield census (94 % je linker padding! reálných ~980), horké
+  globály 0xB99BD0 (3452 xrefů) a 0xB9AA28 jako budoucí kandidáti.
+* **Import plocha jádra = 344 symbolů, plně pod kontrolou portu.** mem
+  rodina: memcpy/memset/memcmp jsou v newlib už laděné asm, ale **memmove je
+  C** → build 90 interponuje `__memmove_aarch64` z ARM optimized-routines
+  (`ci/optstr/memcpy.S`, MIT OR Apache-2.0 WITH LLVM-exception). Wrapper v
+  libc_shim.c, směrování v imports.c, A/B markerem `ci-stockmemmove.enabled`.
+  Objekt sestavuje stage 5b (`run` = tvrdá smrt při selhání, žádný placebo),
+  do linku jde přes nsx_vk_pkg LIBS (VK_ONLY=1; GL cesta bez interpozice).
+* Dry-run: 12/12 patchů OK proti čerstvému upstreamu; `gcc -fsyntax-only` na
+  libc_shim.c (s libnx/Khronos hlavičkami) = 0 chyb. imports.c host-check
+  hlásí jen newlib fchmod deklaraci (environmentální, nesouvisející).
+* **Očekávaný zisk:** neznámý — je to jediná slabá mem funkce; měřit A/B
+  (marker) na stejných taktech. Zisk 0 = taky legitimní výsledek.

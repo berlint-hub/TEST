@@ -321,6 +321,19 @@ if python3 "$HERE/patches/sync_spin.py" "$SRC/source/libc_shim.c"; then
 else
   warn "sync_spin.py neprosel — semafory bez spinu (chování upstream)"
 fi
+# NSX_MEMMOVE_OPT (build 90): asm memmove z ARM optimized-routines — newlib
+# memmove je C verze, jádro na Androidu mělo bionic asm (RE-ANALYZA.md).
+# Sestavíme .S tady (run = při chybě tvrdá smrt, žádný tichý placebo build),
+# wrapper (libc_shim.c) + směrování (imports.c) přidá patch níž; objekt se
+# k linku přidá v nsx_vk_pkg (VK_ONLY=1).
+run "optstr: memcpy.S (memmove asm)" \
+    aarch64-none-elf-gcc -c -march=armv8-a \
+      -o "$SRC/source/nsx_memmove_opt.o" "$HERE/optstr/memcpy.S"
+if python3 "$HERE/patches/memmove_opt.py" "$SRC/source/libc_shim.c" "$SRC/source/imports.c"; then
+  key "mem: memmove -> asm (ARM optimized-routines; marker ci-stockmemmove.enabled = newlib)"
+else
+  warn "memmove_opt.py neprosel — memmove zůstává newlib"
+fi
 
 # nepovinnej vstup: plochý vulkan/ SDK z ci/build-mesa-sdk.sh (artifact
 # 'mesa-sdk'). Bez něj se VK stage přeskočí — GL cesta to nepotřebuje.
@@ -655,6 +668,8 @@ POSIXSTUB
   if have libz.a; then libs="$libs -lz"; fi
   if have libEGL.a; then libs="$libs -lEGL -lGLESv2 -lglapi"; fi
   libs="$libs -Wl,--end-group -Wl,-u,vk_icdGetInstanceProcAddr"
+  # NSX_MEMMOVE_OPT: asm memmove pro jádro (RE-ANALYZA.md); .S sestavil stage 5b
+  libs="$libs $SRC/source/nsx_memmove_opt.o"
   if ! python3 - "$SRC/Makefile" "$libs" <<'PKGLIBS'
 import sys
 mk, libs = sys.argv[1], sys.argv[2]

@@ -1,4 +1,7 @@
 name: build / VK (nxvk Mesa -> NetherSX2_nx)
+# Build 90 (2026-10-15): NSX_MEMMOVE_OPT — asm memmove (ARM optimized-routines,
+# ci/optstr/memcpy.S) interponovaný jádru přes imports.c; A/B ci-stockmemmove.
+# Viz RE-ANALYZA.md. Licence: MIT OR Apache-2.0 WITH LLVM-exception (v .S).
 # Build 89 (2026-10-15): jadro „X1 lab“ jako treti volba v launcheru
 # (binarni varianta 4248: FIFO/DMA .data, bez affinity/priorit — core_x1.py)
 # + NSX_SYNC_SPIN (sem_wait spin, ci-sync.conf, default 0).
