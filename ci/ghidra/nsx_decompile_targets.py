@@ -113,6 +113,30 @@ def main():
         if not top:
             print("[nsx] data 0x%X: bez xrefu (tabulka indexovana registrem?)" % dv)
 
+    # ---- 2b) externi symboly: callsites pthread_create ---------------------
+    # Pro governor v2: return address volajiciho = stabilni identita threadu
+    # (MTGS vs MTVU). Volajici funkce se dekompiluji -> z pseudo-C urcime,
+    # ktera callsite je ktereho vlakna.
+    try:
+        symtab = prog.getSymbolTable()
+        seen_ra = []
+        for sym in symtab.getSymbols("pthread_create"):
+            for r in symtab.getReferencesTo(sym.getAddress()):
+                fa = fm.getFunctionContaining(r.getFromAddress())
+                if fa is None:
+                    continue
+                ra = r.getFromAddress().getOffset()
+                seen_ra.append(ra)
+                addf("pthread_create callsite @0x%X" % ra, fa)
+        # bez xrefu na symbolu zkus PLT/GOT thunky pres reference na anotaci
+        if not seen_ra:
+            print("[nsx] pthread_create: zadne xrefy pres symbol (thunky?)")
+        else:
+            print("[nsx] pthread_create callsites: " +
+                  ", ".join("0x%X" % x for x in sorted(seen_ra)))
+    except Exception as e:
+        print("[nsx] externi symboly: %s" % e)
+
     # ---- 3) izolovane yield (spin loop heurstika, padding filtr) -----------
     Y = "\x1f\x20\x03\xd5"  # 0xD503201F little-endian
     if textblock is not None:
