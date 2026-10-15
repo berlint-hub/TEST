@@ -1,75 +1,84 @@
-"""Patch source/pthr.c — fixní pinning MTGS (core 1) + VU1 (core 2).
+"""Patch source/pthr.c — governor v2: exkluzivni jadra pro MTGS a VU1.
 
-Hypotéza #1 z VU-GS-OPTIMALIZACE.md: MTGS a VU1 se v round-robinu střídají
-na jádrech 1–2 → cache thrashing + sync overhead. Fixní pinning oddělí
-MTGS (GS/Vulkan) na core 1 a VU1 (MTVU) na core 2.
+Historie:
+  v1 (build 92 a driv): fixni preferred core pro prvni dva workery
+     (work_rr==0 -> work_list[0], ==1 -> work_list[1]), ale maska zustavala
+     cely work pool — Horizon mohl obe nejteplejsi vlakna presunout na jedno
+     jadro (equal-priority thready se navzajem nepreemptuji -> co-located
+     GS+VU1 = latency spike).
+  v2 (tento patch): prvni dva workery dostanou EXKLUSIVNI masku (1 jadro).
+     Poradi vytvoreni MTGS/VU1 neni zkoumano — dvojice je symetricka (oba
+     hot vlakna), kazde dostane vlastni jadro. Ostatni workery (CDVD,
+     savestate zip, DEV9, SW-GS pool) zustavaji na RR poolu.
 
-Marker /switch/nethersx2/ci-nopin.enabled vypne pinování úplně (z pthr_diag.py).
+Zasahuje az PO pthr_diag.py (poradi v build-switch.sh):
+  - potrebuje nsx_nopin() z NSX_CORE_DIAG a `static int assign_work_core`.
+  - Marker /switch/nethersx2/ci-nopin.enabled  = vsechny piny vypnout.
+  - Marker /switch/nethersx2/ci-rrpin.enabled  = v2 vypnout (pool maska jako
+    upstream, preferred core zustava) — A/B test na karte bez rebuildu.
+
+Pouziti: python3 ci/patches/pthr_pin_fixed.py <cesta k pthr.c>
 """
 import sys
 
 path = sys.argv[1]
 text = open(path, encoding="utf-8", errors="surrogateescape").read()
 
-# Kontrola, jestli už patchnuté
-if "NSX_FIXED_PINNING" in text:
-    print("pthr.c: fixed pinning už patchnuto")
+if "NSX_EXCLUSIVE_PIN" in text:
+    print("pthr.c: governor v2 uz patchnuto")
     sys.exit(0)
 
 done = 0
 
-# Hledáme assign_work_core funkci a měníme round-robin na fixní přiřazení
-# Originální: work_rr++ % work_count
-# Nové: MTGS (i=0) -> core 1, VU1 (i=1) -> core 2, workers -> zbytek
-
 edits = [
-    # 1. Přidej konstanty pro fixní pinning před assign_work_core
+    # 1) oznaceni funkce (kotva odpovida stavu PO pthr_diag.py)
     ('static int assign_work_core(void) {',
-     '''/* NSX_FIXED_PINNING: MTGS -> core 1, VU1 -> core 2, workers -> round-robin zbytek.
- * Respektuje ci-nopin.enabled marker (nsx_nopin()).
- * Work pool: work_list[0] = MTGS, work_list[1] = VU1, [2+] = workers.
- */
+     '''/* NSX_EXCLUSIVE_PIN (governor v2): MTGS a VU1 (prvni dva workery) na
+ * exkluzivnich jadrech — Horizon nepreemptuje equal-priority thready, takze
+ * sdilena maska umoznovala slozit obe nejteplejsi vlakna na jedno jadro.
+ * ci-rrpin.enabled = vratit pool masku (A/B), ci-nopin.enabled = vse vypnout. */
 static int assign_work_core(void) {'''),
 
-    # 2. Nahraď round-robin logikou s fixním pinningem
-    ('  const int core = work_list[work_rr++ % (unsigned)work_count]; const unsigned m = work_mask;\n'
-     '  mutexUnlock(&core_lock);\n'
-     '  if (!nsx_nopin()) svcSetThreadCoreMask(CUR_THREAD_HANDLE, core, m);\n'
-     '  return core;\n'
-     '}',
-     '''  int core;
-  /* NSX_FIXED_PINNING:
-   * work_rr = 0 -> MTGS -> work_list[0] (core 1)
-   * work_rr = 1 -> VU1  -> work_list[1] (core 2)
-   * work_rr >= 2 -> workers -> round-robin z work_list[2+]
-   */
-  if (work_rr == 0) {
-    core = work_list[0];          /* MTGS -> core 1 */
-  } else if (work_rr == 1 && work_count > 1) {
-    core = work_list[1];          /* VU1 -> core 2 */
-  } else {
-    /* Workers: round-robin přes work_list[2...] */
-    unsigned worker_idx = (work_rr >= 2) ? (work_rr - 2) : 0;
-    unsigned worker_count = (work_count > 2) ? (work_count - 2) : 1;
-    core = work_list[2 + (worker_idx % worker_count)];
-  }
-  work_rr++;
-  const unsigned m = work_mask;
+    # 2) telo: exkluzivni maska pro idx 0..1, zbytek pool
+    ('''  const int core = work_list[work_rr++ % (unsigned)work_count]; const unsigned m = work_mask;
   mutexUnlock(&core_lock);
   if (!nsx_nopin()) svcSetThreadCoreMask(CUR_THREAD_HANDLE, core, m);
+  return core;
+}''',
+     '''  static int nsx_rrpin = -1;
+  if (nsx_rrpin < 0) {
+    struct stat nsx_st;
+    nsx_rrpin = (stat("/switch/nethersx2/ci-rrpin.enabled", &nsx_st) == 0);
+  }
+  const unsigned nsx_idx = work_rr++;
+  int core;
+  unsigned m;
+  if (nsx_idx < 2 && work_count >= 2 && !nsx_rrpin) {
+    /* nejteplejsi dvojice: kazdy na svem jadre, bez migraci */
+    core = work_list[nsx_idx];
+    m = 1u << core;
+  } else {
+    core = work_list[nsx_idx % (unsigned)work_count];
+    m = work_mask;
+  }
+  mutexUnlock(&core_lock);
+  if (!nsx_nopin()) svcSetThreadCoreMask(CUR_THREAD_HANDLE, core, m);
+  fprintf(stdout, "[CI] gov2: worker#%u -> core=%d %s%s\\n", nsx_idx, core,
+          (nsx_idx < 2 && work_count >= 2 && !nsx_rrpin) ? "EXKLUSIVNI" : "pool",
+          nsx_nopin() ? " (pin vypnut markerem)" : "");
+  fflush(stdout);
   return core;
 }'''),
 ]
 
 for find, repl in edits:
     if repl in text:
-        done += 1
+        done += 1          # uz patchnuto
     elif find in text:
         text = text.replace(find, repl, 1)
         done += 1
     else:
-        print("pthr.c: kotva nenalezena: %r" % find[:80])
-
+        print("pthr.c: kotva nenalezena: %r" % find[:60])
 open(path, "w", encoding="utf-8", errors="surrogateescape").write(text)
-print("pthr.c: fixed pinning %d/%d" % (done, len(edits)))
+print("pthr.c: governor v2 %d/%d" % (done, len(edits)))
 sys.exit(0 if done == len(edits) else 1)
