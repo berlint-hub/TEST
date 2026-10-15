@@ -5,14 +5,14 @@ INFO  Using log config file: jar:file:/opt/ghidra_11.4.2_PUBLIC/Ghidra/Framework
 INFO  Using log file: /home/runner/.config/ghidra/ghidra_11.4.2_PUBLIC/application.log (LoggingInitialization)  
 INFO  Loading user preferences: /home/runner/.config/ghidra/ghidra_11.4.2_PUBLIC/preferences (Preferences)  
 INFO  Searching for classes... (ClassSearcher)  
-INFO  Class search complete (1108 ms) (ClassSearcher)  
+INFO  Class search complete (1104 ms) (ClassSearcher)  
 INFO  Initializing SSL Context (SSLContextInitializer)  
 INFO  Initializing Random Number Generator... (SecureRandomFactory)  
 INFO  Random Number Generator initialization complete: NativePRNGNonBlocking (SecureRandomFactory)  
 INFO  Trust manager disabled, cacerts have not been set (ApplicationTrustManagerFactory)  
 INFO  Starting cache cleanup: /var/tmp/runner-ghidra/fscache2 (FileCacheMaintenanceDaemon)  
 INFO  Finished cache cleanup, estimated storage used: 0 (FileCacheMaintenanceDaemon)  
-INFO  Headless startup complete (4216 ms) (AnalyzeHeadless)  
+INFO  Headless startup complete (4865 ms) (AnalyzeHeadless)  
 INFO  Class searcher loaded 58 extension points (18 false positives) (ClassSearcher)  
 INFO  HEADLESS Script Paths:
     /opt/ghidra_11.4.2_PUBLIC/Ghidra/Features/Base/ghidra_scripts
@@ -50,7 +50,7 @@ INFO  SCRIPT: /home/runner/work/TEST/TEST/ci/ghidra/nsx_decompile_targets.py (He
 [nsx] data 0xB969BC: bez xrefu (tabulka indexovana registrem?)
 [nsx] data 0xB969C0: bez xrefu (tabulka indexovana registrem?)
 [nsx] data 0xB969C4: bez xrefu (tabulka indexovana registrem?)
-[nsx] externi symboly: 'ghidra.program.database.symbol.SymbolManager' object has no attribute 'getReferencesTo'
+[nsx] pthread_create: zadne xrefy pres symbol (thunky?)
 [nsx] yield celkem 17368, izolovanych (realnych) 991
 [nsx] func_5b34c0.c <- 0x5B34C0 (affinity_writer (str do AFF1/AFF6/AFF8 = setup vlaken))
 [nsx] func_8bf720.c <- 0x8BF720 (affinity_reader_A)
