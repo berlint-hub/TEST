@@ -7,7 +7,7 @@
 #     -scriptPath <tento adresar> \
 #     -postScript nsx_decompile_targets.py <vystupni adresar>
 #
-# Vystup: <outdir>/func_<vaddr>.c + 00_INDEX.md. Cela tela je v try/except —
+# Vystup: <outdir>/func_<vaddr>.c + 00_INDEX.md. Cela tela je v try/except ?
 # kdyz cokoliv padne, chyba skonci V 00_INDEX.md (marker SCRIPT_ERROR), aby
 # ji CI commit videl i bez pristupu k raw logum.
 #
@@ -150,7 +150,7 @@ def main():
 
     # ---- 4) dekompilace + zapis --------------------------------------------
     index = [
-        "# Ghidra pseudo-C — jadro 4248 (TEST3 baked, sha256 cda05f6b...)",
+        "# Ghidra pseudo-C ? jadro 4248 (TEST3 baked, sha256 cda05f6b...)",
         "",
         "Vygeneroval `ci/ghidra/nsx_decompile_targets.py` (Ghidra headless).",
         "",
