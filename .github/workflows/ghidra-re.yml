@@ -53,18 +53,22 @@ jobs:
       - name: Headless analýza + dekompilace cílů
         run: |
           mkdir -p re/ghidra /tmp/ghproj
+          set +e
           /opt/ghidra_11.4.2_PUBLIC/support/analyzeHeadless \
             /tmp/ghproj NSX4248 \
             -import /tmp/core.so \
             -analysisTimeoutPerFile 3000 \
             -scriptPath "$GITHUB_WORKSPACE/ci/ghidra" \
             -postScript nsx_decompile_targets.py "$GITHUB_WORKSPACE/re/ghidra" \
-            -deleteProject 2>&1 | tail -200
-          echo "=== re/ghidra ==="
-          ls -la re/ghidra
-          test -s re/ghidra/00_INDEX.md
+            -deleteProject > re/ghidra/_headless.log 2>&1
+          rc=$?
+          echo "analyzeHeadless rc=$rc" >> re/ghidra/_headless.log
+          echo "=== konec logu ==="
+          tail -40 re/ghidra/_headless.log
+          ls -la re/ghidra || true
+          exit 0
 
-      - name: Commit výsledků
+      - name: Commit výsledků (i při částečném selhání)
         run: |
           git config user.name "nsx-re-bot"
           git config user.email "actions@localhost"
@@ -75,6 +79,15 @@ jobs:
             git commit -m "ghidra: pseudo-C cílových funkcí jádra 4248 (TEST3 cda05f6b) [skip ci]"
             git push origin HEAD:"${GITHUB_REF#refs/heads/}"
           fi
+
+      - name: Verdikt
+        run: |
+          test -s re/ghidra/00_INDEX.md
+          if grep -q "SCRIPT_ERROR" re/ghidra/00_INDEX.md; then
+            echo "::error::Ghidra skript spadl — viz re/ghidra/00_INDEX.md a _headless.log"
+            exit 1
+          fi
+          echo "pseudo-C vyprodukováno"
 
       - uses: actions/upload-artifact@v4
         with:
