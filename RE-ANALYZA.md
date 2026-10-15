@@ -85,3 +85,64 @@ před případným A/B patchem vždy nejdřív ověřit kontext kódu (viz body 
    instrukcemi. Riziko střední, zisk nejistý.
 2. **Alokátor** — jen s měřením, které ukáže, že je alokace bottleneckem.
 3. **Plný rebuild** — navždy bez nového source dropu (CORE-BUILD-VERDICT.md).
+
+## Ghidra CI průlet (build 92, 2026-10-15) — korekce interpretací
+
+Headless Ghidra 11.4.2 (JDK 21) nad `libemucore_4248_baked.so` (TEST3,
+cda05f6b…), postScript `ci/ghidra/nsx_decompile_targets.py`, výstupy
+`re/ghidra/func_*.c` + `00_INDEX.md` (commit v této větvi + artifact
+90 dní). Projekt je cacheovaný (actions/cache, klíč = sha256 jádra), další
+běhy ~4 min bez analýzy.
+
+### Cesta k zelenému runu (co bylo špatně)
+1. **PEP‑263**: Jython 2.7 odmítá non‑ASCII zdroják bez `# -*- coding:
+   utf-8 -*-` → SyntaxError, skript nikdy nespustil main(). Původní
+   příčina všech červených runů. (Java postScript navíc nelze kompilovat
+   mimo Ghidra script-dirs — OSGi bundle odmítne cokoli jiného.)
+2. **findBytes overload**: 4‑arg (Address,String,Address,int) v 11.4.2
+   NEexistuje; správně `findBytes(AddressSetView, str, matchLimit,
+   alignment) -> Address[]` (ověřeno ze zdrojáků). Jeden nativní dotaz na
+   celý .text blok místo pythoní smyčky.
+3. **Jython write** umí jen ascii → em‑dash v hlavičce indexu padl až na
+   konci skriptu (func soubory už byly hotové). Výstup čistě ASCII.
+4. `-process <program>` bere název podle importního souboru (`core.so` z
+   `/tmp/core.so`, ne `libemucore_4248_baked.so`).
+5. Výstupy `*.log` si git ignor ignoruje → log jako `_headless.txt`,
+   `git add -f re/ghidra`; Ghidra `application.log` kopírován vedle.
+
+### Statistika skenu (Ghidra view)
+* Ghidra image base = ELF vaddr + 0x100000 (delta z .text bloku).
+* yield celkem 17 368, izolovaných (realných) 991 (5,7 %) — souhlas s
+  capstone odhadem ~6 %; zbytek = LTO padding.
+* 17 funkcí dekompilováno, 1 timeout (func_a449f0 — 58k instrukcí LTO
+  monolit).
+
+### Závěry — a korekce dřívějších hypotéz
+| objekt | realita (Ghidra/capstone) | dřívější hypotéza |
+|---|---|---|
+| 0xB99BD0 (3452 xrefů) | **emutls deskriptor** (TLS proměnná, `__emutls_get_address`) | „hot perf knob" |
+| 0xB9AA28 (2555) | **pointer na log/pause helper** („(VMManager) Pausing…") | „hot perf knob" |
+| str@0x5B4968 „writer" | `str xzr,[x0,#0x1320]` = init velkého objektu (GS stav) | „affinity writer" |
+| readers 0x8BF720 / 0x7CEB60 | Vulkan fence‑ring (vkWaitForFences) / savestate frame counter | „affinity readers" |
+| „PRI" 0xB98198/9C | podmínky ve GS/MMIO write path (bitfield `bfi` do 0xB981D0/1A0) | „thread priority" |
+| „AFF" rodina 0xB9A180… | **0 přímých xrefů**; oblast 0xB98000 = GS HW stavová stránka | „thread affinity" |
+| spin top func@0xA86F00 | bit‑FIFO reader (64bit sliding window) | „nejhorší spin smyčka" |
+
+**Žádné `sched_setaffinity`/`pthread` affinity API jádro nevolá** — v celém
+.text neexistuje jediný syscall site (x8=#122 + svc). Názvy „FIFO/DMA/
+AFF/PRI/CACHE knobů" z byte‑diff analýzy byly domyšlené; reálně jde o
+inicializační hodnoty stavových polí (GS stav, TLS, ukazatele tabulek).
+
+### Co z toho plyne
+1. **.text zůstává pravdou**: .text baked = .text 516077 základu; všechny
+   textové patche (build 88–91) i byte‑diff hodnoty .data zůstávají
+   platné jako *empiricky ověřené* — jen jejich přejmenování na
+   „affinity/priority" je potřeba číst jako „stavová pole bez jasně
+   identifikované sémantiky".
+2. **Spin backoff patch nemá cíl**: reálných izolovaných yield je 991
+   roztroušených přes 16 funkcí včetně 58k‑instrukčních LTO monolitů;
+   žádná identifikovatelná „jedna horká smyčka". Řešení latencí zůstává
+   NSX_SYNC_SPIN (µs spin, runtime) — beze změny.
+3. **Návrh .text patchů z Ghidry se mění**: nic z dekompilátu nevytváří
+   nový patch kandidát; Ghidra výstupy slouží jako referenční mapa
+   (func_*.c + 00_INDEX.md) pro budoucí cílené analýzy.
