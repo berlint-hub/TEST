@@ -118,9 +118,11 @@ def main():
     if textblock is not None:
         ycounts = {}
         scanned = 0
-        cur = findBytes(AddressSet(textblock.getStart(), textblock.getEnd()),
-                        Y, textblock.getEnd(), 1)
-        while cur is not None:
+        # jeden nativni adresni prohled: findBytes(AddressSetView, str,
+        # matchLimit, alignment) -> Address[] vsech vyskytu v bloku
+        ts = AddressSet(textblock.getStart(), textblock.getEnd())
+        matches = findBytes(ts, Y, 100000, 1)
+        for cur in matches:
             scanned += 1
             prev_y = False
             nxt_y = False
@@ -141,11 +143,6 @@ def main():
                 if f is not None:
                     k = f.getEntryPoint().getOffset()
                     ycounts[k] = ycounts.get(k, 0) + 1
-            _nxt = cur.add(4)
-            if _nxt.getOffset() > textblock.getEnd().getOffset():
-                break
-            cur = findBytes(AddressSet(_nxt, textblock.getEnd()),
-                            Y, textblock.getEnd(), 1)
         print("[nsx] yield celkem %d, izolovanych (realnych) %d" % (
             scanned, sum(ycounts.values())))
         for ep, c in sorted(ycounts.items(), key=lambda kv: -kv[1])[:8]:
