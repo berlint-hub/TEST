@@ -1,0 +1,153 @@
+openjdk version "21.0.12.1" 2026-08-18 LTS
+OpenJDK Runtime Environment Temurin-21.0.12.1+1 (build 21.0.12.1+1-LTS)
+OpenJDK 64-Bit Server VM Temurin-21.0.12.1+1 (build 21.0.12.1+1-LTS, mixed mode)
+INFO  Using log config file: jar:file:/opt/ghidra_11.4.2_PUBLIC/Ghidra/Framework/Generic/lib/Generic.jar!/generic.log4j.xml (LoggingInitialization)  
+INFO  Using log file: /home/runner/.config/ghidra/ghidra_11.4.2_PUBLIC/application.log (LoggingInitialization)  
+INFO  Loading user preferences: /home/runner/.config/ghidra/ghidra_11.4.2_PUBLIC/preferences (Preferences)  
+INFO  Searching for classes... (ClassSearcher)  
+INFO  Class search complete (1341 ms) (ClassSearcher)  
+INFO  Initializing SSL Context (SSLContextInitializer)  
+INFO  Initializing Random Number Generator... (SecureRandomFactory)  
+INFO  Random Number Generator initialization complete: NativePRNGNonBlocking (SecureRandomFactory)  
+INFO  Trust manager disabled, cacerts have not been set (ApplicationTrustManagerFactory)  
+INFO  Starting cache cleanup: /var/tmp/runner-ghidra/fscache2 (FileCacheMaintenanceDaemon)  
+INFO  Finished cache cleanup, estimated storage used: 0 (FileCacheMaintenanceDaemon)  
+INFO  Headless startup complete (5055 ms) (AnalyzeHeadless)  
+INFO  Class searcher loaded 58 extension points (18 false positives) (ClassSearcher)  
+INFO  HEADLESS Script Paths:
+    /opt/ghidra_11.4.2_PUBLIC/Ghidra/Features/Base/ghidra_scripts
+    /opt/ghidra_11.4.2_PUBLIC/Ghidra/Features/SwiftDemangler/ghidra_scripts
+    /opt/ghidra_11.4.2_PUBLIC/Ghidra/Debug/Debugger/ghidra_scripts
+    /opt/ghidra_11.4.2_PUBLIC/Ghidra/Processors/PIC/ghidra_scripts
+    /opt/ghidra_11.4.2_PUBLIC/Ghidra/Features/FileFormats/ghidra_scripts
+    /opt/ghidra_11.4.2_PUBLIC/Ghidra/Features/Decompiler/ghidra_scripts
+    /opt/ghidra_11.4.2_PUBLIC/Ghidra/Features/GnuDemangler/ghidra_scripts
+    /opt/ghidra_11.4.2_PUBLIC/Ghidra/Features/PyGhidra/ghidra_scripts
+    /opt/ghidra_11.4.2_PUBLIC/Ghidra/Features/WildcardAssembler/ghidra_scripts
+    /opt/ghidra_11.4.2_PUBLIC/Ghidra/Processors/Atmel/ghidra_scripts
+    /opt/ghidra_11.4.2_PUBLIC/Ghidra/Features/PDB/ghidra_scripts
+    /opt/ghidra_11.4.2_PUBLIC/Ghidra/Features/SystemEmulation/ghidra_scripts
+    /opt/ghidra_11.4.2_PUBLIC/Ghidra/Features/MicrosoftCodeAnalyzer/ghidra_scripts
+    /opt/ghidra_11.4.2_PUBLIC/Ghidra/Features/VersionTracking/ghidra_scripts
+    /opt/ghidra_11.4.2_PUBLIC/Ghidra/Features/BytePatterns/ghidra_scripts
+    /opt/ghidra_11.4.2_PUBLIC/Ghidra/Features/DecompilerDependent/ghidra_scripts
+    /opt/ghidra_11.4.2_PUBLIC/Ghidra/Processors/JVM/ghidra_scripts
+    /opt/ghidra_11.4.2_PUBLIC/Ghidra/Features/FunctionID/ghidra_scripts
+    /opt/ghidra_11.4.2_PUBLIC/Ghidra/Features/Jython/ghidra_scripts
+    /opt/ghidra_11.4.2_PUBLIC/Ghidra/Features/BSim/ghidra_scripts
+    /opt/ghidra_11.4.2_PUBLIC/Ghidra/Processors/8051/ghidra_scripts
+    /home/runner/work/TEST/TEST/ci/ghidra
+    /opt/ghidra_11.4.2_PUBLIC/Ghidra/Debug/Debugger-rmi-trace/ghidra_scripts
+    /opt/ghidra_11.4.2_PUBLIC/Ghidra/Processors/DATA/ghidra_scripts (HeadlessAnalyzer)  
+INFO  HEADLESS: execution starts (HeadlessAnalyzer)  
+INFO  Creating project: /tmp/ghproj/NSX4248 (HeadlessAnalyzer)  
+INFO  Creating project: /tmp/ghproj/NSX4248 (DefaultProject)  
+INFO  REPORT: Processing input files:  (HeadlessAnalyzer)  
+INFO       project: /tmp/ghproj/NSX4248 (HeadlessAnalyzer)  
+INFO  IMPORTING: file:///tmp/core.so (HeadlessAnalyzer)  
+INFO  Using Loader: Executable and Linking Format (ELF) (AutoImporter)  
+INFO  Using Language/Compiler: AARCH64:LE:64:v8A:default (AutoImporter)  
+INFO  Using Library Search Path: [., /bin, /lib, /lib64, /lib/x86_64-linux-gnu, /lib/aarch64-linux-gnu, /usr/bin, /usr/lib, /usr/X11R6/bin, /usr/X11R6/lib, /usr/java/packages/lib, /usr/lib64] (AutoImporter)  
+INFO  Additional info:
+Loading file:///tmp/core.so?MD5=c29c89ec9a8f60c8bcf1bbe59155d51d...
+Setting block .data.rel.ro to read-only
+Setting block .fini_array to read-only
+Setting block .init_array to read-only
+Setting block .dynamic to read-only
+------------------------------------------------
+
+Linking the External Programs of 'core.so' to imported libraries...
+  [libdl.so] -> not found in project
+  [libEGL.so] -> not found in project
+  [liblog.so] -> not found in project
+  [libaaudio.so] -> not found in project
+  [libandroid.so] -> not found in project
+  [libjnigraphics.so] -> not found in project
+  [libm.so] -> not found in project
+  [libc.so] -> not found in project
+------------------------------------------------
+
+Resolving External Symbols of [/core.so] - 334 unresolved symbols, no external libraries configured - skipping
+ (AutoImporter)  
+INFO  IMPORTING: Loaded 0 additional files (HeadlessAnalyzer)  
+INFO  ANALYZING all memory and code: file:///tmp/core.so (HeadlessAnalyzer)  
+INFO  DWARF external debug information found: ExternalDebugInfo [filename=null, crc=0, hash=2b4fe70fd5c1bc92ae3ca7a01d9e8cdd8eebd71e] (ExternalDebugFileSectionProvider)  
+INFO  Unable to find DWARF information, skipping DWARF analysis (DWARFAnalyzer)  
+ERROR Invalid PNG data at 00230e00 (PngDataType)  
+WARN  Decompiling 005fd890: Unable to read bytes at ram:02716880 (DecompileCallback)  
+WARN  Decompiling 006bcf50: Unable to read bytes at ram:0281e0d6 (DecompileCallback)  
+WARN  Decompiling 005fd2c0: Unable to read bytes at ram:02716c80 (DecompileCallback)  
+WARN  Decompiling 005fd6a0: Unable to read bytes at ram:02717c80 (DecompileCallback)  
+WARN  Decompiling 005fdc90: Unable to read bytes at ram:02717880 (DecompileCallback)  
+WARN  Decompiling 005fced0: Unable to read bytes at ram:02718880 (DecompileCallback)  
+WARN  Decompiling 005fd4b0: Unable to read bytes at ram:02717480 (DecompileCallback)  
+WARN  Decompiling 005fcce0: Unable to read bytes at ram:02718480 (DecompileCallback)  
+WARN  Decompiling 005fd0d0: Unable to read bytes at ram:02716480 (DecompileCallback)  
+WARN  Decompiling 005b6a90: Unable to read bytes at ram:02718080 (DecompileCallback)  
+WARN  Decompiling 005b6a90: Unable to read bytes at ram:02717880 (DecompileCallback)  
+WARN  Decompiling 005b6a90: Unable to read bytes at ram:02717080 (DecompileCallback)  
+WARN  Decompiling 005b6a90: Unable to read bytes at ram:02716880 (DecompileCallback)  
+WARN  Decompiling 005fde90: Unable to read bytes at ram:02718080 (DecompileCallback)  
+WARN  Decompiling 005fda90: Unable to read bytes at ram:02717080 (DecompileCallback)  
+ERROR VarnodeContext: out of address spaces at @009d24a0 for: d31-009d24a0 (VarnodeContext)  
+ERROR VarnodeContext: out of address spaces at @00a6eeb8 for: d21-00a6eeb8 (VarnodeContext)  
+INFO  Packed database cache: /var/tmp/runner-ghidra/packed-db-cache (PackedDatabaseCache)  
+INFO  Applied data type archive: generic_clib_64 (ApplyDataArchiveAnalyzer)  
+ERROR VarnodeContext: out of address spaces at @00a6eeb8 for: d21-00a6eeb8 (VarnodeContext)  
+ERROR VarnodeContext: out of address spaces at @009d24a0 for: d31-009d24a0 (VarnodeContext)  
+INFO  -----------------------------------------------------
+    AARCH64 ELF PLT Thunks                     0.448 secs
+    ASCII Strings                              1.341 secs
+    Apply Data Archives                        0.914 secs
+    Basic Constant Reference Analyzer         69.999 secs
+    Call Convention ID                         4.739 secs
+    Call-Fixup Installer                       0.311 secs
+    Create Address Tables                      2.431 secs
+    Create Address Tables - One Time           1.541 secs
+    Create Function                            0.153 secs
+    DWARF                                      0.007 secs
+    Data Reference                             3.699 secs
+    Decompiler Switch Analysis               490.744 secs
+    Demangler GNU                              2.075 secs
+    Disassemble                                0.000 secs
+    Disassemble Entry Points                  23.166 secs
+    Embedded Media                             0.138 secs
+    External Entry References                  0.015 secs
+    Function Start Search                      0.397 secs
+    Function Start Search After Code           0.480 secs
+    Function Start Search After Data           0.340 secs
+    Function Start Search delayed - One Time   0.001 secs
+    GCC Exception Handlers                    22.810 secs
+    Non-Returning Functions - Discovered       4.585 secs
+    Non-Returning Functions - Known            0.012 secs
+    Reference                                  5.076 secs
+    Shared Return Calls                        3.139 secs
+    Stack                                     60.563 secs
+    Subroutine References                      1.376 secs
+-----------------------------------------------------
+     Total Time   700 secs
+-----------------------------------------------------
+ (AutoAnalysisManager)  
+INFO  REPORT: Analysis succeeded for file: file:///tmp/core.so (HeadlessAnalyzer)  
+ERROR REPORT SCRIPT ERROR: NsxDecompileTargetsScript.java : The class could not be found. It must be the public class of the .java file: Failed to get OSGi bundle containing script: /home/runner/work/TEST/TEST/ci/ghidra/NsxDecompileTargetsScript.java (HeadlessAnalyzer) ghidra.app.script.GhidraScriptLoadException: The class could not be found. It must be the public class of the .java file: Failed to get OSGi bundle containing script: /home/runner/work/TEST/TEST/ci/ghidra/NsxDecompileTargetsScript.java
+	at ghidra.app.script.JavaScriptProvider.getScriptInstance(JavaScriptProvider.java:110)
+	at ghidra.app.util.headless.HeadlessAnalyzer.runScriptsList(HeadlessAnalyzer.java:912)
+	at ghidra.app.util.headless.HeadlessAnalyzer.analyzeProgram(HeadlessAnalyzer.java:1074)
+	at ghidra.app.util.headless.HeadlessAnalyzer.processFileWithImport(HeadlessAnalyzer.java:1563)
+	at ghidra.app.util.headless.HeadlessAnalyzer.processWithLoader(HeadlessAnalyzer.java:1745)
+	at ghidra.app.util.headless.HeadlessAnalyzer.processWithImport(HeadlessAnalyzer.java:1686)
+	at ghidra.app.util.headless.HeadlessAnalyzer.processWithImport(HeadlessAnalyzer.java:1770)
+	at ghidra.app.util.headless.HeadlessAnalyzer.processLocal(HeadlessAnalyzer.java:457)
+	at ghidra.app.util.headless.AnalyzeHeadless.launch(AnalyzeHeadless.java:198)
+	at ghidra.GhidraLauncher.launch(GhidraLauncher.java:81)
+	at ghidra.Ghidra.main(Ghidra.java:54)
+Caused by: java.lang.ClassNotFoundException: Failed to get OSGi bundle containing script: /home/runner/work/TEST/TEST/ci/ghidra/NsxDecompileTargetsScript.java
+	at ghidra.app.script.JavaScriptProvider.loadClass(JavaScriptProvider.java:159)
+	at ghidra.app.script.JavaScriptProvider.getScriptInstance(JavaScriptProvider.java:96)
+	... 10 more
+ 
+INFO  ANALYZING changes made by post scripts: file:///tmp/core.so (HeadlessAnalyzer)  
+INFO  REPORT: Post-analysis succeeded for file: file:///tmp/core.so (HeadlessAnalyzer)  
+INFO  REPORT: Save succeeded for: /core.so (NSX4248:/core.so) (HeadlessAnalyzer)  
+INFO  REPORT: Import succeeded (HeadlessAnalyzer)  
+analyzeHeadless rc=0
