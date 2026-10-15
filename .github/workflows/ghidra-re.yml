@@ -1,10 +1,12 @@
 name: RE / Ghidra headless (jádro 4248, TEST3)
 
-# Build 92a (2026-10-15, registrační push): cílená dekompilace vybraných funkcí jádra z
+# Build 92 (2026-10-15): cílená dekompilace vybraných funkcí jádra z
 # berlint-hub/TEST3 (libemucore_4248_baked.so, sha256 cda05f6b...; .text
 # totožný s analyzním základem 516077 — kotvy potvrzené capstonem).
 # Výstup: re/ghidra/*.c (pseudo-C) — commit do větve [skip ci] + artifact.
-# Ghidra 11.4.2 (poslední linie s Jython postScripty), JDK 21.
+# PostScript v JAVĚ (NsxDecompileTargetsScript.java) — Jython výstup se
+# neprojevil (podezření na odstranění v 11.4); Java je verzně nezávislá.
+# Cache Ghidra projektu = debug iterace bez opakované analýzy (~15 min→~3).
 # Analýza binárky, ne distribuce — jádro se nikam neukládá (HANDOFF §7).
 
 on:
@@ -36,11 +38,19 @@ jobs:
           distribution: temurin
           java-version: "21"
 
+      - name: Cache Ghidra projektu (analyza jen jednou)
+        uses: actions/cache@v4
+        with:
+          path: /tmp/ghproj
+          key: ghidra-proj-cda05f6b9136f5535ae33bc71fd3624f95b5fde7706259cadbdd90cecb6b531e
+
       - name: Ghidra 11.4.2
         run: |
-          curl -fL --retry 3 -o /tmp/ghidra.zip \
-            "https://github.com/NationalSecurityAgency/ghidra/releases/download/Ghidra_11.4.2_build/ghidra_11.4.2_PUBLIC_20250826.zip"
-          unzip -q /tmp/ghidra.zip -d /opt
+          if [ ! -x /opt/ghidra_11.4.2_PUBLIC/support/analyzeHeadless ]; then
+            curl -fL --retry 3 -o /tmp/ghidra.zip \
+              "https://github.com/NationalSecurityAgency/ghidra/releases/download/Ghidra_11.4.2_build/ghidra_11.4.2_PUBLIC_20250826.zip"
+            unzip -q /tmp/ghidra.zip -d /opt
+          fi
           test -x /opt/ghidra_11.4.2_PUBLIC/support/analyzeHeadless
 
       - name: Jádro z TEST3 (4248 baked)
@@ -53,41 +63,54 @@ jobs:
       - name: Headless analýza + dekompilace cílů
         run: |
           mkdir -p re/ghidra /tmp/ghproj
+          GH=/opt/ghidra_11.4.2_PUBLIC/support/analyzeHeadless
           set +e
-          /opt/ghidra_11.4.2_PUBLIC/support/analyzeHeadless \
-            /tmp/ghproj NSX4248 \
-            -import /tmp/core.so \
-            -analysisTimeoutPerFile 3000 \
-            -scriptPath "$GITHUB_WORKSPACE/ci/ghidra" \
-            -postScript nsx_decompile_targets.py "$GITHUB_WORKSPACE/re/ghidra" \
-            -deleteProject > re/ghidra/_headless.log 2>&1
+          if [ -f /tmp/ghproj/NSX4248.gpr ]; then
+            echo "=== cache HIT: bez analyzy, rovnou postScript ==="
+            "$GH" /tmp/ghproj NSX4248 \
+              -process libemucore_4248_baked.so -noanalysis \
+              -scriptPath "$GITHUB_WORKSPACE/ci/ghidra" \
+              -postScript NsxDecompileTargetsScript.java "$GITHUB_WORKSPACE/re/ghidra" \
+              > re/ghidra/_headless.txt 2>&1
+          else
+            echo "=== cache MISS: import + analyza ==="
+            "$GH" /tmp/ghproj NSX4248 \
+              -import /tmp/core.so \
+              -analysisTimeoutPerFile 3000 \
+              -scriptPath "$GITHUB_WORKSPACE/ci/ghidra" \
+              -postScript NsxDecompileTargetsScript.java "$GITHUB_WORKSPACE/re/ghidra" \
+              > re/ghidra/_headless.txt 2>&1
+          fi
           rc=$?
-          echo "analyzeHeadless rc=$rc" >> re/ghidra/_headless.log
+          echo "analyzeHeadless rc=$rc" >> re/ghidra/_headless.txt
           echo "=== konec logu ==="
-          tail -40 re/ghidra/_headless.log
+          tail -40 re/ghidra/_headless.txt
           ls -la re/ghidra || true
           exit 0
 
       - name: Commit výsledků (i při částečném selhání)
         run: |
+          echo "::notice::re/ghidra: $(ls re/ghidra 2>/dev/null | tr '\n' ' ')"
           git config user.name "nsx-re-bot"
           git config user.email "actions@localhost"
-          git add re/ghidra
+          git add -f re/ghidra 2>/dev/null || true
           if git diff --cached --quiet; then
-            echo "výstupy se nezměnily — commit netřeba"
+            echo "::notice::nic ke commitu"
           else
             git commit -m "ghidra: pseudo-C cílových funkcí jádra 4248 (TEST3 cda05f6b) [skip ci]"
-            git push origin HEAD:"${GITHUB_REF#refs/heads/}"
+            git push origin HEAD:"${GITHUB_REF#refs/heads/}" \
+              && echo "::notice::push OK" \
+              || echo "::error::push SELHAL"
           fi
 
       - name: Verdikt
         run: |
           test -s re/ghidra/00_INDEX.md
-          if grep -q "SCRIPT_ERROR" re/ghidra/00_INDEX.md; then
-            echo "::error::Ghidra skript spadl — viz re/ghidra/00_INDEX.md a _headless.log"
+          if grep -q "SCRIPT_ERROR" re/ghidra/00_INDEX.md re/ghidra/_script_error.txt 2>/dev/null; then
+            echo "::error::Ghidra skript spadl — viz re/ghidra/"
             exit 1
           fi
-          echo "pseudo-C vyprodukováno"
+          echo "::notice::pseudo-C vyprodukováno"
 
       - uses: actions/upload-artifact@v4
         with:
