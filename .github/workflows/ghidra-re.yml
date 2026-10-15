@@ -1,6 +1,6 @@
 name: RE / Ghidra headless (jádro 4248, TEST3)
 
-# Build 92 (2026-10-15): cílená dekompilace vybraných funkcí jádra z
+# Build 92a (2026-10-15, registrační push): cílená dekompilace vybraných funkcí jádra z
 # berlint-hub/TEST3 (libemucore_4248_baked.so, sha256 cda05f6b...; .text
 # totožný s analyzním základem 516077 — kotvy potvrzené capstonem).
 # Výstup: re/ghidra/*.c (pseudo-C) — commit do větve [skip ci] + artifact.
