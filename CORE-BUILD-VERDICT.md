@@ -104,3 +104,18 @@ ne GS-bound).
    + port-level stack — přesně to, co nese build 88.
 3. Otevřené: **phase2_fixed jádro leží na kartě netestované** — kdyby
    uživatel chtěl, dá se dát do buildu jako varianta a porovnat na kartě.
+
+---
+
+## Dodatek (build 89, 2026-10-15): co z toho vyšlo do praxe
+
+Na otázku „hlavně bottleneck VU/VU1, celková synchronizace EE-VU-GS“:
+
+1. **Jádro „X1 lab“** — volitelná binární varianta 4248 (FIFO/DMA `.data`
+   sada odvozená z HW-osvědčené phase1, bez affinity/priorit/cache tabulky),
+   volitelná přímo v launcheru (Core version), A/B na kartě bez reflashu.
+2. **NSX_SYNC_SPIN** (`ci/patches/sync_spin.py`) — EE→VU1→MTGS handoffy jdou
+   přes semafory (Threading::Semaphore → sem_* fake → libnx LightSemaphore);
+   shim teď umí spin-před-blokováním (ci-sync.conf, default vypnuto). To je
+   ta skutečná synchronizační páka — port vlastní celou sync plochu jádra
+   (pthr.c/libc_shim.c), takže se ladí bez pouhání do uzavřené binárky.

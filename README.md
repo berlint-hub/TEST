@@ -5,9 +5,9 @@ od buildu 43 vypnutý).
 
 **Kam začít:** [`VU-GS-OPTIMALIZACE.md`](VU-GS-OPTIMALIZACE.md) — zadání
 a plán pro optimalizaci CPU/VU/GS (změřená FPS podle taktů, rozložení threadů,
-hypotézy v pořadí, jak měřit). Aktuální build: **88 = konsolidace** (main +
-X1 stack z linie opencode-ci: pinning MTGS/VU1, MTVU marker, FastmemMode
-hybrid, GT3 profil, fastload vrstva; viz BUILD-NOTES.md, sekce „Build 88").
+hypotézy v pořadí, jak měřit). Aktuální build: **89 = X1 lab** (build 88 +
+volitelné jádro „X1 lab“ v launcheru + sync spin na semaforech EE/VU1/GS,
+ovládací `ci-sync.conf`; viz BUILD-NOTES.md, sekce „Build 89“).
 
 - **[`CORE-BUILD-VERDICT.md`](CORE-BUILD-VERDICT.md)** — proč NEjde kompilovat
   vlastní libemucore.so ze zdrojáků (LGPL drop nemá ARM64 dynarecy) a co místo

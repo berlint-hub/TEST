@@ -116,7 +116,10 @@ VU1 (MTVU) + worker thready round-robin**, jádro 3 = audio.
    „Unsafe Settings: Cycle rate/skip is not at default"). Vrátit na default
    a porovnat; patchnout jako marker.
 4. **`vu1Instant` / `vuFlagHack`** (VU1 instant = rychlejší, méně přesné).
-5. Teprve pak hlubší zásahy do jádra.
+5. **`ci-sync.conf` spin + jádro „X1 lab“ (build 89)** — synchronizační páka:
+   spin na semaforových handoffech a volitelná binární varianta 4248
+   (FIFO/DMA velikosti .data). Viz BUILD-NOTES „Build 89“.
+6. Teprve pak hlubší zásahy do jádra.
 
 **Metodika (nutná, jinak se výsledky nedají srovnat):** měřit **jen okna se
 stejnými takty** — governor uživatele přeskakuje mezi profily a rozdíl
@@ -148,6 +151,7 @@ python3 ci/analyze-core-log.py /tmp/core.log
 | `ci-nopin.enabled` | **(build 52)** vypne všechna `svcSetThreadCoreMask` — thready dědí masku procesu. FPS to může mírně ovlivnit, proto jen jako marker |
 | `ci-clk.enabled` | **(build 54, opt-in)** zapne čtení taktů přes clkrst (od buildu 54 defaultně VYPNUTO — fatal v pcv při kolizi s governorem, viz HANDOFF §0b). Běží-li governor (sys-clk/hoc:clk), radši nepoužívat |
 | `ci-clk.conf` | **opt-in zápis taktů** (`cpu=1785 gpu=460`); od buildu 54 navíc vyžaduje i marker `ci-clk.enabled` — **s governorem NEPOUŽÍVAT** |
+| `ci-sync.conf` | **(build 89)** spin před blokací na semaforu (EE→VU1/MTGS handoffy), hodnota = µs (0/bez souboru = vypnuto). A/B: 50/100/250 |
 
 Zrušené markery (už neexistují): `ci-keepboost.enabled`, `ci-noboost.enabled`.
 

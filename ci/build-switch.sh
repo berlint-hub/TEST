@@ -270,6 +270,23 @@ note "=== stage 4: jádra ==="
 fetch_core Trixarian/NetherSX2-patch   4248
 fetch_core Trixarian/NetherSX2-classic 3668
 
+# ----------------------------------------------------- 4b. jádro X1 (binární varianta)
+# Třetí jádro do balíku: 4248 + 16 bajtů .data (FIFO/DMA velikosti) laděné pro
+# Tegru X1 — odvozeno z HW-osvědčené phase1 linie (buildy 43–71 na kartě),
+# BEZ affinity/priorit/cache tabulky, které phase2 (build 71) zabily. Výběr
+# je v launcheru jako „X1 lab (4248 upr.)“; default zůstává 4248, takže jde
+# o čisté A/B na kartě bez reflashu. Právně: derivuje se za buildu z téže
+# APK, v repozitáři jádro není (jen čtyři u32 offsety v patcheru).
+note "=== stage 4b: jádro X1 (binární varianta 4248) ==="
+if python3 "$HERE/patches/core_x1.py" \
+     "$CORES_DIR/NetherSX2-v2.2n-4248/lib/arm64-v8a/libemucore.so" \
+     "$CORES_DIR/emucore_x1.so"; then
+  key "core: emucore_x1.so (4248 + FIFO/DMA pro X1, bez affinity/priorit)"
+else
+  err "jádro X1: výroba varianty selhala (offsety nesedí na 4248 binárku)"
+  die "core_x1"
+fi
+
 # -------------------------------------------------------------------- 5. upstream
 note "=== stage 5: upstream ==="
 if [ ! -d "$SRC/.git" ]; then
@@ -295,6 +312,14 @@ if python3 "$HERE/patches/fh_buf.py" "$SRC/source/filehelper.c"; then
   key "vrstva: filehelper.c resource stream buffer"
 else
   warn "vrstva: filehelper.c buffer NEAPLIKOVÁN (upstream posunul kotvy)"
+fi
+# NSX_SYNC_SPIN (build 89): spin před blokací na semaforu — hlavní EE<->VU1/MTGS
+# handoff primitiva (Threading::Semaphore -> sem_* fake -> LightSemaphore).
+# Default VYPNUTO; řídí ci-sync.conf na SD (mikrosekundy). A/B bez rebuildu.
+if python3 "$HERE/patches/sync_spin.py" "$SRC/source/libc_shim.c"; then
+  key "sync: sem_wait spin (ci-sync.conf, default 0 = jako upstream)"
+else
+  warn "sync_spin.py neprosel — semafory bez spinu (chování upstream)"
 fi
 
 # nepovinnej vstup: plochý vulkan/ SDK z ci/build-mesa-sdk.sh (artifact
@@ -1320,6 +1345,9 @@ for b in 4248 3668; do
   cp -rf "$CORES_DIR/NetherSX2-v2.2n-$b/assets/." "$rd/"
   rm -rf "$rd/dexopt"
 done
+# jádro X1 (stage 4b) — volitelná varianta, launcher ji nabízí jako „X1 lab“
+cp -f "$CORES_DIR/emucore_x1.so" "$SRC/launcher/romfs/cores/emucore_x1.so" \
+  || die "kopie jádra x1"
 if [ -f "$SRC/NetherSX2_nx_gl.nro" ]; then
   cp -f "$SRC/NetherSX2_nx_gl.nro" "$SRC/launcher/romfs/emu/NetherSX2_nx_gl.nro"
 else
@@ -1443,6 +1471,22 @@ edits += [
      '      writeAtomicText(gcMarker, marker+"\\n");\n'
      '    }\n'
      '  }'),
+]
+
+# ------------------------------------------------------------- CORE X1 (lab.)
+# Třetí volba jádra: „X1 lab (4248 upr.)“ (build 89). build="x1" teče dál
+# genericky: romfs:/cores/emucore_x1.so (stage 8); jen resources se pořídí
+# z res/4248 (GameIndex/cheaty jsou na jádře nezávislé, duplikát v romfs
+# bychom nechceně zdvojnásobili).
+edits += [
+    ('static const Choice C_build[]    = { {"Patched (4248)","4248"}, {"Classic (3668)","3668"} };',
+     'static const Choice C_build[]    = { {"Patched (4248)","4248"}, {"Classic (3668)","3668"},\n'
+     '                                     {"X1 lab (4248 upr.)","x1"} };'),
+    ('if(build!="4248"&&build!="3668") build="4248";',
+     'if(build!="4248"&&build!="3668"&&build!="x1") build="4248";'),
+    ('  bool ok = extractTree(std::string("romfs:/res/") + build, RESOURCES_DIR, true);',
+     '  const char *resB = (build=="x1") ? "4248" : build.c_str();\n'
+     '  bool ok = extractTree(std::string("romfs:/res/") + resB, RESOURCES_DIR, true);'),
 ]
 
 done = 0
@@ -1829,7 +1873,7 @@ key "nro=$(stat -c %s "$OUT/NetherSX2.nro")"
 # launcher by na kartě hlásil „Could not extract emulator files" — přesně
 # tu hlášku, se kterou sme tohle celý začínali.
 for n in emu/NetherSX2_nx_vk.nro emu/NetherSX2_nx_gl.nro cores/libemucore.so \
-         res/GameIndex.yaml; do
+         cores/emucore_x1.so res/GameIndex.yaml; do
   name=$(basename "$n")
   if grep -qa "$name" "$OUT/NetherSX2.nro"; then
     note "  uvnitř .nro: $name"

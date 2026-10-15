@@ -1,4 +1,7 @@
 name: build / VK (nxvk Mesa -> NetherSX2_nx)
+# Build 89 (2026-10-15): jadro „X1 lab“ jako treti volba v launcheru
+# (binarni varianta 4248: FIFO/DMA .data, bez affinity/priorit — core_x1.py)
+# + NSX_SYNC_SPIN (sem_wait spin, ci-sync.conf, default 0).
 # Build 88 (2026-10-15): konsolidace X1 stacku do mainove linie — pinning
 # MTGS(core1)/VU1(core2), MTVU marker (prefs.c), FastmemMode=hybrid + GT3
 # profil (NSX_CI_DEFAULTS + gamecfg), fastload vrstva (so_util/filehelper/vk

@@ -597,3 +597,68 @@ Změny vůči opencode-ci předloze (důvody):
 Očekávaný dopravník na kartě: `[CI] session start build=88`, `[CI] load:`
 řádky (EE/VU/GS/audio %), thready `EE→0, MTGS→1, VU1→2, audio→3`.
 A/B testy bez rebuildu: `ci-mtvu.conf`, `ci-nopin.enabled`.
+
+---
+
+## Build 89 — jádro X1 (volitelná binární varianta) + NSX_SYNC_SPIN (2026-10-15)
+
+Návaznost na otázku „můžeš udělat libemucore.so optimalizovaný pro Tegru X1,
+hlavně bottleneck VU/VU1 a synchronizaci EE-VU-GS?“ (viz
+[CORE-BUILD-VERDICT.md](CORE-BUILD-VERDICT.md)). Kompilace ze zdrojáků ne;
+udělaly se dvě věci, které jde:
+
+### 1. Třetí jádro v balíku: „X1 lab (4248 upr.)“ (volba `x1` v launcheru)
+
+Binární varianta 4248 se 4 změnami u32 v `.data` (vyrábí se za buildu z téže
+APK, `ci/patches/core_x1.py`; v repu žádné jádro není). **Ground truth po
+byte-diffu skutečných binárek z historie** (původní i „verifikovaný“
+PHASE2_REPORT.md měl hodnoty částečně špatně — níže opravené čísla):
+
+| file offset | orig (4248) | x1 | poznámka |
+|---|---|---|---|
+| `0xB949AC` | 32 | **256** | FIFO trio #1 } |
+| `0xB949BC` | 16384 | **131072** | FIFO trio #2 } phase1 = HW-osvědčeno |
+| `0xB949C0` | 8192 | **65536** | FIFO trio #3 } (buildy 43–71 denně hrané) |
+| `0xB949C4` | 4096 | **16384** | „DMA-ish“, jemný 4× bump — novinka k otestování |
+
+Vypuštěno po zkušenostech z buildu 71 (phase2 crash): **9× affinity u32**
+(`0xB98180..0xB986F0`) — o přidělení jader se stará port (`pthr_pin_fixed`),
+dvě vedení nad stejným thready se perou; **priorities** (linux nice na
+Horizonu nejsou — příčina phase2 crashu); **cache tabulka 4,8,16→64,64,128**
+(porušuje mocninovou posloupnost, nejspíš tabulka velikostí). sha256 x1
+varianty nad base 516077…: `40f8822bf86ad501…`.
+
+Launcher: nová volba v „Core version“, normalizace připouští `x1`, resources
+se pro `x1` berou z `res/4248` (GameIndex/cheaty jsou na jádře nezávislé).
+Default zůstává 4248 → čisté A/B přímo na kartě bez reflashu.
+
+### 2. NSX_SYNC_SPIN — synchronizace EE-VU-GS přes semafory (default vypnuto)
+
+*Jak jádro synchronizuje:* EE→VU1→MTGS handoffy jdou převážně přes
+`Threading::Semaphore` → sem_* fake (`libc_shim.c`) → libnx LightSemaphore.
+Když token není, LightSemaphore **ihned spí v kernelu** (svcWaitForAddress) a
+wakeup stojí jednotky µs na jádro. Mutexy/cond jdou přes newlib futex — ty
+jsme nesaňili (cond bez znalosti predikátu spinovat nelze; mutex park logika
+drží GL vlastnictví — příliš křehké).
+
+`sync_spin.py` do `sem_wait_fake` přidal spin-před-blokováním: N µs kroutí
+`semaphoreTryWait` (s `yield` mezi pokusy), teprve pak zablokuje. Producent
+pracuje-li (běžný případ v pipeline), handoff se obejde bez kernelu; jinak
+skončí stejnou blokací jako dosud — **semantika sem_wait se nemění**.
+
+Ovládání bez rebuildu: `ci-sync.conf` na SD = celé číslo, spin v **mikro-
+sekundách** (0 nebo bez souboru = vypnuto = chování upstream). Start do logu
+píše `[CI] sync: spin=<n> us`. Doporučené A/B hodnoty: 50 / 100 / 250 µs.
+
+Suché testy: 11 python patchů + 2 heredocy = 12/12 OK proti čerstvému
+upstreamu; `gcc -fsyntax-only` (host gcc + reálné libnx/Khronos hlavičky)
+na patchované `libc_shim.c`, `pthr.c`, `prefs.c`: 0 chyb.
+
+### Jak testovat na kartě (GT3, vždy okna se stejnými takty)
+
+1. **Core A/B:** launcher → Core version = `X1 lab` vs `Patched (4248)`;
+   dívát se na FPS medián a stabilitu (pád = varianta za hranou, vrátit 4248).
+2. **Sync spin:** `echo 100 > ci-sync.conf`, restart hry, srovnat; pak 50/250.
+   (Spolu s core x1 taky — matice 2×2, ale nejdřív spin samostatně.)
+3. Log vždy začíná `[CI] session start build=89` a `[CI] sync: spin=…`,
+   launcher diag ukazuje zvolené jádro.
