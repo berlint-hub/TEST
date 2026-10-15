@@ -5,14 +5,14 @@ INFO  Using log config file: jar:file:/opt/ghidra_11.4.2_PUBLIC/Ghidra/Framework
 INFO  Using log file: /home/runner/.config/ghidra/ghidra_11.4.2_PUBLIC/application.log (LoggingInitialization)  
 INFO  Loading user preferences: /home/runner/.config/ghidra/ghidra_11.4.2_PUBLIC/preferences (Preferences)  
 INFO  Searching for classes... (ClassSearcher)  
-INFO  Class search complete (1115 ms) (ClassSearcher)  
+INFO  Class search complete (1106 ms) (ClassSearcher)  
 INFO  Initializing SSL Context (SSLContextInitializer)  
 INFO  Initializing Random Number Generator... (SecureRandomFactory)  
 INFO  Random Number Generator initialization complete: NativePRNGNonBlocking (SecureRandomFactory)  
 INFO  Trust manager disabled, cacerts have not been set (ApplicationTrustManagerFactory)  
 INFO  Starting cache cleanup: /var/tmp/runner-ghidra/fscache2 (FileCacheMaintenanceDaemon)  
 INFO  Finished cache cleanup, estimated storage used: 0 (FileCacheMaintenanceDaemon)  
-INFO  Headless startup complete (5151 ms) (AnalyzeHeadless)  
+INFO  Headless startup complete (3228 ms) (AnalyzeHeadless)  
 INFO  Class searcher loaded 58 extension points (18 false positives) (ClassSearcher)  
 INFO  HEADLESS Script Paths:
     /opt/ghidra_11.4.2_PUBLIC/Ghidra/Features/Base/ghidra_scripts
@@ -74,21 +74,21 @@ INFO  ANALYZING all memory and code: file:///tmp/core.so (HeadlessAnalyzer)
 INFO  DWARF external debug information found: ExternalDebugInfo [filename=null, crc=0, hash=2b4fe70fd5c1bc92ae3ca7a01d9e8cdd8eebd71e] (ExternalDebugFileSectionProvider)  
 INFO  Unable to find DWARF information, skipping DWARF analysis (DWARFAnalyzer)  
 ERROR Invalid PNG data at 00230e00 (PngDataType)  
+WARN  Decompiling 005fced0: Unable to read bytes at ram:02718880 (DecompileCallback)  
+WARN  Decompiling 005fde90: Unable to read bytes at ram:02718080 (DecompileCallback)  
+WARN  Decompiling 006bcf50: Unable to read bytes at ram:0281e0d6 (DecompileCallback)  
+WARN  Decompiling 005fd4b0: Unable to read bytes at ram:02717480 (DecompileCallback)  
+WARN  Decompiling 005fd2c0: Unable to read bytes at ram:02716c80 (DecompileCallback)  
+WARN  Decompiling 005fcce0: Unable to read bytes at ram:02718480 (DecompileCallback)  
+WARN  Decompiling 005fd0d0: Unable to read bytes at ram:02716480 (DecompileCallback)  
+WARN  Decompiling 005fdc90: Unable to read bytes at ram:02717880 (DecompileCallback)  
+WARN  Decompiling 005fd890: Unable to read bytes at ram:02716880 (DecompileCallback)  
+WARN  Decompiling 005fda90: Unable to read bytes at ram:02717080 (DecompileCallback)  
+WARN  Decompiling 005fd6a0: Unable to read bytes at ram:02717c80 (DecompileCallback)  
 WARN  Decompiling 005b6a90: Unable to read bytes at ram:02718080 (DecompileCallback)  
 WARN  Decompiling 005b6a90: Unable to read bytes at ram:02717880 (DecompileCallback)  
 WARN  Decompiling 005b6a90: Unable to read bytes at ram:02717080 (DecompileCallback)  
 WARN  Decompiling 005b6a90: Unable to read bytes at ram:02716880 (DecompileCallback)  
-WARN  Decompiling 005fdc90: Unable to read bytes at ram:02717880 (DecompileCallback)  
-WARN  Decompiling 005fd6a0: Unable to read bytes at ram:02717c80 (DecompileCallback)  
-WARN  Decompiling 005fd2c0: Unable to read bytes at ram:02716c80 (DecompileCallback)  
-WARN  Decompiling 005fd0d0: Unable to read bytes at ram:02716480 (DecompileCallback)  
-WARN  Decompiling 005fd4b0: Unable to read bytes at ram:02717480 (DecompileCallback)  
-WARN  Decompiling 005fd890: Unable to read bytes at ram:02716880 (DecompileCallback)  
-WARN  Decompiling 005fced0: Unable to read bytes at ram:02718880 (DecompileCallback)  
-WARN  Decompiling 006bcf50: Unable to read bytes at ram:0281e0d6 (DecompileCallback)  
-WARN  Decompiling 005fcce0: Unable to read bytes at ram:02718480 (DecompileCallback)  
-WARN  Decompiling 005fde90: Unable to read bytes at ram:02718080 (DecompileCallback)  
-WARN  Decompiling 005fda90: Unable to read bytes at ram:02717080 (DecompileCallback)  
 ERROR VarnodeContext: out of address spaces at @009d24a0 for: d31-009d24a0 (VarnodeContext)  
 ERROR VarnodeContext: out of address spaces at @00a6eeb8 for: d21-00a6eeb8 (VarnodeContext)  
 INFO  Packed database cache: /var/tmp/runner-ghidra/packed-db-cache (PackedDatabaseCache)  
@@ -96,109 +96,44 @@ INFO  Applied data type archive: generic_clib_64 (ApplyDataArchiveAnalyzer)
 ERROR VarnodeContext: out of address spaces at @00a6eeb8 for: d21-00a6eeb8 (VarnodeContext)  
 ERROR VarnodeContext: out of address spaces at @009d24a0 for: d31-009d24a0 (VarnodeContext)  
 INFO  -----------------------------------------------------
-    AARCH64 ELF PLT Thunks                     0.479 secs
-    ASCII Strings                              2.156 secs
-    Apply Data Archives                        1.327 secs
-    Basic Constant Reference Analyzer         66.778 secs
-    Call Convention ID                         5.023 secs
-    Call-Fixup Installer                       0.245 secs
-    Create Address Tables                      2.450 secs
-    Create Address Tables - One Time           1.806 secs
-    Create Function                            0.143 secs
+    AARCH64 ELF PLT Thunks                     0.501 secs
+    ASCII Strings                              1.291 secs
+    Apply Data Archives                        0.917 secs
+    Basic Constant Reference Analyzer         67.352 secs
+    Call Convention ID                         4.725 secs
+    Call-Fixup Installer                       0.237 secs
+    Create Address Tables                      2.371 secs
+    Create Address Tables - One Time           1.625 secs
+    Create Function                            0.169 secs
     DWARF                                      0.007 secs
-    Data Reference                             3.867 secs
-    Decompiler Switch Analysis               462.715 secs
-    Demangler GNU                              2.468 secs
-    Disassemble                                0.000 secs
-    Disassemble Entry Points                  22.503 secs
-    Embedded Media                             0.133 secs
-    External Entry References                  0.014 secs
-    Function Start Search                      0.383 secs
-    Function Start Search After Code           0.604 secs
-    Function Start Search After Data           0.411 secs
-    Function Start Search delayed - One Time   0.002 secs
-    GCC Exception Handlers                    22.061 secs
-    Non-Returning Functions - Discovered       4.466 secs
+    Data Reference                             3.701 secs
+    Decompiler Switch Analysis               459.135 secs
+    Demangler GNU                              2.029 secs
+    Disassemble                                0.001 secs
+    Disassemble Entry Points                  21.856 secs
+    Embedded Media                             0.138 secs
+    External Entry References                  0.015 secs
+    Function Start Search                      0.402 secs
+    Function Start Search After Code           0.457 secs
+    Function Start Search After Data           0.397 secs
+    Function Start Search delayed - One Time   0.001 secs
+    GCC Exception Handlers                    21.988 secs
+    Non-Returning Functions - Discovered       4.554 secs
     Non-Returning Functions - Known            0.012 secs
-    Reference                                  5.054 secs
-    Shared Return Calls                        3.247 secs
-    Stack                                     66.988 secs
-    Subroutine References                      1.494 secs
+    Reference                                  4.888 secs
+    Shared Return Calls                        3.284 secs
+    Stack                                     58.894 secs
+    Subroutine References                      1.339 secs
 -----------------------------------------------------
-     Total Time   676 secs
+     Total Time   662 secs
 -----------------------------------------------------
  (AutoAnalysisManager)  
 INFO  REPORT: Analysis succeeded for file: file:///tmp/core.so (HeadlessAnalyzer)  
-ERROR REPORT SCRIPT ERROR: NsxDecompileTargetsScript.java : The class could not be found. It must be the public class of the .java file: Failed to get OSGi bundle containing script: /home/runner/work/TEST/TEST/ci/ghidra/NsxDecompileTargetsScript.java (HeadlessAnalyzer) ghidra.app.script.GhidraScriptLoadException: The class could not be found. It must be the public class of the .java file: Failed to get OSGi bundle containing script: /home/runner/work/TEST/TEST/ci/ghidra/NsxDecompileTargetsScript.java
-	at ghidra.app.script.JavaScriptProvider.getScriptInstance(JavaScriptProvider.java:110)
-	at ghidra.app.util.headless.HeadlessAnalyzer.runScriptsList(HeadlessAnalyzer.java:912)
-	at ghidra.app.util.headless.HeadlessAnalyzer.analyzeProgram(HeadlessAnalyzer.java:1074)
-	at ghidra.app.util.headless.HeadlessAnalyzer.processFileWithImport(HeadlessAnalyzer.java:1563)
-	at ghidra.app.util.headless.HeadlessAnalyzer.processWithLoader(HeadlessAnalyzer.java:1745)
-	at ghidra.app.util.headless.HeadlessAnalyzer.processWithImport(HeadlessAnalyzer.java:1686)
-	at ghidra.app.util.headless.HeadlessAnalyzer.processWithImport(HeadlessAnalyzer.java:1770)
-	at ghidra.app.util.headless.HeadlessAnalyzer.processLocal(HeadlessAnalyzer.java:457)
-	at ghidra.app.util.headless.AnalyzeHeadless.launch(AnalyzeHeadless.java:198)
-	at ghidra.GhidraLauncher.launch(GhidraLauncher.java:81)
-	at ghidra.Ghidra.main(Ghidra.java:54)
-Caused by: java.lang.ClassNotFoundException: Failed to get OSGi bundle containing script: /home/runner/work/TEST/TEST/ci/ghidra/NsxDecompileTargetsScript.java
-	at ghidra.app.script.JavaScriptProvider.loadClass(JavaScriptProvider.java:159)
-	at ghidra.app.script.JavaScriptProvider.getScriptInstance(JavaScriptProvider.java:96)
-	... 10 more
- 
+INFO  SCRIPT: /home/runner/work/TEST/TEST/ci/ghidra/nsx_decompile_targets.py (HeadlessAnalyzer)  
+  File "<string>", line None
+SyntaxError: Non-ASCII character in file '/home/runner/work/TEST/TEST/ci/ghidra/nsx_decompile_targets.py', but no encoding declared; see http://www.python.org/peps/pep-0263.html for details
 INFO  ANALYZING changes made by post scripts: file:///tmp/core.so (HeadlessAnalyzer)  
 INFO  REPORT: Post-analysis succeeded for file: file:///tmp/core.so (HeadlessAnalyzer)  
 INFO  REPORT: Save succeeded for: /core.so (NSX4248:/core.so) (HeadlessAnalyzer)  
 INFO  REPORT: Import succeeded (HeadlessAnalyzer)  
 analyzeHeadless rc=0
-=== java skript neprodukoval vystup, zkousim Jython ===
-openjdk version "21.0.12.1" 2026-08-18 LTS
-OpenJDK Runtime Environment Temurin-21.0.12.1+1 (build 21.0.12.1+1-LTS)
-OpenJDK 64-Bit Server VM Temurin-21.0.12.1+1 (build 21.0.12.1+1-LTS, mixed mode)
-INFO  Using log config file: jar:file:/opt/ghidra_11.4.2_PUBLIC/Ghidra/Framework/Generic/lib/Generic.jar!/generic.log4j.xml (LoggingInitialization)  
-INFO  Using log file: /home/runner/.config/ghidra/ghidra_11.4.2_PUBLIC/application.log (LoggingInitialization)  
-INFO  Loading user preferences: /home/runner/.config/ghidra/ghidra_11.4.2_PUBLIC/preferences (Preferences)  
-INFO  Searching for classes... (ClassSearcher)  
-INFO  Class search complete (1102 ms) (ClassSearcher)  
-INFO  Initializing SSL Context (SSLContextInitializer)  
-INFO  Initializing Random Number Generator... (SecureRandomFactory)  
-INFO  Random Number Generator initialization complete: NativePRNGNonBlocking (SecureRandomFactory)  
-INFO  Trust manager disabled, cacerts have not been set (ApplicationTrustManagerFactory)  
-INFO  Headless startup complete (2136 ms) (AnalyzeHeadless)  
-INFO  Class searcher loaded 58 extension points (18 false positives) (ClassSearcher)  
-INFO  HEADLESS Script Paths:
-    /opt/ghidra_11.4.2_PUBLIC/Ghidra/Features/Base/ghidra_scripts
-    /opt/ghidra_11.4.2_PUBLIC/Ghidra/Features/SwiftDemangler/ghidra_scripts
-    /opt/ghidra_11.4.2_PUBLIC/Ghidra/Debug/Debugger/ghidra_scripts
-    /opt/ghidra_11.4.2_PUBLIC/Ghidra/Processors/PIC/ghidra_scripts
-    /opt/ghidra_11.4.2_PUBLIC/Ghidra/Features/FileFormats/ghidra_scripts
-    /opt/ghidra_11.4.2_PUBLIC/Ghidra/Features/Decompiler/ghidra_scripts
-    /opt/ghidra_11.4.2_PUBLIC/Ghidra/Features/GnuDemangler/ghidra_scripts
-    /opt/ghidra_11.4.2_PUBLIC/Ghidra/Features/PyGhidra/ghidra_scripts
-    /opt/ghidra_11.4.2_PUBLIC/Ghidra/Features/WildcardAssembler/ghidra_scripts
-    /opt/ghidra_11.4.2_PUBLIC/Ghidra/Processors/Atmel/ghidra_scripts
-    /opt/ghidra_11.4.2_PUBLIC/Ghidra/Features/PDB/ghidra_scripts
-    /opt/ghidra_11.4.2_PUBLIC/Ghidra/Features/SystemEmulation/ghidra_scripts
-    /opt/ghidra_11.4.2_PUBLIC/Ghidra/Features/MicrosoftCodeAnalyzer/ghidra_scripts
-    /opt/ghidra_11.4.2_PUBLIC/Ghidra/Features/VersionTracking/ghidra_scripts
-    /opt/ghidra_11.4.2_PUBLIC/Ghidra/Features/BytePatterns/ghidra_scripts
-    /opt/ghidra_11.4.2_PUBLIC/Ghidra/Features/DecompilerDependent/ghidra_scripts
-    /opt/ghidra_11.4.2_PUBLIC/Ghidra/Processors/JVM/ghidra_scripts
-    /opt/ghidra_11.4.2_PUBLIC/Ghidra/Features/FunctionID/ghidra_scripts
-    /opt/ghidra_11.4.2_PUBLIC/Ghidra/Features/Jython/ghidra_scripts
-    /opt/ghidra_11.4.2_PUBLIC/Ghidra/Features/BSim/ghidra_scripts
-    /opt/ghidra_11.4.2_PUBLIC/Ghidra/Processors/8051/ghidra_scripts
-    /home/runner/work/TEST/TEST/ci/ghidra
-    /opt/ghidra_11.4.2_PUBLIC/Ghidra/Debug/Debugger-rmi-trace/ghidra_scripts
-    /opt/ghidra_11.4.2_PUBLIC/Ghidra/Processors/DATA/ghidra_scripts (HeadlessAnalyzer)  
-INFO  HEADLESS: execution starts (HeadlessAnalyzer)  
-INFO  Opening existing project: /tmp/ghproj/NSX4248 (HeadlessAnalyzer)  
-INFO  Opening project: /tmp/ghproj/NSX4248 (HeadlessProject)  
-ERROR Abort due to Headless analyzer error: Requested project program file(s) not found: libemucore_4248_baked.so (HeadlessAnalyzer) java.io.IOException: Requested project program file(s) not found: libemucore_4248_baked.so
-	at ghidra.app.util.headless.HeadlessAnalyzer.processNoImport(HeadlessAnalyzer.java:1381)
-	at ghidra.app.util.headless.HeadlessAnalyzer.processLocal(HeadlessAnalyzer.java:454)
-	at ghidra.app.util.headless.AnalyzeHeadless.launch(AnalyzeHeadless.java:198)
-	at ghidra.GhidraLauncher.launch(GhidraLauncher.java:81)
-	at ghidra.Ghidra.main(Ghidra.java:54)
- 
-jython rc=1
