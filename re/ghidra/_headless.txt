@@ -5,14 +5,14 @@ INFO  Using log config file: jar:file:/opt/ghidra_11.4.2_PUBLIC/Ghidra/Framework
 INFO  Using log file: /home/runner/.config/ghidra/ghidra_11.4.2_PUBLIC/application.log (LoggingInitialization)  
 INFO  Loading user preferences: /home/runner/.config/ghidra/ghidra_11.4.2_PUBLIC/preferences (Preferences)  
 INFO  Searching for classes... (ClassSearcher)  
-INFO  Class search complete (1148 ms) (ClassSearcher)  
+INFO  Class search complete (1115 ms) (ClassSearcher)  
 INFO  Initializing SSL Context (SSLContextInitializer)  
 INFO  Initializing Random Number Generator... (SecureRandomFactory)  
 INFO  Random Number Generator initialization complete: NativePRNGNonBlocking (SecureRandomFactory)  
 INFO  Trust manager disabled, cacerts have not been set (ApplicationTrustManagerFactory)  
 INFO  Starting cache cleanup: /var/tmp/runner-ghidra/fscache2 (FileCacheMaintenanceDaemon)  
 INFO  Finished cache cleanup, estimated storage used: 0 (FileCacheMaintenanceDaemon)  
-INFO  Headless startup complete (7042 ms) (AnalyzeHeadless)  
+INFO  Headless startup complete (3729 ms) (AnalyzeHeadless)  
 INFO  Class searcher loaded 58 extension points (18 false positives) (ClassSearcher)  
 INFO  HEADLESS Script Paths:
     /opt/ghidra_11.4.2_PUBLIC/Ghidra/Features/Base/ghidra_scripts
@@ -74,21 +74,21 @@ INFO  ANALYZING all memory and code: file:///tmp/core.so (HeadlessAnalyzer)
 INFO  DWARF external debug information found: ExternalDebugInfo [filename=null, crc=0, hash=2b4fe70fd5c1bc92ae3ca7a01d9e8cdd8eebd71e] (ExternalDebugFileSectionProvider)  
 INFO  Unable to find DWARF information, skipping DWARF analysis (DWARFAnalyzer)  
 ERROR Invalid PNG data at 00230e00 (PngDataType)  
-WARN  Decompiling 005fd4b0: Unable to read bytes at ram:02717480 (DecompileCallback)  
+WARN  Decompiling 005fdc90: Unable to read bytes at ram:02717880 (DecompileCallback)  
+WARN  Decompiling 006bcf50: Unable to read bytes at ram:0281e0d6 (DecompileCallback)  
+WARN  Decompiling 005fd890: Unable to read bytes at ram:02716880 (DecompileCallback)  
+WARN  Decompiling 005fced0: Unable to read bytes at ram:02718880 (DecompileCallback)  
+WARN  Decompiling 005fcce0: Unable to read bytes at ram:02718480 (DecompileCallback)  
 WARN  Decompiling 005fda90: Unable to read bytes at ram:02717080 (DecompileCallback)  
+WARN  Decompiling 005fde90: Unable to read bytes at ram:02718080 (DecompileCallback)  
+WARN  Decompiling 005fd6a0: Unable to read bytes at ram:02717c80 (DecompileCallback)  
+WARN  Decompiling 005fd2c0: Unable to read bytes at ram:02716c80 (DecompileCallback)  
+WARN  Decompiling 005fd4b0: Unable to read bytes at ram:02717480 (DecompileCallback)  
 WARN  Decompiling 005b6a90: Unable to read bytes at ram:02718080 (DecompileCallback)  
 WARN  Decompiling 005b6a90: Unable to read bytes at ram:02717880 (DecompileCallback)  
 WARN  Decompiling 005b6a90: Unable to read bytes at ram:02717080 (DecompileCallback)  
 WARN  Decompiling 005b6a90: Unable to read bytes at ram:02716880 (DecompileCallback)  
-WARN  Decompiling 005fde90: Unable to read bytes at ram:02718080 (DecompileCallback)  
 WARN  Decompiling 005fd0d0: Unable to read bytes at ram:02716480 (DecompileCallback)  
-WARN  Decompiling 005fd2c0: Unable to read bytes at ram:02716c80 (DecompileCallback)  
-WARN  Decompiling 005fd6a0: Unable to read bytes at ram:02717c80 (DecompileCallback)  
-WARN  Decompiling 005fced0: Unable to read bytes at ram:02718880 (DecompileCallback)  
-WARN  Decompiling 005fcce0: Unable to read bytes at ram:02718480 (DecompileCallback)  
-WARN  Decompiling 005fdc90: Unable to read bytes at ram:02717880 (DecompileCallback)  
-WARN  Decompiling 005fd890: Unable to read bytes at ram:02716880 (DecompileCallback)  
-WARN  Decompiling 006bcf50: Unable to read bytes at ram:0281e0d6 (DecompileCallback)  
 ERROR VarnodeContext: out of address spaces at @009d24a0 for: d31-009d24a0 (VarnodeContext)  
 ERROR VarnodeContext: out of address spaces at @00a6eeb8 for: d21-00a6eeb8 (VarnodeContext)  
 INFO  Packed database cache: /var/tmp/runner-ghidra/packed-db-cache (PackedDatabaseCache)  
@@ -96,36 +96,36 @@ INFO  Applied data type archive: generic_clib_64 (ApplyDataArchiveAnalyzer)
 ERROR VarnodeContext: out of address spaces at @00a6eeb8 for: d21-00a6eeb8 (VarnodeContext)  
 ERROR VarnodeContext: out of address spaces at @009d24a0 for: d31-009d24a0 (VarnodeContext)  
 INFO  -----------------------------------------------------
-    AARCH64 ELF PLT Thunks                     0.464 secs
-    ASCII Strings                              1.348 secs
-    Apply Data Archives                        1.124 secs
-    Basic Constant Reference Analyzer         67.150 secs
-    Call Convention ID                         4.808 secs
-    Call-Fixup Installer                       0.246 secs
-    Create Address Tables                      2.263 secs
-    Create Address Tables - One Time           1.682 secs
-    Create Function                            0.146 secs
-    DWARF                                      0.007 secs
-    Data Reference                             3.764 secs
-    Decompiler Switch Analysis               465.561 secs
-    Demangler GNU                              2.078 secs
-    Disassemble                                0.000 secs
-    Disassemble Entry Points                  22.071 secs
-    Embedded Media                             0.133 secs
+    AARCH64 ELF PLT Thunks                     0.417 secs
+    ASCII Strings                              1.329 secs
+    Apply Data Archives                        0.932 secs
+    Basic Constant Reference Analyzer         71.895 secs
+    Call Convention ID                         4.780 secs
+    Call-Fixup Installer                       0.285 secs
+    Create Address Tables                      2.138 secs
+    Create Address Tables - One Time           1.744 secs
+    Create Function                            0.159 secs
+    DWARF                                      0.008 secs
+    Data Reference                             3.767 secs
+    Decompiler Switch Analysis               496.823 secs
+    Demangler GNU                              2.260 secs
+    Disassemble                                0.001 secs
+    Disassemble Entry Points                  23.784 secs
+    Embedded Media                             0.141 secs
     External Entry References                  0.014 secs
-    Function Start Search                      0.392 secs
-    Function Start Search After Code           0.430 secs
-    Function Start Search After Data           0.336 secs
+    Function Start Search                      0.393 secs
+    Function Start Search After Code           0.467 secs
+    Function Start Search After Data           0.343 secs
     Function Start Search delayed - One Time   0.001 secs
-    GCC Exception Handlers                    21.903 secs
-    Non-Returning Functions - Discovered       4.621 secs
+    GCC Exception Handlers                    24.243 secs
+    Non-Returning Functions - Discovered       5.034 secs
     Non-Returning Functions - Known            0.013 secs
-    Reference                                  4.732 secs
-    Shared Return Calls                        3.266 secs
-    Stack                                     58.950 secs
-    Subroutine References                      1.387 secs
+    Reference                                  4.868 secs
+    Shared Return Calls                        3.398 secs
+    Stack                                     62.601 secs
+    Subroutine References                      1.485 secs
 -----------------------------------------------------
-     Total Time   668 secs
+     Total Time   713 secs
 -----------------------------------------------------
  (AutoAnalysisManager)  
 INFO  REPORT: Analysis succeeded for file: file:///tmp/core.so (HeadlessAnalyzer)  
@@ -138,11 +138,11 @@ INFO  SCRIPT: /home/runner/work/TEST/TEST/ci/ghidra/nsx_decompile_targets.py (He
 [nsx] data 0xB969C4: bez xrefu (tabulka indexovana registrem?)
 [nsx] SCRIPT CHYBA:
 Traceback (most recent call last):
-  File "/home/runner/work/TEST/TEST/ci/ghidra/nsx_decompile_targets.py", line 195, in <module>
+  File "/home/runner/work/TEST/TEST/ci/ghidra/nsx_decompile_targets.py", line 196, in <module>
     main()
   File "/home/runner/work/TEST/TEST/ci/ghidra/nsx_decompile_targets.py", line 121, in main
-    cur = findBytes(textblock, Y, textblock.getEnd(), 1)
-TypeError: findBytes(): 1st arg can't be coerced to ghidra.program.model.address.AddressSetView, ghidra.program.model.address.Address
+    cur = findBytes(AddressSet(textblock.getStart(), textblock.getEnd()),
+TypeError: findBytes(): 3rd arg can't be coerced to int
 
 INFO  ANALYZING changes made by post scripts: file:///tmp/core.so (HeadlessAnalyzer)  
 INFO  REPORT: Post-analysis succeeded for file: file:///tmp/core.so (HeadlessAnalyzer)  
